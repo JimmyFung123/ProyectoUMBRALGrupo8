@@ -10,8 +10,8 @@
         "dependencies": {
           "FluentAssertions": "7.0.0",
           "Microsoft.NET.Test.Sdk": "17.12.0",
+          "MissionService": "1.0.0",
           "Moq": "4.20.72",
-          "UMBRAL_Back-end.Src": "1.0.0",
           "xunit": "2.9.3"
         },
         "runtime": {
@@ -56,34 +56,34 @@
           }
         }
       },
-      "MassTransit/9.0.1": {
+      "MassTransit/8.3.6": {
         "dependencies": {
-          "MassTransit.Abstractions": "9.0.1"
+          "MassTransit.Abstractions": "8.3.6"
         },
         "runtime": {
-          "lib/net10.0/MassTransit.dll": {
-            "assemblyVersion": "9.0.1.0",
-            "fileVersion": "9.0.1.0"
+          "lib/net9.0/MassTransit.dll": {
+            "assemblyVersion": "8.3.6.0",
+            "fileVersion": "8.3.6.0"
           }
         }
       },
-      "MassTransit.Abstractions/9.0.1": {
+      "MassTransit.Abstractions/8.3.6": {
         "runtime": {
-          "lib/net10.0/MassTransit.Abstractions.dll": {
-            "assemblyVersion": "9.0.1.0",
-            "fileVersion": "9.0.1.0"
+          "lib/net9.0/MassTransit.Abstractions.dll": {
+            "assemblyVersion": "8.3.6.0",
+            "fileVersion": "8.3.6.0"
           }
         }
       },
-      "MassTransit.RabbitMQ/9.0.1": {
+      "MassTransit.RabbitMQ/8.3.6": {
         "dependencies": {
-          "MassTransit": "9.0.1",
-          "RabbitMQ.Client": "7.2.0"
+          "MassTransit": "8.3.6",
+          "RabbitMQ.Client": "7.0.0"
         },
         "runtime": {
-          "lib/net10.0/MassTransit.RabbitMqTransport.dll": {
-            "assemblyVersion": "9.0.1.0",
-            "fileVersion": "9.0.1.0"
+          "lib/net9.0/MassTransit.RabbitMqTransport.dll": {
+            "assemblyVersion": "8.3.6.0",
+            "fileVersion": "8.3.6.0"
           }
         }
       },
@@ -544,11 +544,11 @@
           }
         }
       },
-      "RabbitMQ.Client/7.2.0": {
+      "RabbitMQ.Client/7.0.0": {
         "runtime": {
           "lib/net8.0/RabbitMQ.Client.dll": {
             "assemblyVersion": "7.0.0.0",
-            "fileVersion": "7.2.0.0"
+            "fileVersion": "7.0.0.0"
           }
         }
       },
@@ -697,20 +697,29 @@
           }
         }
       },
-      "UMBRAL_Back-end.Src/1.0.0": {
+      "MissionService/1.0.0": {
         "dependencies": {
           "FluentValidation": "12.1.1",
           "FluentValidation.DependencyInjectionExtensions": "12.1.1",
-          "MassTransit": "9.0.1",
-          "MassTransit.RabbitMQ": "9.0.1",
+          "MassTransit": "8.3.6",
+          "MassTransit.RabbitMQ": "8.3.6",
           "MediatR": "14.1.0",
           "Microsoft.AspNetCore.Authentication.JwtBearer": "10.0.5",
           "Microsoft.AspNetCore.OpenApi": "10.0.5",
           "Microsoft.EntityFrameworkCore": "10.0.5",
-          "Npgsql.EntityFrameworkCore.PostgreSQL": "10.0.1"
+          "Npgsql.EntityFrameworkCore.PostgreSQL": "10.0.1",
+          "UMBRAL.Contracts": "1.0.0"
         },
         "runtime": {
-          "UMBRAL_Back-end.Src.dll": {
+          "MissionService.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "UMBRAL.Contracts/1.0.0": {
+        "runtime": {
+          "UMBRAL.Contracts.dll": {
             "assemblyVersion": "1.0.0.0",
             "fileVersion": "1.0.0.0"
           }
@@ -752,26 +761,26 @@
       "path": "fluentvalidation.dependencyinjectionextensions/12.1.1",
       "hashPath": "fluentvalidation.dependencyinjectionextensions.12.1.1.nupkg.sha512"
     },
-    "MassTransit/9.0.1": {
+    "MassTransit/8.3.6": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-wYMV/TX9AQqG9ybG7i97Et2rjPgIYXmYr3RV5k7ogr/BvPnAF8ohcmeESoTYSgQFWDi2lurKx57uPg1MJ9R0jw==",
-      "path": "masstransit/9.0.1",
-      "hashPath": "masstransit.9.0.1.nupkg.sha512"
+      "sha512": "sha512-iQQ02dUJuWlpNai3eDN7WmnstvmB2LAD8YN1i8OFT5BaNpGYYg3v0US3S6f1Zz7us+NnGHm6csg25Ak3z0H7Xg==",
+      "path": "masstransit/8.3.6",
+      "hashPath": "masstransit.8.3.6.nupkg.sha512"
     },
-    "MassTransit.Abstractions/9.0.1": {
+    "MassTransit.Abstractions/8.3.6": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-Rh3Bj/8VOdaUat2Zepbe1cfqQ+20Pqd9zoUme8w50qXISZ9p6yuxBXNNBazS16TN6Kfd4FLxuMUtjY928Rxqdw==",
-      "path": "masstransit.abstractions/9.0.1",
-      "hashPath": "masstransit.abstractions.9.0.1.nupkg.sha512"
+      "sha512": "sha512-F3R3EFPvUvpsiebnijmpvZ4IhSEcqkEJdrhlFuTOjzIUnMRYBgki/oDfFWj57Ki4b9yq0nilt4Q5bk11pC4ygg==",
+      "path": "masstransit.abstractions/8.3.6",
+      "hashPath": "masstransit.abstractions.8.3.6.nupkg.sha512"
     },
-    "MassTransit.RabbitMQ/9.0.1": {
+    "MassTransit.RabbitMQ/8.3.6": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-/ZfrA97Y9vlTkaRAekJrPm/bLj20RJbZLvxrphCHg1aVKWK4v9RiMj2g4TFFYHybaOQk+L5kNxAS8bZ3WQg1Iw==",
-      "path": "masstransit.rabbitmq/9.0.1",
-      "hashPath": "masstransit.rabbitmq.9.0.1.nupkg.sha512"
+      "sha512": "sha512-gR67/f8reudNVUf0yDdUBuDLBFjDdqCSF8K3XaIlpHSRmmCUTBVPVrt0h65/Zty00okBHzcbUX32bLZeQL51sw==",
+      "path": "masstransit.rabbitmq/8.3.6",
+      "hashPath": "masstransit.rabbitmq.8.3.6.nupkg.sha512"
     },
     "MediatR/14.1.0": {
       "type": "package",
@@ -934,12 +943,12 @@
       "path": "npgsql.entityframeworkcore.postgresql/10.0.1",
       "hashPath": "npgsql.entityframeworkcore.postgresql.10.0.1.nupkg.sha512"
     },
-    "RabbitMQ.Client/7.2.0": {
+    "RabbitMQ.Client/7.0.0": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-PPQ7cF7lwbhqC4up6en1bTUZlz06YqQwJecOJzsguTtyhNA7oL5uNDZIx/h6ZfcyPZV4V3DYKSCxfm4RUFLcbA==",
-      "path": "rabbitmq.client/7.2.0",
-      "hashPath": "rabbitmq.client.7.2.0.nupkg.sha512"
+      "sha512": "sha512-8YJz22mOSMtkbIVuVSz2HbJwbpKwRoXQ1uqbczDUt1w1Ds8dxFs6dkV/oZ8AlTmkErZjtQelHv+oBu52ud00WA==",
+      "path": "rabbitmq.client/7.0.0",
+      "hashPath": "rabbitmq.client.7.0.0.nupkg.sha512"
     },
     "System.Configuration.ConfigurationManager/6.0.0": {
       "type": "package",
@@ -1025,7 +1034,12 @@
       "path": "xunit.extensibility.execution/2.9.3",
       "hashPath": "xunit.extensibility.execution.2.9.3.nupkg.sha512"
     },
-    "UMBRAL_Back-end.Src/1.0.0": {
+    "MissionService/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "UMBRAL.Contracts/1.0.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

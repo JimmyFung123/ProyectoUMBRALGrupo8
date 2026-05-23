@@ -12,7 +12,7 @@ interface Props {
   onChanged: () => void;
 }
 
-// ── Shared helpers ────────────────────────────────────────────────────────────
+// ── Utilidades compartidas ────────────────────────────────────────────────────
 
 const STAGE_TYPE_LABELS: Record<string, string> = {
   Trivia: 'Trivia',
@@ -42,7 +42,7 @@ export function StageManager({ mission, stages, onChanged }: Props) {
   const [adding, setAdding] = useState(false);
   const [deleteError, setDeleteError] = useState<Record<string, string>>({});
 
-  // ── Add form handlers ──────────────────────────────────────────────────────
+  // ── Manejadores del formulario de agregar ─────────────────────────────────
 
   function setAddField<K extends keyof AddStagePayload>(key: K, value: AddStagePayload[K]) {
     setAddForm(f => ({ ...f, [key]: value }));
@@ -101,7 +101,7 @@ export function StageManager({ mission, stages, onChanged }: Props) {
     }
   }
 
-  // ── Delete handler ─────────────────────────────────────────────────────────
+  // ── Manejador de eliminación ───────────────────────────────────────────────
 
   async function handleDelete(stage: StageDetail) {
     if (!confirm(`¿Eliminar la etapa "${stage.title}"?`)) return;
@@ -114,7 +114,7 @@ export function StageManager({ mission, stages, onChanged }: Props) {
     }
   }
 
-  // ── Locked state ───────────────────────────────────────────────────────────
+  // ── Estado bloqueado ───────────────────────────────────────────────────────
 
   if (isLocked) {
     return (
@@ -137,7 +137,7 @@ export function StageManager({ mission, stages, onChanged }: Props) {
 
   return (
     <div>
-      {/* ── Existing stages ─────────────────────────────────────── */}
+      {/* ── Etapas existentes ───────────────────────────────────── */}
       {stages.length > 0 && (
         <StageList
           stages={stages}
@@ -152,7 +152,7 @@ export function StageManager({ mission, stages, onChanged }: Props) {
         />
       )}
 
-      {/* ── Add stage form ──────────────────────────────────────── */}
+      {/* ── Formulario para agregar etapa ──────────────────────── */}
       <form onSubmit={handleAdd} style={{ marginTop: '0.75rem', padding: '0.75rem', background: '#f0f4ff', borderRadius: 6, border: '1px dashed #c5cae9' }}>
         <strong style={{ display: 'block', marginBottom: '0.5rem', color: '#3949ab' }}>+ Agregar etapa</strong>
 
@@ -296,7 +296,7 @@ function StageRow({ stage, missionId, isLocked, onEdit, onDelete, deleteError, o
           }}>
             {STAGE_TYPE_LABELS[stage.type]}
           </span>
-          <span style={{ marginLeft: '0.4rem', fontSize: '0.75rem', color: '#888' }}>{stage.baseScore} pts</span>
+          <span style={{ marginLeft: '0.4rem', fontSize: '0.75rem', color: '#888' }}>{stage.baseScore} ptos.</span>
         </div>
         <div style={{ display: 'flex', gap: '0.4rem' }}>
           <button type="button" onClick={() => setShowClues(s => !s)}

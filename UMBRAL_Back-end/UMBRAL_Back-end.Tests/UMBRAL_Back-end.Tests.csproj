@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\UMBRAL_Back-end.Src\UMBRAL_Back-end.Src.csproj" />
+    <ProjectReference Include="..\MissionService\MissionService.csproj" />
   </ItemGroup>
 
 </Project>

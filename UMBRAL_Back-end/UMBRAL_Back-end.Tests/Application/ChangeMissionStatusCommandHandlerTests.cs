@@ -1,6 +1,7 @@
 namespace UMBRAL_Back_end.Tests.Application;
 
 using FluentAssertions;
+using MassTransit;
 using MediatR;
 using Moq;
 using UMBRAL_Back_end.Application.Missions.Commands.ChangeMissionStatus;
@@ -12,16 +13,18 @@ public class ChangeMissionStatusCommandHandlerTests
 {
     private readonly Mock<IMissionRepository> _repositoryMock = new();
     private readonly Mock<IPublisher> _publisherMock = new();
+    private readonly Mock<IPublishEndpoint> _busMock = new();
     private readonly ChangeMissionStatusCommandHandler _handler;
 
     public ChangeMissionStatusCommandHandlerTests()
     {
-        _handler = new ChangeMissionStatusCommandHandler(_repositoryMock.Object, _publisherMock.Object);
+        _handler = new ChangeMissionStatusCommandHandler(_repositoryMock.Object, _publisherMock.Object, _busMock.Object);
     }
 
     [Fact]
-    public async Task Handle_ActivateMission_WithNoStages_ReturnsNoStagesError()
+    public async Task Handle_ActivateMission_Succeeds()
     {
+        // Stage validation is owned by StageService — MissionService activates without checking stages.
         var mission = Mission.Create("Test Mission", "desc", DifficultyLevel.Medium, 60).Value;
 
         _repositoryMock
@@ -36,11 +39,13 @@ public class ChangeMissionStatusCommandHandlerTests
 
         var result = await _handler.Handle(command, default);
 
-        result.IsFailure.Should().BeTrue();
-        result.Error.Should().Be(MissionErrors.NoStages);
+        result.IsSuccess.Should().BeTrue();
+        mission.Status.Should().Be(MissionStatus.Active);
 
-        _repositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Mission>(), default), Times.Never);
-        _publisherMock.Verify(p => p.Publish(It.IsAny<INotification>(), default), Times.Never);
+        _repositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Mission>(), default), Times.Once);
+        _publisherMock.Verify(
+            p => p.Publish(It.IsAny<MissionActivatedEvent>(), default),
+            Times.Once);
     }
 
     [Fact]

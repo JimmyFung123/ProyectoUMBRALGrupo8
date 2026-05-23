@@ -5,7 +5,7 @@ import { useRef, useState } from 'react';
 import { Circle, MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet';
 import { QRCodeCanvas } from 'qrcode.react';
 
-// ── Fix Leaflet marker icons broken by bundlers ──────────────────────────────
+// ── Corrección de íconos de Leaflet rotos por el bundler ─────────────────────
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)['_getIconUrl'];
 L.Icon.Default.mergeOptions({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -13,7 +13,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// ── Tipos ────────────────────────────────────────────────────────────────────
 export interface TreasureHuntData {
   latitude: number;
   longitude: number;
@@ -28,16 +28,16 @@ interface Props {
   initialQrCode?: string;
 }
 
-// ── LocationPicker: lives inside <MapContainer> ───────────────────────────────
+// ── LocationPicker: vive dentro de <MapContainer> ────────────────────────────
 function LocationPicker({ onPick, disabled }: { onPick: (ll: LatLng) => void; disabled: boolean }) {
   useMapEvents({ click: (e) => { if (!disabled) onPick(e.latlng); } });
   return null;
 }
 
-// ── Default center: UCAB, Caracas ────────────────────────────────────────────
+// ── Centro por defecto: UCAB, Caracas ────────────────────────────────────────
 const DEFAULT_CENTER: [number, number] = [10.4866, -66.8543];
 
-// ── Component ────────────────────────────────────────────────────────────────
+// ── Componente ───────────────────────────────────────────────────────────────
 export function TreasureHuntConfig({
   onChange,
   disabled = false,
@@ -52,7 +52,7 @@ export function TreasureHuntConfig({
   );
   const [radius, setRadius] = useState(50);
 
-  // If editing an existing stage, preserve its QR code; otherwise generate a new one
+  // Si se edita una etapa existente, se conserva su código QR; de lo contrario se genera uno nuevo
   const [qrCode] = useState<string>(() => initialQrCode ?? crypto.randomUUID());
 
   const qrWrapperRef = useRef<HTMLDivElement>(null);
@@ -74,13 +74,13 @@ export function TreasureHuntConfig({
   return (
     <div className="rounded-xl border border-amber-200 bg-white overflow-hidden text-left mt-3">
 
-      {/* Header */}
+      {/* Encabezado */}
       <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border-b border-amber-200">
         <span className="text-base">🗺️</span>
         <span className="font-semibold text-amber-900 text-sm">Configuración del Tesoro</span>
       </div>
 
-      {/* Body: mapa + panel QR */}
+      {/* Cuerpo: mapa + panel QR */}
       <div className="grid grid-cols-1 md:grid-cols-[1fr_280px]">
 
         {/* ── Mapa ───────────────────────────────────────────────── */}
@@ -187,7 +187,7 @@ export function TreasureHuntConfig({
   );
 }
 
-// ── Checklist item ────────────────────────────────────────────────────────────
+// ── Ítem del checklist ────────────────────────────────────────────────────────
 function CheckItem({ done, label }: { done: boolean; label: string }) {
   return (
     <div className={`flex items-center gap-2 ${done ? 'text-green-600' : 'text-slate-400'}`}>

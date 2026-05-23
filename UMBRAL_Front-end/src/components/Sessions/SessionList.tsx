@@ -36,7 +36,7 @@ export function SessionList() {
         missionService.getAll(),
       ]);
       setSessions(s);
-      // Only active missions can host sessions
+      // Solo las misiones activas pueden tener sesiones
       setMissions(m.filter(m => m.status === 'Active'));
     } catch {
       setError('No se pudieron cargar las sesiones. Intentá de nuevo.');
@@ -60,7 +60,7 @@ export function SessionList() {
     }
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // ── Renderizado ───────────────────────────────────────────────────────────
 
   return (
     <div style={{ maxWidth: 860, margin: '0 auto', padding: '2rem', fontFamily: 'sans-serif' }}>

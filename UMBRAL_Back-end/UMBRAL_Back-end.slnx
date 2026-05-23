@@ -1,4 +1,8 @@
 <Solution>
-  <Project Path="UMBRAL_Back-end.Src/UMBRAL_Back-end.Src.csproj" />
+  <Project Path="MissionService/MissionService.csproj" />
   <Project Path="UMBRAL_Back-end.Tests/UMBRAL_Back-end.Tests.csproj" />
+  <Project Path="Shared/UMBRAL.Contracts/UMBRAL.Contracts.csproj" />
+  <Project Path="SessionService/SessionService.csproj" />
+  <Project Path="StageService/StageService.csproj" />
+  <Project Path="ClueService/ClueService.csproj" />
 </Solution>

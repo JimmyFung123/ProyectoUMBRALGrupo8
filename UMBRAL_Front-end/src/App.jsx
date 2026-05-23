@@ -12,7 +12,7 @@ function App() {
 
   return (
     <div style={{ textAlign: 'left' }}>
-      {/* ── Tab bar ── */}
+      {/* ── Barra de pestañas ── */}
       <nav style={{
         display: 'flex', gap: '0.25rem',
         padding: '0.5rem 1rem',
@@ -39,7 +39,7 @@ function App() {
         ))}
       </nav>
 
-      {/* ── Content ── */}
+      {/* ── Contenido ── */}
       {activeTab === 'missions' && <MissionList />}
       {activeTab === 'sessions' && <SessionList />}
     </div>

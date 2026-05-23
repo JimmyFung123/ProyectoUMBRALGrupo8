@@ -1,0 +1,18 @@
+C:\Users\Windows\AppData\Local\Temp\mission-build\UMBRAL.Contracts.deps.json
+C:\Users\Windows\AppData\Local\Temp\mission-build\UMBRAL.Contracts.dll
+C:\Users\Windows\AppData\Local\Temp\mission-build\UMBRAL.Contracts.pdb
+C:\Users\Windows\AppData\Local\Temp\mission-build2\UMBRAL.Contracts.deps.json
+C:\Users\Windows\AppData\Local\Temp\mission-build2\UMBRAL.Contracts.dll
+C:\Users\Windows\AppData\Local\Temp\mission-build2\UMBRAL.Contracts.pdb
+C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\Shared\UMBRAL.Contracts\bin\Debug\net10.0\UMBRAL.Contracts.deps.json
+C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\Shared\UMBRAL.Contracts\bin\Debug\net10.0\UMBRAL.Contracts.dll
+C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\Shared\UMBRAL.Contracts\bin\Debug\net10.0\UMBRAL.Contracts.pdb
+C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\Shared\UMBRAL.Contracts\obj\Debug\net10.0\UMBRAL.Contracts.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\Shared\UMBRAL.Contracts\obj\Debug\net10.0\UMBRAL.Contracts.AssemblyInfoInputs.cache
+C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\Shared\UMBRAL.Contracts\obj\Debug\net10.0\UMBRAL.Contracts.AssemblyInfo.cs
+C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\Shared\UMBRAL.Contracts\obj\Debug\net10.0\UMBRAL.Contracts.csproj.CoreCompileInputs.cache
+C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\Shared\UMBRAL.Contracts\obj\Debug\net10.0\UMBRAL.Contracts.sourcelink.json
+C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\Shared\UMBRAL.Contracts\obj\Debug\net10.0\UMBRAL.Contracts.dll
+C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\Shared\UMBRAL.Contracts\obj\Debug\net10.0\refint\UMBRAL.Contracts.dll
+C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\Shared\UMBRAL.Contracts\obj\Debug\net10.0\UMBRAL.Contracts.pdb
+C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\Shared\UMBRAL.Contracts\obj\Debug\net10.0\ref\UMBRAL.Contracts.dll

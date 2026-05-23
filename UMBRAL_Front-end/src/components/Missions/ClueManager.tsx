@@ -6,7 +6,7 @@ import { Circle, MapContainer, Marker, TileLayer, useMapEvents } from 'react-lea
 import { clueService } from '../../services/clueService';
 import type { AddCluePayload, Clue, UpdateCluePayload } from '../../types/clue';
 
-// ── Fix Leaflet marker icons broken by bundlers ──────────────────────────────
+// ── Corrección de íconos de Leaflet rotos por el bundler ─────────────────────
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)['_getIconUrl'];
 L.Icon.Default.mergeOptions({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -14,10 +14,10 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-// ── Default map center: UCAB Caracas ─────────────────────────────────────────
+// ── Centro del mapa por defecto: UCAB Caracas ────────────────────────────────
 const DEFAULT_CENTER: [number, number] = [10.4866, -66.8543];
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+// ── Tipos ─────────────────────────────────────────────────────────────────────
 
 interface Props {
   missionId: string;
@@ -153,7 +153,7 @@ export function ClueManager({ missionId, stageId, stageType, isLocked }: Props) 
 
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Add form state
+  // Estado del formulario de agregar
   const [addOrder, setAddOrder] = useState(1);
   const [addContent, setAddContent] = useState('');
   const [addGeo, setAddGeo] = useState<ClueGeoData | null>(null);
@@ -232,7 +232,7 @@ export function ClueManager({ missionId, stageId, stageType, isLocked }: Props) 
         🗝️ Pistas
       </strong>
 
-      {/* ── Clue list ────────────────────────────────────────── */}
+      {/* ── Lista de pistas ──────────────────────────────────── */}
       {clues.length === 0 && (
         <p style={{ fontSize: '0.82rem', color: '#a78bfa', marginBottom: '0.5rem' }}>Sin pistas aún.</p>
       )}
@@ -261,7 +261,7 @@ export function ClueManager({ missionId, stageId, stageType, isLocked }: Props) 
         ))}
       </ul>
 
-      {/* ── Add form ─────────────────────────────────────────── */}
+      {/* ── Formulario de agregar ────────────────────────────── */}
       {!isLocked && (
         <form onSubmit={handleAdd} style={{ background: '#ede9fe', borderRadius: 6, padding: '0.75rem', border: '1px dashed #c4b5fd' }}>
           <strong style={{ display: 'block', marginBottom: '0.5rem', color: '#6d28d9', fontSize: '0.85rem' }}>

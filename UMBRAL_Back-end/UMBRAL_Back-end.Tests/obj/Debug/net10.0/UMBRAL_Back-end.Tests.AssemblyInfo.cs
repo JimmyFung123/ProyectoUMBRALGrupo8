@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("UMBRAL_Back-end.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+993ed77e154de7790953112ef675720ec10c84ed")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+826fc8db36d29fce8336e5250802f6dc780c5855")]
 [assembly: System.Reflection.AssemblyProductAttribute("UMBRAL_Back-end.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("UMBRAL_Back-end.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

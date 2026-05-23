@@ -1,6 +1,7 @@
 namespace UMBRAL_Back_end.Tests.Application;
 
 using FluentAssertions;
+using MassTransit;
 using MediatR;
 using Moq;
 using UMBRAL_Back_end.Application.Missions.Commands.CreateMission;
@@ -12,11 +13,12 @@ public class CreateMissionCommandHandlerTests
 {
     private readonly Mock<IMissionRepository> _repositoryMock = new();
     private readonly Mock<IPublisher> _publisherMock = new();
+    private readonly Mock<IPublishEndpoint> _busMock = new();
     private readonly CreateMissionCommandHandler _handler;
 
     public CreateMissionCommandHandlerTests()
     {
-        _handler = new CreateMissionCommandHandler(_repositoryMock.Object, _publisherMock.Object);
+        _handler = new CreateMissionCommandHandler(_repositoryMock.Object, _publisherMock.Object, _busMock.Object);
     }
 
     [Fact]

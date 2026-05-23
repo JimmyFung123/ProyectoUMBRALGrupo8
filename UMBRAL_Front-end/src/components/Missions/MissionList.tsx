@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
 import { missionService } from '../../services/missionService';
+import { stageService } from '../../services/stageService';
 import {
   DIFFICULTY_LABELS,
   type ApiError,
   type CreateMissionPayload,
   type DifficultyLevel,
   type Mission,
-  type MissionDetail,
   type UpdateMissionPayload,
 } from '../../types/mission';
+import type { Stage } from '../../types/stage';
 import { StageManager } from './StageManager';
 
 const DIFFICULTY_OPTIONS: DifficultyLevel[] = ['Easy', 'Medium', 'Hard'];
@@ -38,13 +39,13 @@ export function MissionList() {
 
   const [statusError, setStatusError] = useState<Record<string, string>>({});
 
-  // Which mission panels are expanded
+  // Qué paneles de misión están expandidos
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  // Full mission detail (with stages), keyed by mission ID
-  const [details, setDetails] = useState<Record<string, MissionDetail>>({});
-  const [detailLoading, setDetailLoading] = useState<Record<string, boolean>>({});
+  // Etapas por ID de misión (cargadas desde StageService)
+  const [stagesByMission, setStagesByMission] = useState<Record<string, Stage[]>>({});
+  const [stagesLoading, setStagesLoading] = useState<Record<string, boolean>>({});
 
-  // Which mission is being edited
+  // Qué misión se está editando
   const [editingMissionId, setEditingMissionId] = useState<string | null>(null);
 
   useEffect(() => { loadMissions(); }, []);
@@ -61,13 +62,13 @@ export function MissionList() {
     }
   }
 
-  async function loadDetail(missionId: string) {
-    setDetailLoading(prev => ({ ...prev, [missionId]: true }));
+  async function loadStages(missionId: string) {
+    setStagesLoading(prev => ({ ...prev, [missionId]: true }));
     try {
-      const detail = await missionService.getById(missionId);
-      setDetails(prev => ({ ...prev, [missionId]: detail }));
+      const stages = await stageService.getByMission(missionId);
+      setStagesByMission(prev => ({ ...prev, [missionId]: stages }));
     } finally {
-      setDetailLoading(prev => ({ ...prev, [missionId]: false }));
+      setStagesLoading(prev => ({ ...prev, [missionId]: false }));
     }
   }
 
@@ -93,7 +94,7 @@ export function MissionList() {
       await missionService.changeStatus(mission.id, activate);
       await loadMissions();
       // Refresh detail if this mission is expanded
-      if (expandedId === mission.id) await loadDetail(mission.id);
+      if (expandedId === mission.id) await loadStages(mission.id);
     } catch (err) {
       setStatusError(prev => ({
         ...prev,
@@ -107,15 +108,15 @@ export function MissionList() {
       setExpandedId(null);
     } else {
       setExpandedId(missionId);
-      if (!details[missionId]) loadDetail(missionId);
+      loadStages(missionId);
     }
   }
 
   async function handleStageChanged(missionId: string) {
-    await Promise.all([loadMissions(), loadDetail(missionId)]);
+    await Promise.all([loadMissions(), loadStages(missionId)]);
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // ── Renderizado ───────────────────────────────────────────────────────────
 
   return (
     <div style={{ maxWidth: 860, margin: '0 auto', padding: '2rem', fontFamily: 'sans-serif' }}>
@@ -219,12 +220,12 @@ export function MissionList() {
               <div style={{ borderTop: '1px solid #eee', padding: '0.75rem 1rem', background: '#fafafa' }}>
                 <strong style={{ fontSize: '0.9rem' }}>Etapas</strong>
 
-                {detailLoading[mission.id] ? (
+                {stagesLoading[mission.id] ? (
                   <p style={{ color: '#888', fontSize: '0.85rem' }}>Cargando etapas…</p>
                 ) : (
                   <StageManager
                     mission={mission}
-                    stages={details[mission.id]?.stages ?? []}
+                    stages={stagesByMission[mission.id] ?? []}
                     onChanged={() => handleStageChanged(mission.id)}
                   />
                 )}
