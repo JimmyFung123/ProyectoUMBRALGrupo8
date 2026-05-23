@@ -3,14 +3,17 @@ namespace UMBRAL_Back_end.Application.Missions.Commands.AddStageToMission;
 using MediatR;
 using UMBRAL_Back_end.Domain.Common;
 using UMBRAL_Back_end.Domain.Missions;
+using UMBRAL_Back_end.Domain.Missions.Events;
 
 public class AddStageToMissionCommandHandler : IRequestHandler<AddStageToMissionCommand, Result<Guid>>
 {
     private readonly IMissionRepository _repository;
+    private readonly IPublisher _publisher;
 
-    public AddStageToMissionCommandHandler(IMissionRepository repository)
+    public AddStageToMissionCommandHandler(IMissionRepository repository, IPublisher publisher)
     {
         _repository = repository;
+        _publisher = publisher;
     }
 
     public async Task<Result<Guid>> Handle(AddStageToMissionCommand request, CancellationToken cancellationToken)
@@ -50,9 +53,14 @@ public class AddStageToMissionCommandHandler : IRequestHandler<AddStageToMission
 
         // Explicitly register the new stage so EF Core tracks it as Added,
         // regardless of change-tracking behavior for private backing fields.
-        await _repository.AddStageAsync(addResult.Value, cancellationToken);
+        var stage = addResult.Value;
+        await _repository.AddStageAsync(stage, cancellationToken);
         await _repository.SaveChangesAsync(cancellationToken);
 
-        return Result.Success(addResult.Value.Id);
+        await _publisher.Publish(
+            new MissionStageAddedEvent(mission.Id, stage.Id, stage.Title, stage.Type.ToString(), stage.Order, DateTime.UtcNow),
+            cancellationToken);
+
+        return Result.Success(stage.Id);
     }
 }

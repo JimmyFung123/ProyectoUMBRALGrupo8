@@ -10,6 +10,7 @@ public class AppDbContext : DbContext
     public DbSet<Mission> Missions => Set<Mission>();
     public DbSet<MissionStage> MissionStages => Set<MissionStage>();
     public DbSet<TriviaOption> TriviaOptions => Set<TriviaOption>();
+    public DbSet<Clue> Clues => Set<Clue>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

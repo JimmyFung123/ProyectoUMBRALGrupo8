@@ -22,6 +22,39 @@ namespace UMBRAL_Back_end.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("UMBRAL_Back_end.Domain.Missions.Clue", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Content")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer");
+
+                    b.Property<double?>("RadiusMeters")
+                        .HasColumnType("double precision");
+
+                    b.Property<Guid>("StageId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StageId", "Order")
+                        .IsUnique();
+
+                    b.ToTable("Clues", (string)null);
+                });
+
             modelBuilder.Entity("UMBRAL_Back_end.Domain.Missions.Mission", b =>
                 {
                     b.Property<Guid>("Id")
@@ -139,6 +172,15 @@ namespace UMBRAL_Back_end.Migrations
                     b.ToTable("TriviaOptions", (string)null);
                 });
 
+            modelBuilder.Entity("UMBRAL_Back_end.Domain.Missions.Clue", b =>
+                {
+                    b.HasOne("UMBRAL_Back_end.Domain.Missions.MissionStage", null)
+                        .WithMany("Clues")
+                        .HasForeignKey("StageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("UMBRAL_Back_end.Domain.Missions.MissionStage", b =>
                 {
                     b.HasOne("UMBRAL_Back_end.Domain.Missions.Mission", null)
@@ -164,6 +206,8 @@ namespace UMBRAL_Back_end.Migrations
 
             modelBuilder.Entity("UMBRAL_Back_end.Domain.Missions.MissionStage", b =>
                 {
+                    b.Navigation("Clues");
+
                     b.Navigation("Options");
                 });
 #pragma warning restore 612, 618

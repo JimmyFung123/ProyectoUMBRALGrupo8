@@ -16,14 +16,24 @@ public class MissionRepository : IMissionRepository
         => await _context.Missions
             .Include(m => m.Stages)
                 .ThenInclude(s => s.Options)
+            .Include(m => m.Stages)
+                .ThenInclude(s => s.Clues)
             .FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
 
-    public async Task<IReadOnlyList<Mission>> GetAllAsync(CancellationToken cancellationToken = default)
-        => await _context.Missions
+    public async Task<IReadOnlyList<Mission>> GetAllAsync(MissionStatus? status = null, CancellationToken cancellationToken = default)
+    {
+        var query = _context.Missions
             .Include(m => m.Stages)
                 .ThenInclude(s => s.Options)
-            .OrderBy(m => m.Name)
-            .ToListAsync(cancellationToken);
+            .Include(m => m.Stages)
+                .ThenInclude(s => s.Clues)
+            .AsQueryable();
+
+        if (status.HasValue)
+            query = query.Where(m => m.Status == status.Value);
+
+        return await query.OrderBy(m => m.Name).ToListAsync(cancellationToken);
+    }
 
     public async Task<bool> ExistsWithNameAsync(string name, Guid? excludeId = null, CancellationToken cancellationToken = default)
         => await _context.Missions
@@ -73,6 +83,15 @@ public class MissionRepository : IMissionRepository
             .ToList();
 
         await _context.TriviaOptions.AddRangeAsync(newOptions, cancellationToken);
+    }
+
+    public async Task AddClueAsync(Clue clue, CancellationToken cancellationToken = default)
+        => await _context.Clues.AddAsync(clue, cancellationToken);
+
+    public Task RemoveClueAsync(Clue clue, CancellationToken cancellationToken = default)
+    {
+        _context.Clues.Remove(clue);
+        return Task.CompletedTask;
     }
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)

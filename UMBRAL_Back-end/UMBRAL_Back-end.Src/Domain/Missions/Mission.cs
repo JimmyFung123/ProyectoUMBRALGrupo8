@@ -192,4 +192,82 @@ public class Mission
         UpdatedAt = DateTime.UtcNow;
         return Result.Success();
     }
+
+    /// <summary>
+    /// Adds a clue to a stage.
+    /// RB-14: Blocked if mission is Active OR has sessions in progress.
+    /// </summary>
+    public Result<Clue> AddClue(
+        Guid stageId,
+        bool hasActiveSessions,
+        int order,
+        string? content,
+        double? latitude,
+        double? longitude,
+        double? radiusMeters)
+    {
+        if (Status == MissionStatus.Active || hasActiveSessions)
+            return Result.Failure<Clue>(ClueErrors.StageLocked);
+
+        var stage = _stages.FirstOrDefault(s => s.Id == stageId);
+        if (stage is null)
+            return Result.Failure<Clue>(StageErrors.NotFound);
+
+        var result = stage.AddClue(order, content, latitude, longitude, radiusMeters);
+        if (result.IsFailure)
+            return result;
+
+        UpdatedAt = DateTime.UtcNow;
+        return result;
+    }
+
+    /// <summary>
+    /// Updates an existing clue in a stage.
+    /// RB-14: Blocked if mission is Active OR has sessions in progress.
+    /// </summary>
+    public Result<Clue> UpdateClue(
+        Guid stageId,
+        Guid clueId,
+        bool hasActiveSessions,
+        int order,
+        string? content,
+        double? latitude,
+        double? longitude,
+        double? radiusMeters)
+    {
+        if (Status == MissionStatus.Active || hasActiveSessions)
+            return Result.Failure<Clue>(ClueErrors.StageLocked);
+
+        var stage = _stages.FirstOrDefault(s => s.Id == stageId);
+        if (stage is null)
+            return Result.Failure<Clue>(StageErrors.NotFound);
+
+        var result = stage.UpdateClue(clueId, order, content, latitude, longitude, radiusMeters);
+        if (result.IsFailure)
+            return result;
+
+        UpdatedAt = DateTime.UtcNow;
+        return result;
+    }
+
+    /// <summary>
+    /// Removes a clue from a stage.
+    /// RB-14: Blocked if mission is Active OR has sessions in progress.
+    /// </summary>
+    public Result<Clue> RemoveClue(Guid stageId, Guid clueId, bool hasActiveSessions)
+    {
+        if (Status == MissionStatus.Active || hasActiveSessions)
+            return Result.Failure<Clue>(ClueErrors.StageLocked);
+
+        var stage = _stages.FirstOrDefault(s => s.Id == stageId);
+        if (stage is null)
+            return Result.Failure<Clue>(StageErrors.NotFound);
+
+        var result = stage.RemoveClue(clueId);
+        if (result.IsFailure)
+            return result;
+
+        UpdatedAt = DateTime.UtcNow;
+        return result;
+    }
 }

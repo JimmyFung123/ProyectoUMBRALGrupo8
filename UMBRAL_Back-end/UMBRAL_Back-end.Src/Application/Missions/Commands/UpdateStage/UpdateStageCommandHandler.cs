@@ -3,14 +3,17 @@ namespace UMBRAL_Back_end.Application.Missions.Commands.UpdateStage;
 using MediatR;
 using UMBRAL_Back_end.Domain.Common;
 using UMBRAL_Back_end.Domain.Missions;
+using UMBRAL_Back_end.Domain.Missions.Events;
 
 public class UpdateStageCommandHandler : IRequestHandler<UpdateStageCommand, Result>
 {
     private readonly IMissionRepository _repository;
+    private readonly IPublisher _publisher;
 
-    public UpdateStageCommandHandler(IMissionRepository repository)
+    public UpdateStageCommandHandler(IMissionRepository repository, IPublisher publisher)
     {
         _repository = repository;
+        _publisher = publisher;
     }
 
     public async Task<Result> Handle(UpdateStageCommand request, CancellationToken cancellationToken)
@@ -48,6 +51,8 @@ public class UpdateStageCommandHandler : IRequestHandler<UpdateStageCommand, Res
         if (updateResult.IsFailure)
             return Result.Failure(updateResult.Error);
 
+        var updatedStage = updateResult.Value;
+
         // Replace Trivia options if provided
         if (stage.Type == StageType.Trivia && request.Options is not null)
         {
@@ -56,6 +61,16 @@ public class UpdateStageCommandHandler : IRequestHandler<UpdateStageCommand, Res
         }
 
         await _repository.SaveChangesAsync(cancellationToken);
+
+        if (updatedStage.Type == StageType.Trivia)
+            await _publisher.Publish(
+                new TriviaStageConfigure(mission.Id, updatedStage.Id, updatedStage.Question ?? "", updatedStage.Options.Count, DateTime.UtcNow),
+                cancellationToken);
+        else if (updatedStage.Type == StageType.TreasureHunt)
+            await _publisher.Publish(
+                new TreasureStageConfigure(mission.Id, updatedStage.Id, updatedStage.Latitude!.Value, updatedStage.Longitude!.Value, DateTime.UtcNow),
+                cancellationToken);
+
         return Result.Success();
     }
 }

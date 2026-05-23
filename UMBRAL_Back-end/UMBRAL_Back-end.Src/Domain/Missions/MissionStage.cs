@@ -5,6 +5,7 @@ using UMBRAL_Back_end.Domain.Common;
 public class MissionStage
 {
     private List<TriviaOption> _options = new();
+    private List<Clue> _clues = new();
 
     public Guid Id { get; private set; }
     public Guid MissionId { get; private set; }
@@ -16,6 +17,7 @@ public class MissionStage
     // Trivia-specific (null for TreasureHunt)
     public string? Question { get; private set; }
     public IReadOnlyCollection<TriviaOption> Options => _options.AsReadOnly();
+    public IReadOnlyCollection<Clue> Clues => _clues.AsReadOnly();
 
     // TreasureHunt-specific (null for Trivia) — RB-20
     public double? Latitude { get; private set; }
@@ -137,5 +139,58 @@ public class MissionStage
         Longitude = longitude;
         QrCode = qrCode?.Trim();
         return Result.Success();
+    }
+
+    /// <summary>Creates and adds a clue to this stage. Validates duplicate order within the stage.</summary>
+    internal Result<Clue> AddClue(
+        int order,
+        string? content,
+        double? latitude,
+        double? longitude,
+        double? radiusMeters)
+    {
+        if (_clues.Any(c => c.Order == order))
+            return Result.Failure<Clue>(ClueErrors.DuplicateClueOrder);
+
+        var clueResult = Clue.Create(Id, Type, order, content, latitude, longitude, radiusMeters);
+        if (clueResult.IsFailure)
+            return clueResult;
+
+        _clues.Add(clueResult.Value);
+        return clueResult;
+    }
+
+    /// <summary>Updates an existing clue. Validates duplicate order, excluding the clue itself.</summary>
+    internal Result<Clue> UpdateClue(
+        Guid clueId,
+        int order,
+        string? content,
+        double? latitude,
+        double? longitude,
+        double? radiusMeters)
+    {
+        var clue = _clues.FirstOrDefault(c => c.Id == clueId);
+        if (clue is null)
+            return Result.Failure<Clue>(ClueErrors.NotFound);
+
+        if (_clues.Any(c => c.Id != clueId && c.Order == order))
+            return Result.Failure<Clue>(ClueErrors.DuplicateClueOrder);
+
+        var updateResult = clue.UpdateFields(Type, order, content, latitude, longitude, radiusMeters);
+        if (updateResult.IsFailure)
+            return Result.Failure<Clue>(updateResult.Error);
+
+        return Result.Success(clue);
+    }
+
+    /// <summary>Removes a clue from this stage.</summary>
+    internal Result<Clue> RemoveClue(Guid clueId)
+    {
+        var clue = _clues.FirstOrDefault(c => c.Id == clueId);
+        if (clue is null)
+            return Result.Failure<Clue>(ClueErrors.NotFound);
+
+        _clues.Remove(clue);
+        return Result.Success(clue);
     }
 }

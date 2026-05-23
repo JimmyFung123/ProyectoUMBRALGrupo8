@@ -3,14 +3,17 @@ namespace UMBRAL_Back_end.Application.Missions.Commands.UpdateMission;
 using MediatR;
 using UMBRAL_Back_end.Domain.Common;
 using UMBRAL_Back_end.Domain.Missions;
+using UMBRAL_Back_end.Domain.Missions.Events;
 
 public class UpdateMissionCommandHandler : IRequestHandler<UpdateMissionCommand, Result>
 {
     private readonly IMissionRepository _repository;
+    private readonly IPublisher _publisher;
 
-    public UpdateMissionCommandHandler(IMissionRepository repository)
+    public UpdateMissionCommandHandler(IMissionRepository repository, IPublisher publisher)
     {
         _repository = repository;
+        _publisher = publisher;
     }
 
     public async Task<Result> Handle(UpdateMissionCommand request, CancellationToken cancellationToken)
@@ -31,6 +34,10 @@ public class UpdateMissionCommandHandler : IRequestHandler<UpdateMissionCommand,
 
         await _repository.UpdateAsync(mission, cancellationToken);
         await _repository.SaveChangesAsync(cancellationToken);
+
+        await _publisher.Publish(
+            new MissionUpdatedEvent(mission.Id, mission.Name, mission.Difficulty.ToString(), mission.MaxDuration, mission.UpdatedAt!.Value),
+            cancellationToken);
 
         return Result.Success();
     }

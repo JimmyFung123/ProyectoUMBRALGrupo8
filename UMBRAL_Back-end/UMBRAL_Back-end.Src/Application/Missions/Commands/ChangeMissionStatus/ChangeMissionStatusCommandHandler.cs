@@ -34,9 +34,14 @@ public class ChangeMissionStatusCommandHandler : IRequestHandler<ChangeMissionSt
         await _repository.UpdateAsync(mission, cancellationToken);
         await _repository.SaveChangesAsync(cancellationToken);
 
-        await _publisher.Publish(
-            new MissionStatusChangedEvent(mission.Id, mission.Status.ToString(), mission.UpdatedAt!.Value),
-            cancellationToken);
+        if (request.Activate)
+            await _publisher.Publish(
+                new MissionActivatedEvent(mission.Id, mission.Name, mission.Stages.Count, DateTime.UtcNow),
+                cancellationToken);
+        else
+            await _publisher.Publish(
+                new MissionDeactivatedEvent(mission.Id, mission.Name, DateTime.UtcNow),
+                cancellationToken);
 
         return Result.Success();
     }

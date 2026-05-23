@@ -51,5 +51,14 @@ public class MissionStageConfiguration : IEntityTypeConfiguration<MissionStage>
 
         builder.Navigation(s => s.Options)
             .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        // Clues navigation
+        builder.HasMany(s => s.Clues)
+            .WithOne()
+            .HasForeignKey(c => c.StageId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Navigation(s => s.Clues)
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
     }
 }

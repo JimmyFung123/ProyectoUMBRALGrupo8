@@ -3,6 +3,7 @@ import { stageService } from '../../services/stageService';
 import type { AddStagePayload, ApiError, StageType, UpdateStagePayload } from '../../types/stage';
 import type { Mission, StageDetail } from '../../types/mission';
 import { TreasureHuntConfig, type TreasureHuntData } from './TreasureHuntConfig';
+import { ClueManager } from './ClueManager';
 
 interface Props {
   mission: Mission;
@@ -244,6 +245,7 @@ function StageList({ stages, missionId, isLocked, editingId, onEditStart, onEdit
           ) : (
             <StageRow
               stage={stage}
+              missionId={missionId}
               isLocked={isLocked}
               onEdit={() => onEditStart?.(stage.id)}
               onDelete={() => onDelete?.(stage)}
@@ -258,14 +260,16 @@ function StageList({ stages, missionId, isLocked, editingId, onEditStart, onEdit
 
 // ── StageRow ─────────────────────────────────────────────────────────────────
 
-function StageRow({ stage, isLocked, onEdit, onDelete, deleteError }: {
+function StageRow({ stage, missionId, isLocked, onEdit, onDelete, deleteError }: {
   stage: StageDetail;
+  missionId: string;
   isLocked: boolean;
   onEdit: () => void;
   onDelete: () => void;
   deleteError?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [showClues, setShowClues] = useState(false);
 
   return (
     <div>
@@ -282,6 +286,10 @@ function StageRow({ stage, isLocked, onEdit, onDelete, deleteError }: {
           <span style={{ marginLeft: '0.4rem', fontSize: '0.75rem', color: '#888' }}>{stage.baseScore} pts</span>
         </div>
         <div style={{ display: 'flex', gap: '0.4rem' }}>
+          <button type="button" onClick={() => setShowClues(s => !s)}
+            style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}>
+            🗝️ Pistas {showClues ? '▲' : ''}
+          </button>
           <button type="button" onClick={() => setExpanded(e => !e)}
             style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}>
             {expanded ? '▲' : '▼'} Datos
@@ -301,6 +309,17 @@ function StageRow({ stage, isLocked, onEdit, onDelete, deleteError }: {
         <p style={{ color: 'red', fontSize: '0.8rem', margin: '0 0.75rem 0.4rem', padding: '0.3rem 0.5rem', background: '#ffebee', borderRadius: 4 }}>
           {deleteError}
         </p>
+      )}
+
+      {showClues && (
+        <div style={{ padding: '0 0.75rem' }}>
+          <ClueManager
+            missionId={missionId}
+            stageId={stage.id}
+            stageType={stage.type}
+            isLocked={isLocked}
+          />
+        </div>
       )}
 
       {expanded && (
