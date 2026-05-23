@@ -28,6 +28,14 @@ export const sessionService = {
     return fetch(`${BASE_URL}/sessions/${id}`).then(handleResponse<SessionDetail>);
   },
 
+  update(id: string, payload: { name: string; scheduledAt: string | null }): Promise<boolean> {
+    return fetch(`${BASE_URL}/sessions/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).then(handleResponse<boolean>);
+  },
+
   create(payload: CreateSessionPayload): Promise<string> {
     return fetch(`${BASE_URL}/sessions`, {
       method: 'POST',

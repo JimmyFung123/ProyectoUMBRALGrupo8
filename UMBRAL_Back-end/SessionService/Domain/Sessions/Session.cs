@@ -28,4 +28,20 @@ public class Session
             ScheduledAt = scheduledAt
         });
     }
+
+    /// <summary>
+    /// Updates name and scheduled date. Only allowed when the session is still Pending.
+    /// </summary>
+    public Result<bool> Update(string name, DateTime? scheduledAt)
+    {
+        if (Status != SessionStatus.Pending)
+            return Result.Failure<bool>(SessionErrors.CannotEditNonPendingSession);
+
+        if (string.IsNullOrWhiteSpace(name))
+            return Result.Failure<bool>(SessionErrors.InvalidName);
+
+        Name = name.Trim();
+        ScheduledAt = scheduledAt;
+        return Result.Success(true);
+    }
 }

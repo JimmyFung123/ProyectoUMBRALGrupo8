@@ -3,8 +3,10 @@ namespace SessionService.Adapter.Controllers;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using SessionService.Application.Sessions.Commands.CreateSession;
+using SessionService.Application.Sessions.Commands.UpdateSession;
 using SessionService.Application.Sessions.Queries.GetSessionDetail;
 using SessionService.Application.Sessions.Queries.GetSessions;
+using SessionService.Domain.Sessions;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -31,6 +33,26 @@ public class SessionsController : ControllerBase
         return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
     }
 
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> Update(
+        Guid id,
+        [FromBody] UpdateSessionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(
+            new UpdateSessionCommand(id, request.Name, request.ScheduledAt),
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return result.Error.Code == SessionErrors.NotFound.Code
+                ? NotFound(result.Error)
+                : BadRequest(result.Error);
+        }
+
+        return Ok(result.Value);
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create(
         [FromBody] CreateSessionRequest request,
@@ -47,3 +69,4 @@ public class SessionsController : ControllerBase
 }
 
 public record CreateSessionRequest(Guid MissionId, string Name, DateTime? ScheduledAt);
+public record UpdateSessionRequest(string Name, DateTime? ScheduledAt);
