@@ -30,6 +30,19 @@ public class Session
     }
 
     /// <summary>
+    /// Cancels the session. Only allowed while still Pending.
+    /// Enrolled teams must be removed by the caller before persisting.
+    /// </summary>
+    public Result<bool> Cancel()
+    {
+        if (Status != SessionStatus.Pending)
+            return Result.Failure<bool>(SessionErrors.CannotCancelNonPendingSession);
+
+        Status = SessionStatus.Cancelled;
+        return Result.Success(true);
+    }
+
+    /// <summary>
     /// Updates name and scheduled date. Only allowed when the session is still Pending.
     /// </summary>
     public Result<bool> Update(string name, DateTime? scheduledAt)

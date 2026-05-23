@@ -28,6 +28,11 @@ export const sessionService = {
     return fetch(`${BASE_URL}/sessions/${id}`).then(handleResponse<SessionDetail>);
   },
 
+  cancel(id: string): Promise<boolean> {
+    return fetch(`${BASE_URL}/sessions/${id}`, { method: 'DELETE' })
+      .then(handleResponse<boolean>);
+  },
+
   update(id: string, payload: { name: string; scheduledAt: string | null }): Promise<boolean> {
     return fetch(`${BASE_URL}/sessions/${id}`, {
       method: 'PUT',

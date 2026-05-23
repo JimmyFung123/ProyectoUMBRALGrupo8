@@ -20,6 +20,14 @@ public class TeamRepository : ITeamRepository
     public async Task AddAsync(Team team, CancellationToken cancellationToken = default)
         => await _context.Teams.AddAsync(team, cancellationToken);
 
+    public async Task DeleteBySessionIdAsync(Guid sessionId, CancellationToken cancellationToken = default)
+    {
+        var teams = await _context.Teams
+            .Where(t => t.SessionId == sessionId)
+            .ToListAsync(cancellationToken);
+        _context.Teams.RemoveRange(teams);
+    }
+
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => await _context.SaveChangesAsync(cancellationToken);
 }

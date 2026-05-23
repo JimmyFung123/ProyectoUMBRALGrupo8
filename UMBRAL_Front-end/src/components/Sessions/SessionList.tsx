@@ -39,6 +39,9 @@ export function SessionList({ onViewDetail }: Props) {
   const [editError, setEditError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Estado de cancelación
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+
   useEffect(() => {
     loadAll();
   }, []);
@@ -73,6 +76,27 @@ export function SessionList({ onViewDetail }: Props) {
       setCreateError((err as ApiError)?.message ?? 'No se pudo crear la sesión.');
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function handleCancel(session: Session) {
+    const confirmed = window.confirm(
+      `¿Cancelar la sesión "${session.name}"?\n\nSe eliminarán todos los equipos registrados. Esta acción no se puede deshacer.`
+    );
+    if (!confirmed) return;
+
+    setCancellingId(session.id);
+    try {
+      await sessionService.cancel(session.id);
+      await loadAll();
+    } catch (err) {
+      const apiErr = err as { code?: string; message?: string };
+      const msg = apiErr?.code === 'Session.CannotCancel'
+        ? 'No se puede cancelar una sesión que ya ha comenzado.'
+        : (apiErr?.message ?? 'No se pudo cancelar la sesión.');
+      window.alert(msg);
+    } finally {
+      setCancellingId(null);
     }
   }
 
@@ -181,6 +205,7 @@ export function SessionList({ onViewDetail }: Props) {
           const missionName = missions.find(m => m.id === session.missionId)?.name ?? session.missionId;
           const isPending = session.status === 'Pending';
           const isEditing = editingId === session.id;
+          const isCancelling = cancellingId === session.id;
 
           return (
             <li
@@ -214,7 +239,7 @@ export function SessionList({ onViewDetail }: Props) {
                   <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
                     <button
                       onClick={() => startEdit(session)}
-                      disabled={!isPending}
+                      disabled={!isPending || isCancelling}
                       title={isPending ? 'Editar sesión' : 'Solo se pueden editar sesiones pendientes'}
                       style={{
                         cursor: isPending ? 'pointer' : 'not-allowed',
@@ -223,6 +248,19 @@ export function SessionList({ onViewDetail }: Props) {
                       }}
                     >
                       Editar
+                    </button>
+                    <button
+                      onClick={() => handleCancel(session)}
+                      disabled={!isPending || isCancelling}
+                      title={isPending ? 'Cancelar sesión' : 'Solo se pueden cancelar sesiones pendientes'}
+                      style={{
+                        cursor: isPending ? 'pointer' : 'not-allowed',
+                        padding: '0.3rem 0.8rem',
+                        opacity: isPending ? 1 : 0.45,
+                        color: isPending ? '#c0392b' : undefined,
+                      }}
+                    >
+                      {isCancelling ? 'Cancelando…' : 'Cancelar'}
                     </button>
                     <button
                       onClick={() => onViewDetail(session.id)}

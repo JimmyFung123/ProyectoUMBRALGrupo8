@@ -2,6 +2,7 @@ namespace SessionService.Adapter.Controllers;
 
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using SessionService.Application.Sessions.Commands.CancelSession;
 using SessionService.Application.Sessions.Commands.CreateSession;
 using SessionService.Application.Sessions.Commands.UpdateSession;
 using SessionService.Application.Sessions.Queries.GetSessionDetail;
@@ -31,6 +32,21 @@ public class SessionsController : ControllerBase
     {
         var result = await _sender.Send(new GetSessionDetailQuery(id), cancellationToken);
         return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Cancel(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new CancelSessionCommand(id), cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return result.Error.Code == SessionErrors.NotFound.Code
+                ? NotFound(result.Error)
+                : BadRequest(result.Error);
+        }
+
+        return Ok(result.Value);
     }
 
     [HttpPut("{id:guid}")]
