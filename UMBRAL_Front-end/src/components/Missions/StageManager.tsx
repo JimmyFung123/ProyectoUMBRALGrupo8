@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { stageService } from '../../services/stageService';
+import { autoReleaseService } from '../../services/autoReleaseService';
 import type { AddStagePayload, ApiError, StageType, UpdateStagePayload } from '../../types/stage';
 import type { Mission, StageDetail } from '../../types/mission';
 import { TreasureHuntConfig, type TreasureHuntData } from './TreasureHuntConfig';
@@ -147,6 +148,7 @@ export function StageManager({ mission, stages, onChanged }: Props) {
           onEditDone={() => { setEditingId(null); onChanged(); }}
           onDelete={handleDelete}
           deleteError={deleteError}
+          onChanged={onChanged}
         />
       )}
 
@@ -233,9 +235,10 @@ interface StageListProps {
   onEditDone?: () => void;
   onDelete?: (stage: StageDetail) => void;
   deleteError?: Record<string, string>;
+  onChanged: () => void;
 }
 
-function StageList({ stages, missionId, isLocked, editingId, onEditStart, onEditDone, onDelete, deleteError }: StageListProps) {
+function StageList({ stages, missionId, isLocked, editingId, onEditStart, onEditDone, onDelete, deleteError, onChanged }: StageListProps) {
   return (
     <ul style={{ listStyle: 'none', padding: 0, margin: '0.5rem 0 0' }}>
       {stages.map(stage => (
@@ -250,6 +253,7 @@ function StageList({ stages, missionId, isLocked, editingId, onEditStart, onEdit
               onEdit={() => onEditStart?.(stage.id)}
               onDelete={() => onDelete?.(stage)}
               deleteError={deleteError?.[stage.id]}
+              onChanged={onChanged}
             />
           )}
         </li>
@@ -260,16 +264,25 @@ function StageList({ stages, missionId, isLocked, editingId, onEditStart, onEdit
 
 // ── StageRow ─────────────────────────────────────────────────────────────────
 
-function StageRow({ stage, missionId, isLocked, onEdit, onDelete, deleteError }: {
+function StageRow({ stage, missionId, isLocked, onEdit, onDelete, deleteError, onChanged }: {
   stage: StageDetail;
   missionId: string;
   isLocked: boolean;
   onEdit: () => void;
   onDelete: () => void;
   deleteError?: string;
+  onChanged: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [showClues, setShowClues] = useState(false);
+  const [showAutoRelease, setShowAutoRelease] = useState(false);
+
+  const autoReleaseLabel = (() => {
+    const parts: string[] = [];
+    if (stage.autoReleaseTimeMinutes != null) parts.push(`cada ${stage.autoReleaseTimeMinutes} min`);
+    if (stage.autoReleaseMaxAttempts != null) parts.push(`max ${stage.autoReleaseMaxAttempts} intentos`);
+    return parts.length > 0 ? parts.join(' · ') : null;
+  })();
 
   return (
     <div>
@@ -289,6 +302,10 @@ function StageRow({ stage, missionId, isLocked, onEdit, onDelete, deleteError }:
           <button type="button" onClick={() => setShowClues(s => !s)}
             style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}>
             🗝️ Pistas {showClues ? '▲' : ''}
+          </button>
+          <button type="button" onClick={() => setShowAutoRelease(s => !s)}
+            style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}>
+            ⚙️ Regla {showAutoRelease ? '▲' : ''}
           </button>
           <button type="button" onClick={() => setExpanded(e => !e)}
             style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}>
@@ -322,6 +339,20 @@ function StageRow({ stage, missionId, isLocked, onEdit, onDelete, deleteError }:
         </div>
       )}
 
+      {showAutoRelease && (
+        <div style={{ padding: '0 0.75rem 0.5rem' }}>
+          <AutoRulePanel
+            missionId={missionId}
+            stageId={stage.id}
+            stageTitle={stage.title}
+            currentTimeMinutes={stage.autoReleaseTimeMinutes}
+            currentMaxAttempts={stage.autoReleaseMaxAttempts}
+            isLocked={isLocked}
+            onChanged={onChanged}
+          />
+        </div>
+      )}
+
       {expanded && (
         <div style={{ padding: '0.5rem 0.75rem', borderTop: '1px solid #eee', fontSize: '0.85rem', background: '#fff' }}>
           {stage.type === 'Trivia' && (
@@ -345,8 +376,134 @@ function StageRow({ stage, missionId, isLocked, onEdit, onDelete, deleteError }:
               <p style={{ wordBreak: 'break-all' }}><strong>QR:</strong> <code style={{ fontSize: '0.75rem' }}>{stage.qrCode}</code></p>
             </>
           )}
+          {autoReleaseLabel && (
+            <p style={{ marginTop: '0.4rem', color: '#5c35a8', fontSize: '0.82rem' }}>
+              ⚙️ Auto-liberación: {autoReleaseLabel}
+            </p>
+          )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── AutoRulePanel ─────────────────────────────────────────────────────────────
+
+interface AutoRulePanelProps {
+  missionId: string;
+  stageId: string;
+  stageTitle: string;
+  currentTimeMinutes: number | null;
+  currentMaxAttempts: number | null;
+  isLocked: boolean;
+  onChanged: () => void;
+}
+
+function AutoRulePanel({
+  missionId,
+  stageId,
+  currentTimeMinutes,
+  currentMaxAttempts,
+  isLocked,
+  onChanged,
+}: AutoRulePanelProps) {
+  const [timeMinutes, setTimeMinutes] = useState(currentTimeMinutes != null ? String(currentTimeMinutes) : '');
+  const [maxAttempts, setMaxAttempts] = useState(currentMaxAttempts != null ? String(currentMaxAttempts) : '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  const panelStyle: React.CSSProperties = {
+    marginTop: '0.5rem',
+    padding: '0.75rem',
+    background: '#f3f0ff',
+    borderRadius: 6,
+    border: '1px solid #d1c4e9',
+    fontSize: '0.85rem',
+  };
+
+  const labelStyle: React.CSSProperties = { display: 'block', fontSize: '0.78rem', marginBottom: '0.2rem', color: '#555' };
+  const inputStyle: React.CSSProperties = { padding: '0.3rem 0.5rem', width: '100%', borderRadius: 4, border: '1px solid #ccc' };
+  const rowStyle: React.CSSProperties = { display: 'flex', gap: '0.75rem', marginBottom: '0.5rem', flexWrap: 'wrap' };
+
+  if (isLocked) {
+    return (
+      <div style={panelStyle}>
+        <strong style={{ color: '#5c35a8' }}>⚙️ Liberación automática de pistas</strong>
+        <hr style={{ margin: '0.4rem 0', borderColor: '#d1c4e9' }} />
+        {currentTimeMinutes == null && currentMaxAttempts == null ? (
+          <p style={{ color: '#888', margin: 0 }}>Sin regla automática configurada.</p>
+        ) : (
+          <p style={{ margin: 0 }}>
+            {currentTimeMinutes != null && <span>Tiempo: <strong>{currentTimeMinutes} min</strong>&nbsp;&nbsp;</span>}
+            {currentMaxAttempts != null && <span>Intentos: <strong>{currentMaxAttempts}</strong></span>}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setSaving(true);
+    const parsedTime = timeMinutes.trim() !== '' ? parseInt(timeMinutes, 10) : null;
+    const parsedAttempts = maxAttempts.trim() !== '' ? parseInt(maxAttempts, 10) : null;
+    try {
+      await autoReleaseService.configure(missionId, stageId, {
+        timeMinutes: parsedTime,
+        maxAttempts: parsedAttempts,
+      });
+      setSuccess(true);
+      setTimeout(() => {
+        setSuccess(false);
+        onChanged();
+      }, 2000);
+    } catch (err) {
+      setError((err as { message?: string })?.message ?? 'No se pudo guardar la regla.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div style={panelStyle}>
+      <strong style={{ color: '#5c35a8' }}>⚙️ Liberación automática de pistas</strong>
+      <hr style={{ margin: '0.4rem 0', borderColor: '#d1c4e9' }} />
+      <form onSubmit={handleSave}>
+        <div style={rowStyle}>
+          <div style={{ flex: 1, minWidth: 140 }}>
+            <label style={labelStyle}>Tiempo (minutos):</label>
+            <input
+              type="number"
+              min={1}
+              value={timeMinutes}
+              onChange={e => setTimeMinutes(e.target.value)}
+              placeholder="Sin límite"
+              style={inputStyle}
+            />
+          </div>
+          <div style={{ flex: 1, minWidth: 140 }}>
+            <label style={labelStyle}>Intentos fallidos:</label>
+            <input
+              type="number"
+              min={1}
+              value={maxAttempts}
+              onChange={e => setMaxAttempts(e.target.value)}
+              placeholder="Sin límite"
+              style={inputStyle}
+            />
+          </div>
+        </div>
+        <p style={{ fontSize: '0.75rem', color: '#777', margin: '0 0 0.5rem' }}>
+          Dejar vacío = sin regla automática
+        </p>
+        {error && <p style={{ color: 'red', margin: '0.3rem 0', fontSize: '0.82rem' }}>{error}</p>}
+        {success && <p style={{ color: '#2e7d32', margin: '0.3rem 0', fontSize: '0.82rem' }}>✅ Regla guardada</p>}
+        <button type="submit" disabled={saving} style={{ fontSize: '0.82rem', padding: '0.3rem 0.75rem' }}>
+          {saving ? 'Guardando…' : 'Guardar regla'}
+        </button>
+      </form>
     </div>
   );
 }

@@ -10,6 +10,7 @@ using UMBRAL_Back_end.Application.Missions.Commands.RemoveClue;
 using UMBRAL_Back_end.Application.Missions.Commands.RemoveStage;
 using UMBRAL_Back_end.Application.Missions.Commands.UpdateClue;
 using UMBRAL_Back_end.Application.Missions.Commands.UpdateMission;
+using UMBRAL_Back_end.Application.Missions.Commands.ConfigureAutoReleaseRule;
 using UMBRAL_Back_end.Application.Missions.Commands.UpdateStage;
 using UMBRAL_Back_end.Application.Missions.Queries.GetCluesByStage;
 using UMBRAL_Back_end.Application.Missions.Queries.GetMissionById;
@@ -127,6 +128,18 @@ public class MissionsController : ControllerBase
         return result.IsSuccess ? NoContent() : BadRequest(result.Error);
     }
 
+    [HttpPatch("{missionId:guid}/stages/{stageId:guid}/auto-release")]
+    public async Task<IActionResult> ConfigureAutoRelease(
+        Guid missionId, Guid stageId,
+        [FromBody] ConfigureAutoReleaseRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(
+            new ConfigureAutoReleaseRuleCommand(missionId, stageId, request.TimeMinutes, request.MaxAttempts),
+            cancellationToken);
+        return result.IsSuccess ? NoContent() : BadRequest(result.Error);
+    }
+
     // ── Clues ────────────────────────────────────────────────────────────────
 
     [HttpGet("{missionId:guid}/stages/{stageId:guid}/clues")]
@@ -198,6 +211,8 @@ public record UpdateStageRequest(
     string? QrCode);
 
 public record OptionRequest(string Text, bool IsCorrect);
+
+public record ConfigureAutoReleaseRequest(int? TimeMinutes, int? MaxAttempts);
 
 public record AddClueRequest(
     int Order,

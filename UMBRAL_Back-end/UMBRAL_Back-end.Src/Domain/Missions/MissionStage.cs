@@ -24,6 +24,10 @@ public class MissionStage
     public double? Longitude { get; private set; }
     public string? QrCode { get; private set; }
 
+    // Auto-release rule (HU-4) — null means no automatic release configured
+    public int? AutoReleaseTimeMinutes { get; private set; }
+    public int? AutoReleaseMaxAttempts { get; private set; }
+
     private MissionStage() { }
 
     /// <summary>
@@ -181,6 +185,21 @@ public class MissionStage
             return Result.Failure<Clue>(updateResult.Error);
 
         return Result.Success(clue);
+    }
+
+    /// <summary>
+    /// Configures the automatic clue release rule for this stage.
+    /// Passing null for both values clears any existing rule.
+    /// </summary>
+    internal Result SetAutoRelease(int? timeMinutes, int? maxAttempts)
+    {
+        if (timeMinutes.HasValue && timeMinutes.Value < 1)
+            return Result.Failure(StageErrors.InvalidAutoReleaseTime);
+        if (maxAttempts.HasValue && maxAttempts.Value < 1)
+            return Result.Failure(StageErrors.InvalidAutoReleaseAttempts);
+        AutoReleaseTimeMinutes = timeMinutes;
+        AutoReleaseMaxAttempts = maxAttempts;
+        return Result.Success();
     }
 
     /// <summary>Removes a clue from this stage.</summary>

@@ -38,6 +38,8 @@ export interface StageDetail {
   latitude: number | null;
   longitude: number | null;
   qrCode: string | null;
+  autoReleaseTimeMinutes: number | null;
+  autoReleaseMaxAttempts: number | null;
 }
 
 export interface MissionDetail extends Omit<Mission, 'stageCount'> {

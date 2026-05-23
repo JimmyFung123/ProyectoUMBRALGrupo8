@@ -251,6 +251,21 @@ public class Mission
     }
 
     /// <summary>
+    /// Configures the automatic clue release rule for a stage. RB-14: blocked if Active or has sessions.
+    /// </summary>
+    public Result ConfigureAutoRelease(Guid stageId, bool hasActiveSessions, int? timeMinutes, int? maxAttempts)
+    {
+        if (Status == MissionStatus.Active || hasActiveSessions)
+            return Result.Failure(StageErrors.MissionLockedForEditing);
+
+        var stage = _stages.FirstOrDefault(s => s.Id == stageId);
+        if (stage is null)
+            return Result.Failure(StageErrors.NotFound);
+
+        return stage.SetAutoRelease(timeMinutes, maxAttempts);
+    }
+
+    /// <summary>
     /// Removes a clue from a stage.
     /// RB-14: Blocked if mission is Active OR has sessions in progress.
     /// </summary>

@@ -18,6 +18,8 @@ export interface Stage {
   latitude: number | null;
   longitude: number | null;
   qrCode: string | null;
+  autoReleaseTimeMinutes: number | null;
+  autoReleaseMaxAttempts: number | null;
 }
 
 export interface AddStagePayload {
@@ -30,6 +32,8 @@ export interface AddStagePayload {
   latitude?: number;
   longitude?: number;
   qrCode?: string;
+  autoReleaseTimeMinutes?: number;
+  autoReleaseMaxAttempts?: number;
 }
 
 export interface UpdateStagePayload {
@@ -41,6 +45,8 @@ export interface UpdateStagePayload {
   latitude?: number;
   longitude?: number;
   qrCode?: string;
+  autoReleaseTimeMinutes?: number;
+  autoReleaseMaxAttempts?: number;
 }
 
 export interface ApiError {

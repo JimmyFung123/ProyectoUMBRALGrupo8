@@ -86,7 +86,7 @@ public class ChangeMissionStatusCommandHandlerTests
 
         _repositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Mission>(), default), Times.Once);
         _publisherMock.Verify(
-            p => p.Publish(It.IsAny<MissionStatusChangedEvent>(), default),
+            p => p.Publish(It.IsAny<MissionDeactivatedEvent>(), default),
             Times.Once);
     }
 

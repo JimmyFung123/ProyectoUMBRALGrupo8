@@ -1,6 +1,7 @@
 namespace UMBRAL_Back_end.Tests.Application;
 
 using FluentAssertions;
+using MediatR;
 using Moq;
 using UMBRAL_Back_end.Application.Missions.Commands.AddStageToMission;
 using UMBRAL_Back_end.Application.Missions.Commands.UpdateStage;
@@ -10,11 +11,12 @@ using Xunit;
 public class UpdateStageCommandHandlerTests
 {
     private readonly Mock<IMissionRepository> _repositoryMock = new();
+    private readonly Mock<IPublisher> _publisherMock = new();
     private readonly UpdateStageCommandHandler _handler;
 
     public UpdateStageCommandHandlerTests()
     {
-        _handler = new UpdateStageCommandHandler(_repositoryMock.Object);
+        _handler = new UpdateStageCommandHandler(_repositoryMock.Object, _publisherMock.Object);
     }
 
     // ── Helper ───────────────────────────────────────────────────────────────────

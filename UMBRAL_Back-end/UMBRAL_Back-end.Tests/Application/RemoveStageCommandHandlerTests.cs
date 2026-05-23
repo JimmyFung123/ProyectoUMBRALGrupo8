@@ -1,6 +1,7 @@
 namespace UMBRAL_Back_end.Tests.Application;
 
 using FluentAssertions;
+using MediatR;
 using Moq;
 using UMBRAL_Back_end.Application.Missions.Commands.RemoveStage;
 using UMBRAL_Back_end.Domain.Missions;
@@ -9,11 +10,12 @@ using Xunit;
 public class RemoveStageCommandHandlerTests
 {
     private readonly Mock<IMissionRepository> _repositoryMock = new();
+    private readonly Mock<IPublisher> _publisherMock = new();
     private readonly RemoveStageCommandHandler _handler;
 
     public RemoveStageCommandHandlerTests()
     {
-        _handler = new RemoveStageCommandHandler(_repositoryMock.Object);
+        _handler = new RemoveStageCommandHandler(_repositoryMock.Object, _publisherMock.Object);
     }
 
     // ── Helper ───────────────────────────────────────────────────────────────────

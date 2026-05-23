@@ -33,7 +33,9 @@ public class GetMissionByIdQueryHandler : IRequestHandler<GetMissionByIdQuery, R
                     .ToList(),
                 s.Latitude,
                 s.Longitude,
-                s.QrCode))
+                s.QrCode,
+                s.AutoReleaseTimeMinutes,
+                s.AutoReleaseMaxAttempts))
             .ToList();
 
         var dto = new MissionDetailDto(

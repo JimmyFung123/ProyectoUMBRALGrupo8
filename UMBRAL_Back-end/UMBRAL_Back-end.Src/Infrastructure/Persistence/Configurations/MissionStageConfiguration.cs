@@ -38,6 +38,10 @@ public class MissionStageConfiguration : IEntityTypeConfiguration<MissionStage>
         builder.Property(s => s.QrCode)
             .HasMaxLength(500);
 
+        // Auto-release rule (HU-4) — nullable, no additional constraints
+        builder.Property(s => s.AutoReleaseTimeMinutes);
+        builder.Property(s => s.AutoReleaseMaxAttempts);
+
         // Unique QR code constraint across all stages
         builder.HasIndex(s => s.QrCode)
             .IsUnique()

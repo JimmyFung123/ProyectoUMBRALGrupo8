@@ -43,4 +43,10 @@ public static class StageErrors
     /// <summary>A Trivia stage must have exactly one correct option.</summary>
     public static readonly Error TriviaRequiresExactlyOneCorrectOption =
         new("Stage.TriviaRequiresExactlyOneCorrectOption", "A Trivia stage must have exactly one correct option.");
+
+    public static readonly Error InvalidAutoReleaseTime =
+        new("Stage.InvalidAutoReleaseTime", "Auto-release time must be at least 1 minute.");
+
+    public static readonly Error InvalidAutoReleaseAttempts =
+        new("Stage.InvalidAutoReleaseAttempts", "Auto-release max attempts must be at least 1.");
 }

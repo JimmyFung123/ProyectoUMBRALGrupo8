@@ -12,7 +12,9 @@ public record StageDetailDto(
     IReadOnlyList<TriviaOptionDetailDto> Options,
     double? Latitude,
     double? Longitude,
-    string? QrCode);
+    string? QrCode,
+    int? AutoReleaseTimeMinutes,
+    int? AutoReleaseMaxAttempts);
 
 public record MissionDetailDto(
     Guid Id,
