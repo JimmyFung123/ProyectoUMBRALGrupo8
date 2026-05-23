@@ -1,6 +1,6 @@
-import type { CreateMissionPayload, Mission, UpdateMissionPayload } from '../types/mission';
+import type { CreateMissionPayload, Mission, MissionDetail, UpdateMissionPayload } from '../types/mission';
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api';
+const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5091/api';
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -16,8 +16,8 @@ export const missionService = {
     return fetch(`${BASE_URL}/missions`).then(handleResponse<Mission[]>);
   },
 
-  getById(id: string): Promise<Mission> {
-    return fetch(`${BASE_URL}/missions/${id}`).then(handleResponse<Mission>);
+  getById(id: string): Promise<MissionDetail> {
+    return fetch(`${BASE_URL}/missions/${id}`).then(handleResponse<MissionDetail>);
   },
 
   create(payload: CreateMissionPayload): Promise<string> {

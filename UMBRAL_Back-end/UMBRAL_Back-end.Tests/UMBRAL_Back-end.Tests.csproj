@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\UMBRAL_Back-end\UMBRAL_Back-end.csproj" />
+    <ProjectReference Include="..\UMBRAL_Back-end.Src\UMBRAL_Back-end.Src.csproj" />
   </ItemGroup>
 
 </Project>

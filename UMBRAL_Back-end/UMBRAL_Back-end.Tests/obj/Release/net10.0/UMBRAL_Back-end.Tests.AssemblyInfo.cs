@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("UMBRAL_Back-end.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+54671e0d72fb2d476e6b8e7056b32b4164abf72f")]
 [assembly: System.Reflection.AssemblyProductAttribute("UMBRAL_Back-end.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("UMBRAL_Back-end.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

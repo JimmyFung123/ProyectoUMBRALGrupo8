@@ -3,6 +3,10 @@
   "WorkspaceRootPath": "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\UMBRAL_Back-end\\Infrastructure\\Persistence\\Repositories\\MissionRepository.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:UMBRAL_Back-end\\Infrastructure\\Persistence\\Repositories\\MissionRepository.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\UMBRAL_Back-end.Tests\\Application\\ChangeMissionStatusCommandHandlerTests.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:UMBRAL_Back-end.Tests\\Application\\ChangeMissionStatusCommandHandlerTests.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
@@ -35,19 +39,32 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
+              "Title": "MissionRepository.cs",
+              "DocumentMoniker": "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\UMBRAL_Back-end\\Infrastructure\\Persistence\\Repositories\\MissionRepository.cs",
+              "RelativeDocumentMoniker": "UMBRAL_Back-end\\Infrastructure\\Persistence\\Repositories\\MissionRepository.cs",
+              "ToolTip": "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\UMBRAL_Back-end\\Infrastructure\\Persistence\\Repositories\\MissionRepository.cs",
+              "RelativeToolTip": "UMBRAL_Back-end\\Infrastructure\\Persistence\\Repositories\\MissionRepository.cs",
+              "ViewState": "AgIAAAUAAAAAAAAAAAAqwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-05-23T02:49:51.543Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
               "Title": "ChangeMissionStatusCommandHandlerTests.cs",
               "DocumentMoniker": "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\UMBRAL_Back-end.Tests\\Application\\ChangeMissionStatusCommandHandlerTests.cs",
               "RelativeDocumentMoniker": "UMBRAL_Back-end.Tests\\Application\\ChangeMissionStatusCommandHandlerTests.cs",
               "ToolTip": "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\UMBRAL_Back-end.Tests\\Application\\ChangeMissionStatusCommandHandlerTests.cs",
               "RelativeToolTip": "UMBRAL_Back-end.Tests\\Application\\ChangeMissionStatusCommandHandlerTests.cs",
-              "ViewState": "AgIAAEsAAAAAAAAAAAAAAEUAAABfAAAAAAAAAA==",
+              "ViewState": "AgIAAEgAAAAAAAAAAIBJwEUAAABfAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-05-23T00:33:32.974Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 2,
               "Title": "Program.cs",
               "DocumentMoniker": "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\UMBRAL_Back-end\\Program.cs",
               "RelativeDocumentMoniker": "UMBRAL_Back-end\\Program.cs",

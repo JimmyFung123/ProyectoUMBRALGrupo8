@@ -20,6 +20,30 @@ export interface Mission {
   updatedAt: string | null;
 }
 
+// Full detail returned by GET /api/missions/{id}
+export interface TriviaOptionDetail {
+  id: string;
+  text: string;
+  isCorrect: boolean;
+}
+
+export interface StageDetail {
+  id: string;
+  title: string;
+  order: number;
+  type: 'Trivia' | 'TreasureHunt';
+  baseScore: number;
+  question: string | null;
+  options: TriviaOptionDetail[];
+  latitude: number | null;
+  longitude: number | null;
+  qrCode: string | null;
+}
+
+export interface MissionDetail extends Omit<Mission, 'stageCount'> {
+  stages: StageDetail[];
+}
+
 export interface CreateMissionPayload {
   name: string;
   description: string;

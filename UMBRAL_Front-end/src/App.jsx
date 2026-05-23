@@ -1,7 +1,11 @@
 import { MissionList } from './components/Missions/MissionList'
 
 function App() {
-  return <MissionList />
+  return (
+    <div style={{ textAlign: 'left' }}>
+      <MissionList />
+    </div>
+  )
 }
 
 export default App

@@ -1,11 +1,7 @@
 C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\.msCoverageSourceRootsMapping_UMBRAL_Back-end.Tests
 C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\testhost.dll
-C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\UMBRAL_Back-end.deps.json
-C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\UMBRAL_Back-end.runtimeconfig.json
 C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\appsettings.Development.json
 C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\appsettings.json
-C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\UMBRAL_Back-end.staticwebassets.endpoints.json
-C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\UMBRAL_Back-end.exe
 C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\testhost.exe
 C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\xunit.runner.visualstudio.testadapter.dll
 C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\xunit.runner.reporters.netcoreapp10.dll
@@ -129,8 +125,6 @@ C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\Proyec
 C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\runtimes\win\lib\net6.0\System.Drawing.Common.dll
 C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\runtimes\win\lib\net6.0\System.Security.Cryptography.ProtectedData.dll
 C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\runtimes\win\lib\net6.0\System.Windows.Extensions.dll
-C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\UMBRAL_Back-end.dll
-C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\UMBRAL_Back-end.pdb
 C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\obj\Debug\net10.0\UMBRAL_Back-end.Tests.csproj.AssemblyReference.cache
 C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\obj\Debug\net10.0\UMBRAL_Back-end.Tests.GeneratedMSBuildEditorConfig.editorconfig
 C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\obj\Debug\net10.0\UMBRAL_Back-end.Tests.AssemblyInfoInputs.cache
@@ -142,3 +136,10 @@ C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\Proyec
 C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\obj\Debug\net10.0\UMBRAL_Back-end.Tests.pdb
 C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\obj\Debug\net10.0\UMBRAL_Back-end.Tests.genruntimeconfig.cache
 C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\obj\Debug\net10.0\ref\UMBRAL_Back-end.Tests.dll
+C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\obj\Debug\net10.0\UMBRAL_Back-end.Tests.sourcelink.json
+C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\UMBRAL_Back-end.Src.deps.json
+C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\UMBRAL_Back-end.Src.runtimeconfig.json
+C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\UMBRAL_Back-end.Src.staticwebassets.endpoints.json
+C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\UMBRAL_Back-end.Src.exe
+C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\UMBRAL_Back-end.Src.dll
+C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\UMBRAL_Back-end.Src.pdb
