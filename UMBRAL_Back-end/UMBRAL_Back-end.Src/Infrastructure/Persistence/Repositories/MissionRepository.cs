@@ -39,11 +39,9 @@ public class MissionRepository : IMissionRepository
         => await _context.Missions
             .AnyAsync(m => m.Name == name && (excludeId == null || m.Id != excludeId), cancellationToken);
 
-    public Task<bool> HasActiveSessionsAsync(Guid missionId, CancellationToken cancellationToken = default)
-    {
-        // TODO: query Session bounded context once HU-5+ is implemented.
-        return Task.FromResult(false);
-    }
+    public async Task<bool> HasActiveSessionsAsync(Guid missionId, CancellationToken cancellationToken = default)
+        => await _context.Sessions
+            .AnyAsync(s => s.MissionId == missionId && s.Status == Domain.Sessions.SessionStatus.InProgress, cancellationToken);
 
     public async Task<bool> HasDuplicateQrCodeAsync(string qrCode, Guid? excludeStageId = null, CancellationToken cancellationToken = default)
         => await _context.MissionStages

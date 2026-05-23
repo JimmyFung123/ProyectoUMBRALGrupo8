@@ -2,6 +2,7 @@ namespace UMBRAL_Back_end.Infrastructure.Persistence;
 
 using Microsoft.EntityFrameworkCore;
 using UMBRAL_Back_end.Domain.Missions;
+using UMBRAL_Back_end.Domain.Sessions;
 
 public class AppDbContext : DbContext
 {
@@ -11,6 +12,7 @@ public class AppDbContext : DbContext
     public DbSet<MissionStage> MissionStages => Set<MissionStage>();
     public DbSet<TriviaOption> TriviaOptions => Set<TriviaOption>();
     public DbSet<Clue> Clues => Set<Clue>();
+    public DbSet<Session> Sessions => Set<Session>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using UMBRAL_Back_end.Domain.Missions;
+using UMBRAL_Back_end.Domain.Sessions;
 using UMBRAL_Back_end.Infrastructure.Persistence;
 using UMBRAL_Back_end.Infrastructure.Persistence.Repositories;
 
@@ -21,6 +22,7 @@ builder.Services.AddMediatR(cfg =>
 
 // Repositories
 builder.Services.AddScoped<IMissionRepository, MissionRepository>();
+builder.Services.AddScoped<ISessionRepository, SessionRepository>();
 
 // CORS for the React dev server (Vite default port)
 builder.Services.AddCors(options =>

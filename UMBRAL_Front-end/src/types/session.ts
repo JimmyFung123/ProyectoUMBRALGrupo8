@@ -1,0 +1,23 @@
+export type SessionStatus = 'Pending' | 'InProgress' | 'Completed' | 'Cancelled';
+
+export const SESSION_STATUS_LABELS: Record<SessionStatus, string> = {
+  Pending: 'Pendiente',
+  InProgress: 'En progreso',
+  Completed: 'Completada',
+  Cancelled: 'Cancelada',
+};
+
+export interface Session {
+  id: string;
+  missionId: string;
+  name: string;
+  status: SessionStatus;
+  createdAt: string;
+  scheduledAt: string | null;
+}
+
+export interface CreateSessionPayload {
+  missionId: string;
+  name: string;
+  scheduledAt: string | null;
+}
