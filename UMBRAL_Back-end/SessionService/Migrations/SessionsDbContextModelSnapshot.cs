@@ -79,6 +79,39 @@ namespace SessionService.Migrations
 
                     b.ToTable("Sessions", (string)null);
                 });
+
+            modelBuilder.Entity("SessionService.Domain.Sessions.Team", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("CluesReceivedCurrentStage")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("CurrentStageOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsConnected")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("TotalCluesReceived")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SessionId");
+
+                    b.ToTable("Teams", (string)null);
+                });
 #pragma warning restore 612, 618
         }
     }

@@ -14,18 +14,23 @@ public class ChangeMissionStatusCommandHandlerTests
     private readonly Mock<IMissionRepository> _repositoryMock = new();
     private readonly Mock<IPublisher> _publisherMock = new();
     private readonly Mock<IPublishEndpoint> _busMock = new();
+    private readonly Mock<IStageCountLookupRepository> _stageCountLookupMock = new();
     private readonly ChangeMissionStatusCommandHandler _handler;
 
     public ChangeMissionStatusCommandHandlerTests()
     {
-        _handler = new ChangeMissionStatusCommandHandler(_repositoryMock.Object, _publisherMock.Object, _busMock.Object);
+        _handler = new ChangeMissionStatusCommandHandler(
+            _repositoryMock.Object,
+            _publisherMock.Object,
+            _busMock.Object,
+            _stageCountLookupMock.Object);
     }
 
     [Fact]
     public async Task Handle_ActivateMission_Succeeds()
     {
-        // Stage validation is owned by StageService — MissionService activates without checking stages.
         var mission = Mission.Create("Test Mission", "desc", DifficultyLevel.Medium, 60).Value;
+        var stageCount = StageCountLookup.Create(mission.Id);
 
         _repositoryMock
             .Setup(r => r.GetByIdAsync(mission.Id, default))
@@ -34,6 +39,10 @@ public class ChangeMissionStatusCommandHandlerTests
         _repositoryMock
             .Setup(r => r.HasActiveSessionsAsync(mission.Id, default))
             .ReturnsAsync(false);
+
+        _stageCountLookupMock
+            .Setup(r => r.GetByMissionIdAsync(mission.Id, default))
+            .ReturnsAsync(stageCount);
 
         var command = new ChangeMissionStatusCommand(mission.Id, Activate: true);
 

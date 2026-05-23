@@ -3,6 +3,7 @@ namespace SessionService.Adapter.Controllers;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using SessionService.Application.Sessions.Commands.CreateSession;
+using SessionService.Application.Sessions.Queries.GetSessionDetail;
 using SessionService.Application.Sessions.Queries.GetSessions;
 
 [ApiController]
@@ -21,6 +22,13 @@ public class SessionsController : ControllerBase
     {
         var result = await _sender.Send(new GetSessionsQuery(missionId, status), cancellationToken);
         return Ok(result);
+    }
+
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new GetSessionDetailQuery(id), cancellationToken);
+        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
     }
 
     [HttpPost]

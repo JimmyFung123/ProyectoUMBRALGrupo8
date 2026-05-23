@@ -8,10 +8,13 @@
     ".NETCoreApp,Version=v10.0": {
       "UMBRAL_Back-end.Tests/1.0.0": {
         "dependencies": {
+          "ClueService": "1.0.0",
           "FluentAssertions": "7.0.0",
           "Microsoft.NET.Test.Sdk": "17.12.0",
           "MissionService": "1.0.0",
           "Moq": "4.20.72",
+          "SessionService": "1.0.0",
+          "StageService": "1.0.0",
           "xunit": "2.9.3"
         },
         "runtime": {
@@ -697,6 +700,23 @@
           }
         }
       },
+      "ClueService/1.0.0": {
+        "dependencies": {
+          "MassTransit": "8.3.6",
+          "MassTransit.RabbitMQ": "8.3.6",
+          "MediatR": "14.1.0",
+          "Microsoft.AspNetCore.OpenApi": "10.0.5",
+          "Microsoft.EntityFrameworkCore": "10.0.5",
+          "Npgsql.EntityFrameworkCore.PostgreSQL": "10.0.1",
+          "UMBRAL.Contracts": "1.0.0"
+        },
+        "runtime": {
+          "ClueService.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
       "MissionService/1.0.0": {
         "dependencies": {
           "FluentValidation": "12.1.1",
@@ -712,6 +732,40 @@
         },
         "runtime": {
           "MissionService.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "SessionService/1.0.0": {
+        "dependencies": {
+          "MassTransit": "8.3.6",
+          "MassTransit.RabbitMQ": "8.3.6",
+          "MediatR": "14.1.0",
+          "Microsoft.AspNetCore.OpenApi": "10.0.5",
+          "Microsoft.EntityFrameworkCore": "10.0.5",
+          "Npgsql.EntityFrameworkCore.PostgreSQL": "10.0.1",
+          "UMBRAL.Contracts": "1.0.0"
+        },
+        "runtime": {
+          "SessionService.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "StageService/1.0.0": {
+        "dependencies": {
+          "MassTransit": "8.3.6",
+          "MassTransit.RabbitMQ": "8.3.6",
+          "MediatR": "14.1.0",
+          "Microsoft.AspNetCore.OpenApi": "10.0.5",
+          "Microsoft.EntityFrameworkCore": "10.0.5",
+          "Npgsql.EntityFrameworkCore.PostgreSQL": "10.0.1",
+          "UMBRAL.Contracts": "1.0.0"
+        },
+        "runtime": {
+          "StageService.dll": {
             "assemblyVersion": "1.0.0.0",
             "fileVersion": "1.0.0.0"
           }
@@ -1034,7 +1088,22 @@
       "path": "xunit.extensibility.execution/2.9.3",
       "hashPath": "xunit.extensibility.execution.2.9.3.nupkg.sha512"
     },
+    "ClueService/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
     "MissionService/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "SessionService/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "StageService/1.0.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

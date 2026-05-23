@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("UMBRAL.Contracts")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+826fc8db36d29fce8336e5250802f6dc780c5855")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+db1e449f30a970b26f2bfdb797e3ae5cb51e30ea")]
 [assembly: System.Reflection.AssemblyProductAttribute("UMBRAL.Contracts")]
 [assembly: System.Reflection.AssemblyTitleAttribute("UMBRAL.Contracts")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -20,6 +20,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MissionService\MissionService.csproj" />
+    <ProjectReference Include="..\SessionService\SessionService.csproj" />
+    <ProjectReference Include="..\StageService\StageService.csproj" />
+    <ProjectReference Include="..\ClueService\ClueService.csproj" />
   </ItemGroup>
 
 </Project>

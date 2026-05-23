@@ -1268,6 +1268,28 @@
           "build/net6.0/xunit.runner.visualstudio.props": {}
         }
       },
+      "ClueService/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v10.0",
+        "dependencies": {
+          "MassTransit": "8.3.6",
+          "MassTransit.RabbitMQ": "8.3.6",
+          "MediatR": "14.1.0",
+          "Microsoft.AspNetCore.OpenApi": "10.0.5",
+          "Microsoft.EntityFrameworkCore": "10.0.5",
+          "Npgsql.EntityFrameworkCore.PostgreSQL": "10.0.1",
+          "UMBRAL.Contracts": "1.0.0"
+        },
+        "compile": {
+          "bin/placeholder/ClueService.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/ClueService.dll": {}
+        },
+        "frameworkReferences": [
+          "Microsoft.AspNetCore.App"
+        ]
+      },
       "MissionService/1.0.0": {
         "type": "project",
         "framework": ".NETCoreApp,Version=v10.0",
@@ -1289,6 +1311,50 @@
         },
         "runtime": {
           "bin/placeholder/MissionService.dll": {}
+        },
+        "frameworkReferences": [
+          "Microsoft.AspNetCore.App"
+        ]
+      },
+      "SessionService/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v10.0",
+        "dependencies": {
+          "MassTransit": "8.3.6",
+          "MassTransit.RabbitMQ": "8.3.6",
+          "MediatR": "14.1.0",
+          "Microsoft.AspNetCore.OpenApi": "10.0.5",
+          "Microsoft.EntityFrameworkCore": "10.0.5",
+          "Npgsql.EntityFrameworkCore.PostgreSQL": "10.0.1",
+          "UMBRAL.Contracts": "1.0.0"
+        },
+        "compile": {
+          "bin/placeholder/SessionService.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/SessionService.dll": {}
+        },
+        "frameworkReferences": [
+          "Microsoft.AspNetCore.App"
+        ]
+      },
+      "StageService/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v10.0",
+        "dependencies": {
+          "MassTransit": "8.3.6",
+          "MassTransit.RabbitMQ": "8.3.6",
+          "MediatR": "14.1.0",
+          "Microsoft.AspNetCore.OpenApi": "10.0.5",
+          "Microsoft.EntityFrameworkCore": "10.0.5",
+          "Npgsql.EntityFrameworkCore.PostgreSQL": "10.0.1",
+          "UMBRAL.Contracts": "1.0.0"
+        },
+        "compile": {
+          "bin/placeholder/StageService.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/StageService.dll": {}
         },
         "frameworkReferences": [
           "Microsoft.AspNetCore.App"
@@ -3028,10 +3094,25 @@
         "xunit.runner.visualstudio.nuspec"
       ]
     },
+    "ClueService/1.0.0": {
+      "type": "project",
+      "path": "../ClueService/ClueService.csproj",
+      "msbuildProject": "../ClueService/ClueService.csproj"
+    },
     "MissionService/1.0.0": {
       "type": "project",
       "path": "../MissionService/MissionService.csproj",
       "msbuildProject": "../MissionService/MissionService.csproj"
+    },
+    "SessionService/1.0.0": {
+      "type": "project",
+      "path": "../SessionService/SessionService.csproj",
+      "msbuildProject": "../SessionService/SessionService.csproj"
+    },
+    "StageService/1.0.0": {
+      "type": "project",
+      "path": "../StageService/StageService.csproj",
+      "msbuildProject": "../StageService/StageService.csproj"
     },
     "UMBRAL.Contracts/1.0.0": {
       "type": "project",
@@ -3041,10 +3122,13 @@
   },
   "projectFileDependencyGroups": {
     "net10.0": [
+      "ClueService >= 1.0.0",
       "FluentAssertions >= 7.0.0",
       "Microsoft.NET.Test.Sdk >= 17.12.0",
       "MissionService >= 1.0.0",
       "Moq >= 4.20.72",
+      "SessionService >= 1.0.0",
+      "StageService >= 1.0.0",
       "xunit >= 2.9.3",
       "xunit.runner.visualstudio >= 2.8.2"
     ]
@@ -3082,8 +3166,17 @@
         "net10.0": {
           "targetAlias": "net10.0",
           "projectReferences": {
+            "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\ClueService\\ClueService.csproj": {
+              "projectPath": "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\ClueService\\ClueService.csproj"
+            },
             "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\MissionService\\MissionService.csproj": {
               "projectPath": "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\MissionService\\MissionService.csproj"
+            },
+            "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\SessionService\\SessionService.csproj": {
+              "projectPath": "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\SessionService\\SessionService.csproj"
+            },
+            "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\StageService\\StageService.csproj": {
+              "projectPath": "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\StageService\\StageService.csproj"
             }
           }
         }

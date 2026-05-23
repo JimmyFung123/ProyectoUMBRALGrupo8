@@ -16,6 +16,19 @@ export interface Session {
   scheduledAt: string | null;
 }
 
+export interface Team {
+  id: string;
+  name: string;
+  isConnected: boolean;
+  currentStageOrder: number;
+  cluesReceivedCurrentStage: number;
+  totalCluesReceived: number;
+}
+
+export interface SessionDetail extends Session {
+  teams: Team[];
+}
+
 export interface CreateSessionPayload {
   missionId: string;
   name: string;

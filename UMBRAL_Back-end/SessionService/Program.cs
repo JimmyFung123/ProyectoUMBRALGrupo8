@@ -24,6 +24,7 @@ builder.Services.AddMediatR(cfg =>
 
 // ── Repositories ──────────────────────────────────────────────────────────────
 builder.Services.AddScoped<ISessionRepository, SessionRepository>();
+builder.Services.AddScoped<ITeamRepository, TeamRepository>();
 builder.Services.AddScoped<IMissionLookupRepository, MissionLookupRepository>();
 
 // ── MassTransit + RabbitMQ (consumer side) ───────────────────────────────────

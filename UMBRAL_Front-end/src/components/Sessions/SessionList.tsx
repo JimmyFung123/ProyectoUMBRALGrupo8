@@ -13,7 +13,11 @@ const initialForm: CreateSessionPayload = {
 
 // ── SessionList ───────────────────────────────────────────────────────────────
 
-export function SessionList() {
+interface Props {
+  onViewDetail: (sessionId: string) => void;
+}
+
+export function SessionList({ onViewDetail }: Props) {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [missions, setMissions] = useState<Mission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -145,6 +149,12 @@ export function SessionList() {
                     )}
                   </small>
                 </div>
+                <button
+                  onClick={() => onViewDetail(session.id)}
+                  style={{ cursor: 'pointer', padding: '0.3rem 0.8rem', whiteSpace: 'nowrap' }}
+                >
+                  Ver detalle
+                </button>
               </div>
             </li>
           );

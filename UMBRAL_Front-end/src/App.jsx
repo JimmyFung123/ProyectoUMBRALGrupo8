@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { MissionList } from './components/Missions/MissionList'
+import { SessionDetailView } from './components/Sessions/SessionDetail'
 import { SessionList } from './components/Sessions/SessionList'
 
 const TABS = [
@@ -9,6 +10,13 @@ const TABS = [
 
 function App() {
   const [activeTab, setActiveTab] = useState('missions')
+  const [selectedSessionId, setSelectedSessionId] = useState(null)
+
+  function handleTabChange(tab) {
+    setActiveTab(tab)
+    // Limpiar el detalle al cambiar de pestaña
+    setSelectedSessionId(null)
+  }
 
   return (
     <div style={{ textAlign: 'left' }}>
@@ -22,7 +30,7 @@ function App() {
         {TABS.map(tab => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => handleTabChange(tab.key)}
             style={{
               padding: '0.4rem 1rem',
               border: '1px solid #ccc',
@@ -41,7 +49,18 @@ function App() {
 
       {/* ── Contenido ── */}
       {activeTab === 'missions' && <MissionList />}
-      {activeTab === 'sessions' && <SessionList />}
+      {activeTab === 'sessions' && (
+        selectedSessionId
+          ? (
+            <SessionDetailView
+              sessionId={selectedSessionId}
+              onBack={() => setSelectedSessionId(null)}
+            />
+          )
+          : (
+            <SessionList onViewDetail={setSelectedSessionId} />
+          )
+      )}
     </div>
   )
 }
