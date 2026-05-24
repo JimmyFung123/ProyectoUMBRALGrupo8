@@ -24,6 +24,15 @@ public interface ITeamServiceClient
 
     /// <summary>Forces a team to advance to the given next stage, earning 0 points.</summary>
     Task<bool> ForceAdvanceTeamAsync(Guid teamId, int nextStageOrder, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Records a trivia answer: adjusts the team's score and advances to nextStageOrder.
+    /// Returns the new score, or int.MinValue on error.
+    /// </summary>
+    Task<int> AnswerTriviaAsync(Guid teamId, bool isCorrect, int scoreChange, int nextStageOrder, CancellationToken cancellationToken);
+
+    /// <summary>Returns basic info for a single team by ID.</summary>
+    Task<TeamInfoItem?> GetTeamByIdAsync(Guid teamId, CancellationToken cancellationToken);
 }
 
 public record TeamProgressItem(
@@ -33,3 +42,8 @@ public record TeamProgressItem(
     int CluesReceivedCurrentStage,
     DateTime? ClueTimerResetAt,
     bool LastClueWasAutomatic);
+
+public record TeamInfoItem(
+    Guid Id,
+    string Name,
+    int CurrentStageOrder);

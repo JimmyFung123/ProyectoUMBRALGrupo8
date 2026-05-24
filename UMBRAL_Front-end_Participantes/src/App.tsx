@@ -4,9 +4,10 @@ import { TeamChoiceScreen } from './screens/TeamChoiceScreen';
 import { CreateTeamScreen } from './screens/CreateTeamScreen';
 import { JoinTeamScreen } from './screens/JoinTeamScreen';
 import { WaitingRoomScreen } from './screens/WaitingRoomScreen';
-import type { SessionInfo, TeamCreatedInfo, TeamJoinedInfo } from './types';
+import { GameScreen } from './screens/GameScreen';
+import type { ParticipantStage, SessionInfo, TeamCreatedInfo, TeamJoinedInfo } from './types';
 
-type Screen = 'join-session' | 'team-choice' | 'create-team' | 'join-team' | 'waiting';
+type Screen = 'join-session' | 'team-choice' | 'create-team' | 'join-team' | 'waiting' | 'game';
 
 type TeamState =
   | { isLeader: true; data: TeamCreatedInfo }
@@ -17,6 +18,7 @@ export default function App() {
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [nickname, setNickname] = useState('');
   const [team, setTeam] = useState<TeamState | null>(null);
+  const [currentStage, setCurrentStage] = useState<ParticipantStage | null>(null);
 
   function handleSessionFound(s: SessionInfo) {
     setSession(s);
@@ -31,6 +33,11 @@ export default function App() {
   function handleTeamJoined(t: TeamJoinedInfo) {
     setTeam({ isLeader: false, data: t });
     setScreen('waiting');
+  }
+
+  function handleGameStart(stage: ParticipantStage) {
+    setCurrentStage(stage);
+    setScreen('game');
   }
 
   if (screen === 'join-session') {
@@ -81,6 +88,19 @@ export default function App() {
         session={session}
         team={teamProp}
         nickname={nickname}
+        onGameStart={handleGameStart}
+      />
+    );
+  }
+
+  if (screen === 'game' && session && team && currentStage) {
+    const teamProp = { teamId: team.data.teamId, isLeader: team.isLeader };
+    return (
+      <GameScreen
+        session={session}
+        team={teamProp}
+        nickname={nickname}
+        initialStage={currentStage}
       />
     );
   }

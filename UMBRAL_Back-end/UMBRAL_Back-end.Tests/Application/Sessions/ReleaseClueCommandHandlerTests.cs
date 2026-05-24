@@ -13,6 +13,7 @@ public class ReleaseClueCommandHandlerTests
 {
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
     private readonly Mock<ITeamServiceClient> _teamClientMock = new();
+    private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
     private readonly Mock<IHubContext<SessionHub>> _hubMock = new();
     private readonly ReleaseClueCommandHandler _handler;
 
@@ -26,6 +27,7 @@ public class ReleaseClueCommandHandlerTests
         _handler = new ReleaseClueCommandHandler(
             _sessionRepoMock.Object,
             _teamClientMock.Object,
+            _eventRepoMock.Object,
             _hubMock.Object);
     }
 

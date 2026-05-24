@@ -13,6 +13,7 @@ public class PenalizeTeamCommandHandlerSessionTests
 {
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
     private readonly Mock<ITeamServiceClient> _teamClientMock = new();
+    private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
     private readonly Mock<IHubContext<SessionHub>> _hubMock = new();
     private readonly PenalizeTeamCommandHandler _handler;
 
@@ -26,6 +27,7 @@ public class PenalizeTeamCommandHandlerSessionTests
         _handler = new PenalizeTeamCommandHandler(
             _sessionRepoMock.Object,
             _teamClientMock.Object,
+            _eventRepoMock.Object,
             _hubMock.Object);
     }
 

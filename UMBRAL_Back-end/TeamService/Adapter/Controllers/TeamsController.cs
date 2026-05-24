@@ -2,6 +2,7 @@ namespace TeamService.Adapter.Controllers;
 
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using TeamService.Application.Teams.Commands.AnswerTrivia;
 using TeamService.Application.Teams.Commands.CreateTeam;
 using TeamService.Application.Teams.Commands.ForceAdvance;
 using TeamService.Application.Teams.Commands.JoinTeam;
@@ -101,6 +102,7 @@ public class TeamsController : ControllerBase
         }
         return Ok(new { newScore = result.Value });
     }
+
     /// <summary>
     /// Forces a team to advance to the specified next stage, earning 0 points for the skipped stage.
     /// </summary>
@@ -119,9 +121,34 @@ public class TeamsController : ControllerBase
         }
         return Ok(result.Value);
     }
+
+    /// <summary>
+    /// Records a trivia answer for a team: adjusts score and advances to the next stage.
+    /// Called by SessionService only — never called directly by participants.
+    /// </summary>
+    [HttpPost("{id:guid}/answer-trivia")]
+    public async Task<IActionResult> AnswerTrivia(
+        Guid id,
+        [FromBody] AnswerTriviaRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(
+            new AnswerTriviaCommand(id, request.IsCorrect, request.ScoreChange, request.NextStageOrder),
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return result.Error.Code == TeamErrors.NotFound.Code
+                ? NotFound(result.Error)
+                : BadRequest(result.Error);
+        }
+
+        return Ok(new { newScore = result.Value });
+    }
 }
 
 public record ReleaseClueRequest(int TotalCluesForStage, bool IsAutomatic = false);
 public record PenalizeTeamRequest(int Points, string Reason);
 public record ForceAdvanceTeamRequest(int NextStageOrder);
+public record AnswerTriviaRequest(bool IsCorrect, int ScoreChange, int NextStageOrder);
 public record CreateTeamRequest(Guid SessionId, string TeamName);

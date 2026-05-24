@@ -1,0 +1,177 @@
+namespace UMBRAL_Back_end.Tests.Application.Sessions;
+
+using FluentAssertions;
+using Microsoft.AspNetCore.SignalR;
+using Moq;
+using SessionService.Application.Sessions;
+using SessionService.Application.Sessions.Commands.SubmitTriviaAnswer;
+using SessionService.Domain.Sessions;
+using SessionService.Infrastructure.Hubs;
+using Xunit;
+
+public class SubmitTriviaAnswerCommandHandlerTests
+{
+    private readonly Mock<ISessionRepository> _sessionRepoMock = new();
+    private readonly Mock<ITeamServiceClient> _teamClientMock = new();
+    private readonly Mock<IStageServiceClient> _stageClientMock = new();
+    private readonly Mock<IHubContext<SessionHub>> _hubMock = new();
+    private readonly SubmitTriviaAnswerCommandHandler _handler;
+
+    public SubmitTriviaAnswerCommandHandlerTests()
+    {
+        var clientsMock = new Mock<IHubClients>();
+        var proxyMock = new Mock<IClientProxy>();
+        clientsMock.Setup(c => c.Group(It.IsAny<string>())).Returns(proxyMock.Object);
+        _hubMock.Setup(h => h.Clients).Returns(clientsMock.Object);
+
+        _handler = new SubmitTriviaAnswerCommandHandler(
+            _sessionRepoMock.Object,
+            _teamClientMock.Object,
+            _stageClientMock.Object,
+            _hubMock.Object);
+    }
+
+    // ── Session not found ─────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Handle_WhenSessionNotFound_ReturnsNotFoundError()
+    {
+        _sessionRepoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                        .ReturnsAsync((Session?)null);
+
+        var result = await _handler.Handle(
+            new SubmitTriviaAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid()),
+            default);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Be(SessionErrors.NotFound);
+    }
+
+    // ── Session paused ────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Handle_WhenSessionPaused_ReturnsNotInProgressError()
+    {
+        var session = CreateSessionWithStatus(SessionStatus.Paused);
+        _sessionRepoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                        .ReturnsAsync(session);
+
+        var result = await _handler.Handle(
+            new SubmitTriviaAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid()),
+            default);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Be(SessionErrors.NotInProgress);
+        _stageClientMock.Verify(s => s.GetStageWithOptionsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    // ── Option not found in stage ─────────────────────────────────────────────
+
+    [Fact]
+    public async Task Handle_WhenOptionNotFound_ReturnsOptionNotFoundError()
+    {
+        var session = CreateSessionWithStatus(SessionStatus.InProgress);
+        var stageId = Guid.NewGuid();
+        var wrongOptionId = Guid.NewGuid();
+
+        var knownOption = new TriviaOptionInfo(Guid.NewGuid(), "Option A", true);
+        var stageInfo = new StageWithOptionsInfo(stageId, "Stage 1", "Trivia", 1, 50, "Question?",
+            new[] { knownOption });
+
+        _sessionRepoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                        .ReturnsAsync(session);
+        _stageClientMock.Setup(s => s.GetStageWithOptionsAsync(stageId, It.IsAny<CancellationToken>()))
+                        .ReturnsAsync(stageInfo);
+
+        var result = await _handler.Handle(
+            new SubmitTriviaAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), stageId, wrongOptionId),
+            default);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Be(SessionErrors.OptionNotFound);
+    }
+
+    // ── Correct answer ────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Handle_CorrectAnswer_CallsAnswerTriviaWithIsCorrectTrueAndBroadcasts()
+    {
+        var session = CreateSessionWithStatus(SessionStatus.InProgress);
+        var stageId = Guid.NewGuid();
+        var correctOptionId = Guid.NewGuid();
+
+        var correctOption = new TriviaOptionInfo(correctOptionId, "Correct answer", true);
+        var stageInfo = new StageWithOptionsInfo(stageId, "Stage 1", "Trivia", 1, 50, "Q?",
+            new[] { correctOption });
+
+        var stage1Ref = new StageInfo(stageId, 1);
+        var stage2Id = Guid.NewGuid();
+        var stage2Ref = new StageInfo(stage2Id, 2);
+
+        _sessionRepoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                        .ReturnsAsync(session);
+        _stageClientMock.Setup(s => s.GetStageWithOptionsAsync(stageId, It.IsAny<CancellationToken>()))
+                        .ReturnsAsync(stageInfo);
+        _stageClientMock.Setup(s => s.GetStagesByMissionAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                        .ReturnsAsync(new[] { stage1Ref, stage2Ref });
+        _teamClientMock.Setup(t => t.AnswerTriviaAsync(It.IsAny<Guid>(), true, 50, 2, It.IsAny<CancellationToken>()))
+                       .ReturnsAsync(150);
+
+        var result = await _handler.Handle(
+            new SubmitTriviaAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), stageId, correctOptionId),
+            default);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.IsCorrect.Should().BeTrue();
+        result.Value.NewScore.Should().Be(150);
+        _teamClientMock.Verify(t => t.AnswerTriviaAsync(
+            It.IsAny<Guid>(), true, 50, 2, It.IsAny<CancellationToken>()), Times.Once);
+        _hubMock.Verify(h => h.Clients.Group(It.IsAny<string>()), Times.Once);
+    }
+
+    // ── Incorrect answer ──────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Handle_IncorrectAnswer_CallsAnswerTriviaWithIsCorrectFalse()
+    {
+        var session = CreateSessionWithStatus(SessionStatus.InProgress);
+        var stageId = Guid.NewGuid();
+        var wrongOptionId = Guid.NewGuid();
+
+        var wrongOption = new TriviaOptionInfo(wrongOptionId, "Wrong answer", false);
+        var stageInfo = new StageWithOptionsInfo(stageId, "Stage 1", "Trivia", 1, 50, "Q?",
+            new[] { wrongOption });
+
+        var stage1Ref = new StageInfo(stageId, 1);
+        var stage2Ref = new StageInfo(Guid.NewGuid(), 2);
+
+        _sessionRepoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                        .ReturnsAsync(session);
+        _stageClientMock.Setup(s => s.GetStageWithOptionsAsync(stageId, It.IsAny<CancellationToken>()))
+                        .ReturnsAsync(stageInfo);
+        _stageClientMock.Setup(s => s.GetStagesByMissionAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                        .ReturnsAsync(new[] { stage1Ref, stage2Ref });
+        _teamClientMock.Setup(t => t.AnswerTriviaAsync(It.IsAny<Guid>(), false, 50, It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                       .ReturnsAsync(50);
+
+        var result = await _handler.Handle(
+            new SubmitTriviaAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), stageId, wrongOptionId),
+            default);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.IsCorrect.Should().BeFalse();
+        _teamClientMock.Verify(t => t.AnswerTriviaAsync(
+            It.IsAny<Guid>(), false, 50, It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    // ── Helper ────────────────────────────────────────────────────────────────
+
+    private static Session CreateSessionWithStatus(SessionStatus status)
+    {
+        var session = Session.Create(Guid.NewGuid(), "Test Session").Value;
+        typeof(Session)
+            .GetProperty(nameof(Session.Status))!
+            .SetValue(session, status);
+        return session;
+    }
+}

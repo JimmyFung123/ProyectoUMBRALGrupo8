@@ -5,13 +5,15 @@ using Microsoft.AspNetCore.Mvc;
 using SessionService.Application.Sessions.Commands.CancelSession;
 using SessionService.Application.Sessions.Commands.CreateSession;
 using SessionService.Application.Sessions.Commands.FinalizeSession;
-using SessionService.Application.Sessions.Commands.PauseSession;
 using SessionService.Application.Sessions.Commands.ForceAdvanceTeam;
+using SessionService.Application.Sessions.Commands.PauseSession;
 using SessionService.Application.Sessions.Commands.PenalizeTeam;
 using SessionService.Application.Sessions.Commands.ReleaseClue;
 using SessionService.Application.Sessions.Commands.ResumeSession;
 using SessionService.Application.Sessions.Commands.StartSession;
+using SessionService.Application.Sessions.Commands.SubmitTriviaAnswer;
 using SessionService.Application.Sessions.Commands.UpdateSession;
+using SessionService.Application.Sessions.Queries.GetParticipantStage;
 using SessionService.Application.Sessions.Queries.GetSessionByCode;
 using SessionService.Application.Sessions.Queries.GetSessionDashboard;
 using SessionService.Application.Sessions.Queries.GetSessionDetail;
@@ -214,9 +216,55 @@ public class SessionsController : ControllerBase
 
         return Ok(result.Value);
     }
+
+    /// <summary>
+    /// Returns the current stage data for a participant team.
+    /// Strips IsCorrect from options before returning.
+    /// </summary>
+    [HttpGet("{id:guid}/participant-stage/{teamId:guid}")]
+    public async Task<IActionResult> GetParticipantStage(
+        Guid id,
+        Guid teamId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new GetParticipantStageQuery(id, teamId), cancellationToken);
+        if (result.IsFailure)
+        {
+            return result.Error.Code == SessionErrors.NotFound.Code
+                ? NotFound(result.Error)
+                : BadRequest(result.Error);
+        }
+        return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// Submits a trivia answer for a participant team.
+    /// Rejects with 400 when the session is Paused/Completed/Cancelled.
+    /// </summary>
+    [HttpPost("{id:guid}/teams/{teamId:guid}/answer-trivia")]
+    public async Task<IActionResult> SubmitTriviaAnswer(
+        Guid id,
+        Guid teamId,
+        [FromBody] SubmitTriviaAnswerRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(
+            new SubmitTriviaAnswerCommand(id, teamId, request.StageId, request.OptionId),
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return result.Error.Code == SessionErrors.NotFound.Code
+                ? NotFound(result.Error)
+                : BadRequest(result.Error);
+        }
+
+        return Ok(result.Value);
+    }
 }
 
 public record CreateSessionRequest(Guid MissionId, string Name, DateTime? ScheduledAt);
 public record UpdateSessionRequest(string Name, DateTime? ScheduledAt);
 public record ReleaseClueRequest(int TotalCluesForStage, string ClueContent);
 public record PenalizeTeamRequest(int Points, string Reason);
+public record SubmitTriviaAnswerRequest(Guid StageId, Guid OptionId);

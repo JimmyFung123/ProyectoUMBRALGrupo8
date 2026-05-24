@@ -4,4 +4,5 @@ public record TeamInfoDto(
     Guid TeamId,
     string TeamName,
     string InviteCode,
-    int MemberCount);
+    int MemberCount,
+    int CurrentStageOrder);

@@ -63,7 +63,7 @@ public class ForceAdvanceTeamCommandHandler : IRequestHandler<ForceAdvanceTeamCo
         // 5. Audit log
         var auditEvent = SessionEvent.Create(
             request.SessionId,
-            $"Operator forced team '{team.Name}' to advance from stage {team.CurrentStageOrder} to stage {nextOrder}.");
+            $"El operador forzó el avance del equipo '{team.Name}' de la etapa {team.CurrentStageOrder} a la etapa {nextOrder}.");
         await _eventRepository.AddAsync(auditEvent, cancellationToken);
         await _eventRepository.SaveChangesAsync(cancellationToken);
 

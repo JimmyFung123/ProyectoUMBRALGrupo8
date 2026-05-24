@@ -123,6 +123,20 @@ public class Team
     }
 
     /// <summary>
+    /// Updates the team's score and advances to the next stage after answering a trivia question.
+    /// Score increases on correct answer, decreases on incorrect. Resets clue tracking.
+    /// </summary>
+    public Result<int> AnswerTrivia(bool isCorrect, int scoreChange, int nextStageOrder)
+    {
+        Score += isCorrect ? scoreChange : -scoreChange;
+        CurrentStageOrder = nextStageOrder;
+        CluesReceivedCurrentStage = 0;
+        ClueTimerResetAt = DateTime.UtcNow;
+        LastClueWasAutomatic = false;
+        return Result.Success(Score);
+    }
+
+    /// <summary>
     /// Records the release of the next sequential clue to this team for their current stage.
     /// Fails if all clues for the stage have already been released.
     /// </summary>

@@ -6,6 +6,7 @@ using StageService.Application.Stages.Commands.AddStage;
 using StageService.Application.Stages.Commands.RemoveStage;
 using StageService.Application.Stages.Commands.SetAutoRelease;
 using StageService.Application.Stages.Commands.UpdateStage;
+using StageService.Application.Stages.Queries.GetStageById;
 using StageService.Application.Stages.Queries.GetStagesByMission;
 
 [ApiController]
@@ -20,6 +21,14 @@ public class StagesController : ControllerBase
     {
         var result = await _sender.Send(new GetStagesByMissionQuery(missionId), cancellationToken);
         return Ok(result);
+    }
+
+    /// <summary>Returns a single stage with all options (including IsCorrect). Called by SessionService only.</summary>
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new GetStageByIdQuery(id), cancellationToken);
+        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
     }
 
     [HttpPost]

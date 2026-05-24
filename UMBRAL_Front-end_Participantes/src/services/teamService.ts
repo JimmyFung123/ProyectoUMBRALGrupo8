@@ -18,8 +18,14 @@ export async function joinTeam(inviteCode: string) {
   return res.json();
 }
 
-export async function getTeamInfo(teamId: string) {
+export async function getTeamInfo(teamId: string): Promise<{
+  teamId: string;
+  teamName: string;
+  inviteCode: string;
+  memberCount: number;
+  currentStageOrder: number;
+}> {
   const res = await fetch(`${BASE_URL}/teams/${teamId}`);
   if (!res.ok) throw new Error('No se pudo obtener el estado del equipo');
-  return res.json() as Promise<{ teamId: string; teamName: string; inviteCode: string; memberCount: number }>;
+  return res.json();
 }

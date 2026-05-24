@@ -11,15 +11,18 @@ public class PenalizeTeamCommandHandler : IRequestHandler<PenalizeTeamCommand, R
 {
     private readonly ISessionRepository _sessionRepository;
     private readonly ITeamServiceClient _teamClient;
+    private readonly ISessionEventRepository _eventRepository;
     private readonly IHubContext<SessionHub> _hub;
 
     public PenalizeTeamCommandHandler(
         ISessionRepository sessionRepository,
         ITeamServiceClient teamClient,
+        ISessionEventRepository eventRepository,
         IHubContext<SessionHub> hub)
     {
         _sessionRepository = sessionRepository;
         _teamClient = teamClient;
+        _eventRepository = eventRepository;
         _hub = hub;
     }
 
@@ -40,6 +43,15 @@ public class PenalizeTeamCommandHandler : IRequestHandler<PenalizeTeamCommand, R
 
         if (newScore == int.MinValue)
             return Result.Failure<int>(SessionErrors.CannotPenalizeTeam);
+
+        // Audit log — resolve team name for human-readable message
+        var teamInfo = await _teamClient.GetTeamByIdAsync(request.TeamId, cancellationToken);
+        var teamName = teamInfo?.Name ?? request.TeamId.ToString();
+        var auditEvent = SessionEvent.Create(
+            request.SessionId,
+            $"Equipo '{teamName}' penalizado {request.Points} pts. Motivo: \"{request.Reason}\". Nuevo puntaje: {newScore}.");
+        await _eventRepository.AddAsync(auditEvent, cancellationToken);
+        await _eventRepository.SaveChangesAsync(cancellationToken);
 
         await _hub.Clients
             .Group(request.SessionId.ToString())

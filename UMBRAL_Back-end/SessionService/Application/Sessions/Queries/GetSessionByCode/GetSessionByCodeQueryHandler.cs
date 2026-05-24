@@ -15,6 +15,6 @@ public class GetSessionByCodeQueryHandler : IRequestHandler<GetSessionByCodeQuer
             return Result.Failure<SessionByCodeDto>(SessionErrors.NotFound);
 
         return Result.Success(new SessionByCodeDto(
-            session.Id, session.Name, session.Status.ToString(), session.AccessCode));
+            session.Id, session.Name, session.Status.ToString(), session.AccessCode, session.MissionId));
     }
 }

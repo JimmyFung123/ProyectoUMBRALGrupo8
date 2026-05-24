@@ -21,6 +21,7 @@ public class GetTeamByIdQueryHandler : IRequestHandler<GetTeamByIdQuery, Result<
             team.Id,
             team.Name,
             team.InviteCode,
-            team.MemberCount));
+            team.MemberCount,
+            team.CurrentStageOrder));
     }
 }

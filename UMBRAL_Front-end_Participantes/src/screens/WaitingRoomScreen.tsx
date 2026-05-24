@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import type { SessionInfo, TeamCreatedInfo, TeamJoinedInfo } from '../types';
+import type { ParticipantStage, SessionInfo, TeamCreatedInfo, TeamJoinedInfo } from '../types';
 import { getTeamInfo } from '../services/teamService';
+import { getParticipantStage } from '../services/sessionService';
 
 type TeamState = (TeamCreatedInfo & { isLeader: true }) | (TeamJoinedInfo & { isLeader: false });
 
@@ -8,11 +9,12 @@ interface Props {
   session: SessionInfo;
   team: TeamState;
   nickname: string;
+  onGameStart: (stage: ParticipantStage) => void;
 }
 
 const POLL_INTERVAL_MS = 5_000;
 
-export function WaitingRoomScreen({ session, team, nickname }: Props) {
+export function WaitingRoomScreen({ session, team, nickname, onGameStart }: Props) {
   const inviteCode = team.inviteCode;
   const initialCount = team.isLeader ? 1 : (team as TeamJoinedInfo).memberCount;
   const [memberCount, setMemberCount] = useState(initialCount);
@@ -23,10 +25,17 @@ export function WaitingRoomScreen({ session, team, nickname }: Props) {
   useEffect(() => {
     async function poll() {
       try {
+        // Update member count
         const info = await getTeamInfo(team.teamId);
         setMemberCount(info.memberCount);
+
+        // Check if the session has started and the team has been assigned a stage
+        const stage = await getParticipantStage(session.id, team.teamId);
+        if (stage.sessionStatus === 'InProgress' && stage.type !== 'Waiting') {
+          onGameStart(stage);
+        }
       } catch {
-        // silently ignore — stale count is better than crash
+        // silently ignore — stale data is better than crash
       }
     }
 
@@ -35,7 +44,7 @@ export function WaitingRoomScreen({ session, team, nickname }: Props) {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [team.teamId]);
+  }, [team.teamId, session.id, onGameStart]);
 
   function copyCode() {
     navigator.clipboard.writeText(inviteCode).then(() => {

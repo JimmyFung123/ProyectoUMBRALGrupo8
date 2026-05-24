@@ -20,4 +20,8 @@ public static class SessionErrors
     public static readonly Error CannotForceAdvance      = new("Session.CannotForceAdvance",      "Team advance can only be forced while the session is in progress.");
     public static readonly Error TeamAlreadyOnLastStage  = new("Session.TeamAlreadyOnLastStage",  "The team is already on the last stage and cannot be advanced further.");
     public static readonly Error TeamNotFound            = new("Session.TeamNotFound",            "The specified team is not enrolled in this session.");
+    public static readonly Error NotInProgress           = new("Session.NotInProgress",           "Answers can only be submitted while the session is in progress.");
+    public static readonly Error StageNotFound           = new("Session.StageNotFound",           "The specified stage was not found.");
+    public static readonly Error OptionNotFound          = new("Session.OptionNotFound",          "The selected option does not belong to this stage.");
+    public static readonly Error CannotAnswerTrivia      = new("Session.CannotAnswerTrivia",      "Failed to record the trivia answer. Please try again.");
 }
