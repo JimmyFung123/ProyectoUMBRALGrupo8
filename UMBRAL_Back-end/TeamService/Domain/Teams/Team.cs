@@ -1,5 +1,7 @@
 namespace TeamService.Domain.Teams;
 
+using TeamService.Domain.Common;
+
 /// <summary>
 /// A team enrolled in a session. Tracks connection status, stage progress, and score.
 /// Owned by TeamService — SessionService is decoupled from this entity.
@@ -52,4 +54,19 @@ public class Team
     }
 
     public void UpdateScore(int score) => Score = score;
+
+    /// <summary>
+    /// Records the release of the next sequential clue to this team for their current stage.
+    /// Fails if all clues for the stage have already been released.
+    /// </summary>
+    /// <param name="totalCluesForStage">Total number of configured clues for the team's current stage.</param>
+    public Result<int> ReceiveClue(int totalCluesForStage)
+    {
+        if (CluesReceivedCurrentStage >= totalCluesForStage)
+            return Result.Failure<int>(TeamErrors.AllCluesReleased);
+
+        CluesReceivedCurrentStage++;
+        TotalCluesReceived++;
+        return Result.Success(CluesReceivedCurrentStage);
+    }
 }

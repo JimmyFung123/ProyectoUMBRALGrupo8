@@ -35,6 +35,7 @@ public class GetTeamProgressQueryHandler
                 Name: sorted[i].Name,
                 IsConnected: sorted[i].IsConnected,
                 CurrentStageOrder: sorted[i].CurrentStageOrder,
+                CluesReceivedCurrentStage: sorted[i].CluesReceivedCurrentStage,
                 Score: sorted[i].Score,
                 Rank: rank));
         }

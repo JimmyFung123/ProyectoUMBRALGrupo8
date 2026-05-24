@@ -2,6 +2,7 @@ namespace SessionService.Application.Sessions.Queries.GetSessionDashboard;
 
 public record SessionDashboardDto(
     Guid Id,
+    Guid MissionId,
     string Name,
     string Status,
     DateTime CreatedAt,

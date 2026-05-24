@@ -9,6 +9,14 @@ public class TeamRepository : ITeamRepository
 
     public TeamRepository(TeamsDbContext context) => _context = context;
 
+    public async Task<Team?> GetByIdAsync(
+        Guid teamId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Teams
+            .FirstOrDefaultAsync(t => t.Id == teamId, cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Team>> GetBySessionIdAsync(
         Guid sessionId,
         CancellationToken cancellationToken = default)

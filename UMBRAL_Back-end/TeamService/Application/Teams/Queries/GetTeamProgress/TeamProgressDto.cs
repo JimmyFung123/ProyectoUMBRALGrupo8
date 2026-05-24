@@ -9,6 +9,7 @@ public record TeamProgressDto(
     string Name,
     bool IsConnected,
     int CurrentStageOrder,
+    int CluesReceivedCurrentStage,
     int Score,
     int Rank
 );

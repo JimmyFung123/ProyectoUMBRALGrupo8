@@ -72,4 +72,12 @@ export const sessionService = {
     return fetch(`${BASE_URL}/sessions/${id}/finalize`, { method: 'PATCH' })
       .then(handleResponse<boolean>);
   },
+
+  releaseClue(sessionId: string, teamId: string, totalCluesForStage: number, clueContent: string): Promise<boolean> {
+    return fetch(`${BASE_URL}/sessions/${sessionId}/teams/${teamId}/release-clue`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ totalCluesForStage, clueContent }),
+    }).then(handleResponse<boolean>);
+  },
 };

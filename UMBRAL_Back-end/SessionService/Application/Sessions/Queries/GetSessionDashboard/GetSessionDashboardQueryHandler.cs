@@ -31,6 +31,7 @@ public class GetSessionDashboardQueryHandler
 
         var dto = new SessionDashboardDto(
             Id: session.Id,
+            MissionId: session.MissionId,
             Name: session.Name,
             Status: session.Status.ToString(),
             CreatedAt: session.CreatedAt,

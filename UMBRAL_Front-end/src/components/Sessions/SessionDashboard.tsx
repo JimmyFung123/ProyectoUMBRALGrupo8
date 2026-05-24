@@ -1,9 +1,13 @@
 import * as signalR from '@microsoft/signalr';
 import { useEffect, useRef, useState } from 'react';
+import { clueService } from '../../services/clueService';
 import { sessionService } from '../../services/sessionService';
+import { stageService } from '../../services/stageService';
 import { teamService } from '../../services/teamService';
 import { SESSION_STATUS_LABELS } from '../../types/session';
 import type { SessionDashboard as SessionDashboardData, SessionEventDto, SessionStatus } from '../../types/session';
+import type { Stage } from '../../types/stage';
+import type { Clue } from '../../types/clue';
 import type { TeamProgressDto } from '../../types/team';
 import { SessionControls } from './SessionControls';
 import { TeamProgressPanel } from './TeamProgressPanel';
@@ -105,11 +109,36 @@ function EventRow({ event }: { event: SessionEventDto }) {
 export function SessionDashboard({ sessionId, onBack }: Props) {
   const [data, setData] = useState<SessionDashboardData | null>(null);
   const [teams, setTeams] = useState<TeamProgressDto[]>([]);
+  const [stages, setStages] = useState<Stage[]>([]);
+  const [cluesByStage, setCluesByStage] = useState<Record<string, Clue[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const elapsed = useElapsedTime(data?.createdAt ?? null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hubRef = useRef<signalR.HubConnection | null>(null);
+
+  async function loadStagesAndClues(missionId: string) {
+    try {
+      const stageList = await stageService.getByMission(missionId);
+      const sorted = stageList.slice().sort((a, b) => a.order - b.order);
+      setStages(sorted);
+
+      const clueMap: Record<string, Clue[]> = {};
+      await Promise.allSettled(
+        sorted.map(async stage => {
+          try {
+            const clues = await clueService.getClues(missionId, stage.id);
+            clueMap[stage.id] = clues.slice().sort((a, b) => a.order - b.order);
+          } catch {
+            clueMap[stage.id] = [];
+          }
+        })
+      );
+      setCluesByStage(clueMap);
+    } catch {
+      // Stages/clues unavailable — panel will show release button disabled
+    }
+  }
 
   async function load() {
     try {
@@ -123,9 +152,15 @@ export function SessionDashboard({ sessionId, onBack }: Props) {
         return;
       }
 
-      setData(dashboardResult.value);
+      const dashboard = dashboardResult.value;
+      setData(dashboard);
       setTeams(teamsResult.status === 'fulfilled' ? teamsResult.value : []);
       setError(teamsResult.status === 'rejected' ? '⚠ TeamService no disponible — ranking sin datos' : null);
+
+      // Load stages + clues once we know the missionId (only when not yet loaded)
+      if (stages.length === 0 && dashboard.missionId) {
+        await loadStagesAndClues(dashboard.missionId);
+      }
     } finally {
       setLoading(false);
     }
@@ -224,7 +259,14 @@ export function SessionDashboard({ sessionId, onBack }: Props) {
         <h2 style={{ margin: '0 0 0.75rem', fontSize: '1rem', color: '#444' }}>
           Ranking en vivo
         </h2>
-        <TeamProgressPanel teams={teams} />
+        <TeamProgressPanel
+          teams={teams}
+          sessionId={sessionId}
+          sessionStatus={data!.status}
+          stages={stages}
+          cluesByStage={cluesByStage}
+          onClueReleased={load}
+        />
       </section>
 
       {/* ── Log de eventos ────────────────────────────────────────── */}

@@ -6,6 +6,7 @@ using SessionService.Application.Sessions.Commands.CancelSession;
 using SessionService.Application.Sessions.Commands.CreateSession;
 using SessionService.Application.Sessions.Commands.FinalizeSession;
 using SessionService.Application.Sessions.Commands.PauseSession;
+using SessionService.Application.Sessions.Commands.ReleaseClue;
 using SessionService.Application.Sessions.Commands.ResumeSession;
 using SessionService.Application.Sessions.Commands.StartSession;
 using SessionService.Application.Sessions.Commands.UpdateSession;
@@ -138,7 +139,31 @@ public class SessionsController : ControllerBase
                 : BadRequest(result.Error);
         return Ok(result.Value);
     }
+
+    [HttpPost("{id:guid}/teams/{teamId:guid}/release-clue")]
+    public async Task<IActionResult> ReleaseClue(
+        Guid id,
+        Guid teamId,
+        [FromBody] ReleaseClueRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(
+            new ReleaseClueCommand(id, teamId, request.TotalCluesForStage, request.ClueContent),
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            if (result.Error.Code == SessionErrors.NotFound.Code)
+                return NotFound(result.Error);
+            if (result.Error.Code == SessionErrors.AllCluesAlreadyReleased.Code)
+                return Conflict(result.Error);
+            return BadRequest(result.Error);
+        }
+
+        return Ok(result.Value);
+    }
 }
 
 public record CreateSessionRequest(Guid MissionId, string Name, DateTime? ScheduledAt);
 public record UpdateSessionRequest(string Name, DateTime? ScheduledAt);
+public record ReleaseClueRequest(int TotalCluesForStage, string ClueContent);

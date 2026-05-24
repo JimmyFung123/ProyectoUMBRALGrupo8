@@ -2,7 +2,9 @@ namespace TeamService.Adapter.Controllers;
 
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using TeamService.Application.Teams.Commands.ReleaseClue;
 using TeamService.Application.Teams.Queries.GetTeamProgress;
+using TeamService.Domain.Teams;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -24,4 +26,26 @@ public class TeamsController : ControllerBase
         var result = await _sender.Send(new GetTeamProgressQuery(sessionId), cancellationToken);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Records the release of the next sequential clue to a team.
+    /// Fails with 409 when all configured clues for the stage have already been released.
+    /// </summary>
+    [HttpPost("{id:guid}/release-clue")]
+    public async Task<IActionResult> ReleaseClue(
+        Guid id,
+        [FromBody] ReleaseClueRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new ReleaseClueCommand(id, request.TotalCluesForStage), cancellationToken);
+        if (result.IsFailure)
+        {
+            return result.Error.Code == TeamErrors.NotFound.Code
+                ? NotFound(result.Error)
+                : Conflict(result.Error);
+        }
+        return Ok(new { cluesReceived = result.Value });
+    }
 }
+
+public record ReleaseClueRequest(int TotalCluesForStage);

@@ -27,14 +27,40 @@ public class TeamServiceClient : ITeamServiceClient
             var json = await response.Content.ReadAsStringAsync(cancellationToken);
             using var doc = JsonDocument.Parse(json);
 
-            // Response is an array — non-empty means at least one team is enrolled
             return doc.RootElement.ValueKind == JsonValueKind.Array
                 && doc.RootElement.GetArrayLength() > 0;
         }
         catch
         {
-            // If TeamService is unreachable, fail-safe: block the start
             return false;
+        }
+    }
+
+    public async Task<int> ReleaseClueAsync(Guid teamId, int totalCluesForStage, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var payload = JsonSerializer.Serialize(new { totalCluesForStage });
+            var content = new StringContent(payload, System.Text.Encoding.UTF8, "application/json");
+
+            var response = await _http.PostAsync(
+                $"api/teams/{teamId}/release-clue",
+                content,
+                cancellationToken);
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
+                return -1; // all clues exhausted
+
+            if (!response.IsSuccessStatusCode)
+                return -1;
+
+            var json = await response.Content.ReadAsStringAsync(cancellationToken);
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.GetProperty("cluesReceived").GetInt32();
+        }
+        catch
+        {
+            return -1;
         }
     }
 }

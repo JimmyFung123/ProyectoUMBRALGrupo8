@@ -35,6 +35,7 @@ export interface SessionEventDto {
 
 export interface SessionDashboard {
   id: string;
+  missionId: string;
   name: string;
   status: string;
   createdAt: string;

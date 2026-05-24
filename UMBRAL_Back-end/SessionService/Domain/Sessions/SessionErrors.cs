@@ -13,5 +13,7 @@ public static class SessionErrors
     public static readonly Error CannotPauseSession  = new("Session.CannotPause",  "Only sessions in 'InProgress' state can be paused.");
     public static readonly Error CannotResumeSession = new("Session.CannotResume", "Only sessions in 'Paused' state can be resumed.");
     public static readonly Error CannotFinalizeSession  = new("Session.CannotFinalize", "Only active or paused sessions can be finalized.");
-    public static readonly Error NoTeamsEnrolled        = new("Session.NoTeamsEnrolled", "The session cannot start because no teams are enrolled.");
+    public static readonly Error NoTeamsEnrolled         = new("Session.NoTeamsEnrolled",     "The session cannot start because no teams are enrolled.");
+    public static readonly Error CannotReleaseClue       = new("Session.CannotReleaseClue",    "Clues can only be released while the session is in progress.");
+    public static readonly Error AllCluesAlreadyReleased = new("Session.AllCluesReleased",     "All configured clues for this stage have already been released to the team.");
 }
