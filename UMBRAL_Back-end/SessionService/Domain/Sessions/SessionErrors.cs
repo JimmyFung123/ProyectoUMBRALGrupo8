@@ -12,5 +12,6 @@ public static class SessionErrors
     public static readonly Error CannotStartSession  = new("Session.CannotStart",  "Only sessions in 'Pending' state can be started.");
     public static readonly Error CannotPauseSession  = new("Session.CannotPause",  "Only sessions in 'InProgress' state can be paused.");
     public static readonly Error CannotResumeSession = new("Session.CannotResume", "Only sessions in 'Paused' state can be resumed.");
-    public static readonly Error CannotFinalizeSession = new("Session.CannotFinalize", "Only active or paused sessions can be finalized.");
+    public static readonly Error CannotFinalizeSession  = new("Session.CannotFinalize", "Only active or paused sessions can be finalized.");
+    public static readonly Error NoTeamsEnrolled        = new("Session.NoTeamsEnrolled", "The session cannot start because no teams are enrolled.");
 }

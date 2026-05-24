@@ -1,7 +1,9 @@
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using SessionService.Application.Sessions;
 using SessionService.Domain.MissionLookup;
 using SessionService.Domain.Sessions;
+using SessionService.Infrastructure.ExternalClients;
 using SessionService.Infrastructure.Hubs;
 using SessionService.Infrastructure.Messaging.Consumers;
 using SessionService.Infrastructure.Persistence;
@@ -44,6 +46,13 @@ builder.Services.AddMassTransit(x =>
         // Auto-configure queues/exchanges for all registered consumers
         cfg.ConfigureEndpoints(ctx);
     });
+});
+
+// ── External HTTP clients ─────────────────────────────────────────────────────
+builder.Services.AddHttpClient<ITeamServiceClient, TeamServiceClient>(client =>
+{
+    var url = builder.Configuration["TeamServiceUrl"] ?? "http://localhost:5095/";
+    client.BaseAddress = new Uri(url);
 });
 
 // ── SignalR ───────────────────────────────────────────────────────────────────

@@ -196,6 +196,7 @@ export function SessionDashboard({ sessionId, onBack }: Props) {
         <SessionControls
           sessionId={sessionId}
           status={data!.status as SessionStatus}
+          teamsCount={teams.length}
           onStateChange={load}
         />
       </div>
