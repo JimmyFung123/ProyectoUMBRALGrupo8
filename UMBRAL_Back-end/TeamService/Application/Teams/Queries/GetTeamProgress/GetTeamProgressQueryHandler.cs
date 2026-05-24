@@ -37,7 +37,9 @@ public class GetTeamProgressQueryHandler
                 CurrentStageOrder: sorted[i].CurrentStageOrder,
                 CluesReceivedCurrentStage: sorted[i].CluesReceivedCurrentStage,
                 Score: sorted[i].Score,
-                Rank: rank));
+                Rank: rank,
+                ClueTimerResetAt: sorted[i].ClueTimerResetAt,
+                LastClueWasAutomatic: sorted[i].LastClueWasAutomatic));
         }
 
         return result;

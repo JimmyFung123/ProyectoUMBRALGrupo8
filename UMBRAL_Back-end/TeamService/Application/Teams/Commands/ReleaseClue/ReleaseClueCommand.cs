@@ -7,5 +7,5 @@ using TeamService.Domain.Common;
 /// Records the release of the next sequential clue to a team.
 /// Returns the new CluesReceivedCurrentStage count.
 /// </summary>
-public record ReleaseClueCommand(Guid TeamId, int TotalCluesForStage)
+public record ReleaseClueCommand(Guid TeamId, int TotalCluesForStage, bool IsAutomatic = false)
     : IRequest<Result<int>>;

@@ -35,7 +35,8 @@ public class ReleaseClueCommandHandler : IRequestHandler<ReleaseClueCommand, Res
         var cluesReceived = await _teamServiceClient.ReleaseClueAsync(
             request.TeamId,
             request.TotalCluesForStage,
-            cancellationToken);
+            cancellationToken,
+            isAutomatic: false);
 
         if (cluesReceived < 0)
             return Result.Failure<bool>(SessionErrors.AllCluesAlreadyReleased);

@@ -27,6 +27,12 @@ public class Team
     /// <summary>Accumulated score used for ranking.</summary>
     public int Score { get; private set; }
 
+    /// <summary>When the team last entered a new stage or received a clue (timer start for auto-release).</summary>
+    public DateTime? ClueTimerResetAt { get; private set; }
+
+    /// <summary>Whether the last clue released to this team was automatic (system-triggered).</summary>
+    public bool LastClueWasAutomatic { get; private set; }
+
     private Team() { }
 
     public static Team Create(Guid sessionId, string name)
@@ -48,6 +54,12 @@ public class Team
 
     public void UpdateProgress(int stageOrder, int cluesCurrentStage, int totalClues)
     {
+        if (stageOrder != CurrentStageOrder)
+        {
+            ClueTimerResetAt = DateTime.UtcNow;
+            LastClueWasAutomatic = false;
+            CluesReceivedCurrentStage = 0;
+        }
         CurrentStageOrder = stageOrder;
         CluesReceivedCurrentStage = cluesCurrentStage;
         TotalCluesReceived = totalClues;
@@ -60,13 +72,16 @@ public class Team
     /// Fails if all clues for the stage have already been released.
     /// </summary>
     /// <param name="totalCluesForStage">Total number of configured clues for the team's current stage.</param>
-    public Result<int> ReceiveClue(int totalCluesForStage)
+    /// <param name="isAutomatic">True when the clue is released automatically by the timer worker.</param>
+    public Result<int> ReceiveClue(int totalCluesForStage, bool isAutomatic = false)
     {
         if (CluesReceivedCurrentStage >= totalCluesForStage)
             return Result.Failure<int>(TeamErrors.AllCluesReleased);
 
         CluesReceivedCurrentStage++;
         TotalCluesReceived++;
+        ClueTimerResetAt = DateTime.UtcNow;
+        LastClueWasAutomatic = isAutomatic;
         return Result.Success(CluesReceivedCurrentStage);
     }
 }

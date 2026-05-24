@@ -22,7 +22,7 @@ public class CluesController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Add([FromBody] AddClueRequest request, CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new AddClueCommand(request.StageId, request.Content), cancellationToken);
+        var result = await _sender.Send(new AddClueCommand(request.StageId, request.Content, request.AutoReleaseAfterMinutes), cancellationToken);
         return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Error);
     }
 
@@ -34,4 +34,4 @@ public class CluesController : ControllerBase
     }
 }
 
-public record AddClueRequest(Guid StageId, string Content);
+public record AddClueRequest(Guid StageId, string Content, int? AutoReleaseAfterMinutes = null);

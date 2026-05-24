@@ -47,7 +47,7 @@ public class ReleaseClueCommandHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be(SessionErrors.NotFound);
         _teamClientMock.Verify(
-            t => t.ReleaseClueAsync(It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<CancellationToken>()),
+            t => t.ReleaseClueAsync(It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<CancellationToken>(), It.IsAny<bool>()),
             Times.Never);
     }
 
@@ -72,7 +72,7 @@ public class ReleaseClueCommandHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be(SessionErrors.CannotReleaseClue);
         _teamClientMock.Verify(
-            t => t.ReleaseClueAsync(It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<CancellationToken>()),
+            t => t.ReleaseClueAsync(It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<CancellationToken>(), It.IsAny<bool>()),
             Times.Never);
     }
 
@@ -90,7 +90,7 @@ public class ReleaseClueCommandHandlerTests
 
         // TeamService signals exhaustion with -1
         _teamClientMock
-            .Setup(t => t.ReleaseClueAsync(cmd.TeamId, cmd.TotalCluesForStage, It.IsAny<CancellationToken>()))
+            .Setup(t => t.ReleaseClueAsync(cmd.TeamId, cmd.TotalCluesForStage, It.IsAny<CancellationToken>(), It.IsAny<bool>()))
             .ReturnsAsync(-1);
 
         var result = await _handler.Handle(cmd, default);
@@ -113,7 +113,7 @@ public class ReleaseClueCommandHandlerTests
             .ReturnsAsync(session);
 
         _teamClientMock
-            .Setup(t => t.ReleaseClueAsync(cmd.TeamId, cmd.TotalCluesForStage, It.IsAny<CancellationToken>()))
+            .Setup(t => t.ReleaseClueAsync(cmd.TeamId, cmd.TotalCluesForStage, It.IsAny<CancellationToken>(), It.IsAny<bool>()))
             .ReturnsAsync(1); // first clue released
 
         var result = await _handler.Handle(cmd, default);
@@ -135,7 +135,7 @@ public class ReleaseClueCommandHandlerTests
         await _handler.Handle(cmd, default);
 
         _teamClientMock.Verify(
-            t => t.ReleaseClueAsync(It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<CancellationToken>()),
+            t => t.ReleaseClueAsync(It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<CancellationToken>(), It.IsAny<bool>()),
             Times.Never);
     }
 

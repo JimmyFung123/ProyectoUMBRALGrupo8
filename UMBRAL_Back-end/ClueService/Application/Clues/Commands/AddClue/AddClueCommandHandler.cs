@@ -25,7 +25,7 @@ public class AddClueCommandHandler : IRequestHandler<AddClueCommand, Result<Guid
         if (stage is null) return Result.Failure<Guid>(ClueErrors.StageNotFound);
 
         var existing = await _clueRepository.GetByStageIdAsync(request.StageId, cancellationToken);
-        var result = Clue.Create(request.StageId, stage.MissionId, request.Content, existing.Count + 1);
+        var result = Clue.Create(request.StageId, stage.MissionId, request.Content, existing.Count + 1, request.AutoReleaseAfterMinutes);
         if (result.IsFailure) return Result.Failure<Guid>(result.Error);
 
         await _clueRepository.AddAsync(result.Value, cancellationToken);

@@ -28,6 +28,9 @@ namespace TeamService.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("ClueTimerResetAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("CluesReceivedCurrentStage")
                         .HasColumnType("integer");
 
@@ -35,6 +38,9 @@ namespace TeamService.Migrations
                         .HasColumnType("integer");
 
                     b.Property<bool>("IsConnected")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("LastClueWasAutomatic")
                         .HasColumnType("boolean");
 
                     b.Property<string>("Name")

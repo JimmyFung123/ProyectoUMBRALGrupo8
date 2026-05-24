@@ -5,6 +5,7 @@ export interface Clue {
   latitude: number | null;
   longitude: number | null;
   radiusMeters: number | null;
+  autoReleaseAfterMinutes?: number;
 }
 
 export interface AddCluePayload {

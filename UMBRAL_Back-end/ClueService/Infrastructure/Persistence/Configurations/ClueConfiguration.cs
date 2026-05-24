@@ -12,5 +12,6 @@ public class ClueConfiguration : IEntityTypeConfiguration<Clue>
         builder.Property(c => c.StageId).IsRequired();
         builder.Property(c => c.MissionId).IsRequired();
         builder.Property(c => c.Order).IsRequired();
+        builder.Property(c => c.AutoReleaseAfterMinutes).IsRequired(false);
     }
 }

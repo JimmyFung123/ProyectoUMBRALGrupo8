@@ -14,5 +14,16 @@ public interface ITeamServiceClient
     /// Records the release of the next clue to a team. Returns the new clues-received count,
     /// or -1 when all clues were already released (exhausted).
     /// </summary>
-    Task<int> ReleaseClueAsync(Guid teamId, int totalCluesForStage, CancellationToken cancellationToken);
+    Task<int> ReleaseClueAsync(Guid teamId, int totalCluesForStage, CancellationToken cancellationToken, bool isAutomatic = false);
+
+    /// <summary>Gets current progress for all teams in a session (used by auto-release worker).</summary>
+    Task<IReadOnlyList<TeamProgressItem>> GetTeamProgressAsync(Guid sessionId, CancellationToken cancellationToken);
 }
+
+public record TeamProgressItem(
+    Guid Id,
+    string Name,
+    int CurrentStageOrder,
+    int CluesReceivedCurrentStage,
+    DateTime? ClueTimerResetAt,
+    bool LastClueWasAutomatic);

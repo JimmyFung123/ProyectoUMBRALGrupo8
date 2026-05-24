@@ -16,6 +16,8 @@ public class TeamConfiguration : IEntityTypeConfiguration<Team>
         builder.Property(t => t.CluesReceivedCurrentStage).IsRequired();
         builder.Property(t => t.TotalCluesReceived).IsRequired();
         builder.Property(t => t.Score).IsRequired();
+        builder.Property(t => t.ClueTimerResetAt).IsRequired(false);
+        builder.Property(t => t.LastClueWasAutomatic).IsRequired();
         builder.HasIndex(t => t.SessionId);
     }
 }

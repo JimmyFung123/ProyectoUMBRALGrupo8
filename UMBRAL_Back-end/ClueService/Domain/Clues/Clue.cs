@@ -7,11 +7,12 @@ public class Clue
     public Guid MissionId { get; private set; }
     public string Content { get; private set; } = string.Empty;
     public int Order { get; private set; }
+    public int? AutoReleaseAfterMinutes { get; private set; }
     public DateTime CreatedAt { get; private set; }
 
     private Clue() { }
 
-    public static Result<Clue> Create(Guid stageId, Guid missionId, string content, int order)
+    public static Result<Clue> Create(Guid stageId, Guid missionId, string content, int order, int? autoReleaseAfterMinutes = null)
     {
         if (string.IsNullOrWhiteSpace(content))
             return Result.Failure<Clue>(ClueErrors.InvalidContent);
@@ -23,9 +24,12 @@ public class Clue
             MissionId = missionId,
             Content = content,
             Order = order,
+            AutoReleaseAfterMinutes = autoReleaseAfterMinutes,
             CreatedAt = DateTime.UtcNow
         });
     }
 
     public void UpdateContent(string content) => Content = content;
+
+    public void SetAutoRelease(int? minutes) => AutoReleaseAfterMinutes = minutes;
 }

@@ -194,6 +194,12 @@ export function TeamProgressPanel({
                   <td style={tdStyle}>
                     <ConnectionDot connected={team.isConnected} />
                     <strong>{team.name}</strong>
+                    {team.lastClueWasAutomatic && (
+                      <span title="La última pista fue liberada automáticamente por el sistema"
+                        style={{ marginLeft: '0.3rem', fontSize: '0.75rem', color: '#6f42c1' }}>
+                        ⚡ Auto
+                      </span>
+                    )}
                   </td>
                   <td style={{ ...tdStyle, textAlign: 'center' }}>
                     {team.currentStageOrder === 0

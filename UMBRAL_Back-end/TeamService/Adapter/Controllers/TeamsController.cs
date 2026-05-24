@@ -37,7 +37,7 @@ public class TeamsController : ControllerBase
         [FromBody] ReleaseClueRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new ReleaseClueCommand(id, request.TotalCluesForStage), cancellationToken);
+        var result = await _sender.Send(new ReleaseClueCommand(id, request.TotalCluesForStage, request.IsAutomatic), cancellationToken);
         if (result.IsFailure)
         {
             return result.Error.Code == TeamErrors.NotFound.Code
@@ -48,4 +48,4 @@ public class TeamsController : ControllerBase
     }
 }
 
-public record ReleaseClueRequest(int TotalCluesForStage);
+public record ReleaseClueRequest(int TotalCluesForStage, bool IsAutomatic = false);

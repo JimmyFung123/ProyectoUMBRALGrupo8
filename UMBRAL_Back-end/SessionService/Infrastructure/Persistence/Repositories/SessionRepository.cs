@@ -21,6 +21,14 @@ public class SessionRepository : ISessionRepository
         return await query.OrderByDescending(s => s.CreatedAt).ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<Session>> GetAllInProgressAsync(CancellationToken ct = default)
+    {
+        var list = await _context.Sessions
+            .Where(s => s.Status == SessionStatus.InProgress)
+            .ToListAsync(ct);
+        return list;
+    }
+
     public async Task AddAsync(Session session, CancellationToken ct = default)
         => await _context.Sessions.AddAsync(session, ct);
 

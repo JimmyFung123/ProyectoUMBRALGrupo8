@@ -4,12 +4,13 @@ using System.Text.Json;
 using SessionService.Application.Sessions;
 
 /// <summary>
-/// HTTP adapter that queries TeamService to check team enrollment.
-/// Called only during session start to enforce the "at least 1 team" rule.
+/// HTTP adapter that queries TeamService to check team enrollment and manage clue releases.
 /// </summary>
 public class TeamServiceClient : ITeamServiceClient
 {
     private readonly HttpClient _http;
+    private static readonly JsonSerializerOptions _jsonOptions =
+        new() { PropertyNameCaseInsensitive = true };
 
     public TeamServiceClient(HttpClient http) => _http = http;
 
@@ -36,11 +37,11 @@ public class TeamServiceClient : ITeamServiceClient
         }
     }
 
-    public async Task<int> ReleaseClueAsync(Guid teamId, int totalCluesForStage, CancellationToken cancellationToken)
+    public async Task<int> ReleaseClueAsync(Guid teamId, int totalCluesForStage, CancellationToken cancellationToken, bool isAutomatic = false)
     {
         try
         {
-            var payload = JsonSerializer.Serialize(new { totalCluesForStage });
+            var payload = JsonSerializer.Serialize(new { totalCluesForStage, isAutomatic });
             var content = new StringContent(payload, System.Text.Encoding.UTF8, "application/json");
 
             var response = await _http.PostAsync(
@@ -63,4 +64,38 @@ public class TeamServiceClient : ITeamServiceClient
             return -1;
         }
     }
+
+    public async Task<IReadOnlyList<TeamProgressItem>> GetTeamProgressAsync(Guid sessionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await _http.GetAsync($"api/teams?sessionId={sessionId}", cancellationToken);
+            if (!response.IsSuccessStatusCode) return [];
+
+            var json = await response.Content.ReadAsStringAsync(cancellationToken);
+            var items = JsonSerializer.Deserialize<List<TeamProgressJsonItem>>(json, _jsonOptions) ?? [];
+            return items.Select(x => new TeamProgressItem(
+                x.Id,
+                x.Name,
+                x.CurrentStageOrder,
+                x.CluesReceivedCurrentStage,
+                x.ClueTimerResetAt,
+                x.LastClueWasAutomatic)).ToList();
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    private record TeamProgressJsonItem(
+        Guid Id,
+        string Name,
+        bool IsConnected,
+        int CurrentStageOrder,
+        int CluesReceivedCurrentStage,
+        int Score,
+        int Rank,
+        DateTime? ClueTimerResetAt,
+        bool LastClueWasAutomatic);
 }

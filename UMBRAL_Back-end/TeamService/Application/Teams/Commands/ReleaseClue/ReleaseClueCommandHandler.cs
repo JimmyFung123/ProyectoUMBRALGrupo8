@@ -17,7 +17,7 @@ public class ReleaseClueCommandHandler : IRequestHandler<ReleaseClueCommand, Res
         if (team is null)
             return Result.Failure<int>(TeamErrors.NotFound);
 
-        var result = team.ReceiveClue(request.TotalCluesForStage);
+        var result = team.ReceiveClue(request.TotalCluesForStage, request.IsAutomatic);
         if (result.IsFailure)
             return result;
 
