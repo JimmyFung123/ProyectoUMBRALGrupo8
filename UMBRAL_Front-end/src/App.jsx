@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { MissionList } from './components/Missions/MissionList'
-import { SessionDetailView } from './components/Sessions/SessionDetail'
+import { SessionDashboard } from './components/Sessions/SessionDashboard'
 import { SessionList } from './components/Sessions/SessionList'
 
 const TABS = [
@@ -52,7 +52,7 @@ function App() {
       {activeTab === 'sessions' && (
         selectedSessionId
           ? (
-            <SessionDetailView
+            <SessionDashboard
               sessionId={selectedSessionId}
               onBack={() => setSelectedSessionId(null)}
             />

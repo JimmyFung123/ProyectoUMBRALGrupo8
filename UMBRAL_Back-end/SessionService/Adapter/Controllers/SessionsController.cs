@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using SessionService.Application.Sessions.Commands.CancelSession;
 using SessionService.Application.Sessions.Commands.CreateSession;
 using SessionService.Application.Sessions.Commands.UpdateSession;
+using SessionService.Application.Sessions.Queries.GetSessionDashboard;
 using SessionService.Application.Sessions.Queries.GetSessionDetail;
 using SessionService.Application.Sessions.Queries.GetSessions;
 using SessionService.Domain.Sessions;
@@ -31,6 +32,13 @@ public class SessionsController : ControllerBase
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
         var result = await _sender.Send(new GetSessionDetailQuery(id), cancellationToken);
+        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
+    }
+
+    [HttpGet("{id:guid}/dashboard")]
+    public async Task<IActionResult> GetDashboard(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new GetSessionDashboardQuery(id), cancellationToken);
         return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
     }
 

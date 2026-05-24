@@ -1,4 +1,4 @@
-import type { CreateSessionPayload, Session, SessionDetail, SessionStatus } from '../types/session';
+import type { CreateSessionPayload, Session, SessionDashboard, SessionDetail, SessionStatus } from '../types/session';
 
 const BASE_URL = import.meta.env.VITE_SESSION_API_URL ?? 'http://localhost:5092/api';
 
@@ -39,6 +39,10 @@ export const sessionService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     }).then(handleResponse<boolean>);
+  },
+
+  getDashboard(id: string): Promise<SessionDashboard> {
+    return fetch(`${BASE_URL}/sessions/${id}/dashboard`).then(handleResponse<SessionDashboard>);
   },
 
   create(payload: CreateSessionPayload): Promise<string> {

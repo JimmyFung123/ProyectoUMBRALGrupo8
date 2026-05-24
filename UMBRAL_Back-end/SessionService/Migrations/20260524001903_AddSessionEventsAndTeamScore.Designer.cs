@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SessionService.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using SessionService.Infrastructure.Persistence;
 namespace SessionService.Migrations
 {
     [DbContext(typeof(SessionsDbContext))]
-    partial class SessionsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260524001903_AddSessionEventsAndTeamScore")]
+    partial class AddSessionEventsAndTeamScore
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -102,6 +105,42 @@ namespace SessionService.Migrations
                     b.HasIndex("SessionId", "OccurredAt");
 
                     b.ToTable("SessionEvents", (string)null);
+                });
+
+            modelBuilder.Entity("SessionService.Domain.Sessions.Team", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("CluesReceivedCurrentStage")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("CurrentStageOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsConnected")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("Score")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("TotalCluesReceived")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SessionId");
+
+                    b.ToTable("Teams", (string)null);
                 });
 #pragma warning restore 612, 618
         }

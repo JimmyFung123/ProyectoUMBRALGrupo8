@@ -16,21 +16,27 @@ export interface Session {
   scheduledAt: string | null;
 }
 
-export interface Team {
-  id: string;
-  name: string;
-  isConnected: boolean;
-  currentStageOrder: number;
-  cluesReceivedCurrentStage: number;
-  totalCluesReceived: number;
-}
-
-export interface SessionDetail extends Session {
-  teams: Team[];
-}
+export interface SessionDetail extends Session {}
 
 export interface CreateSessionPayload {
   missionId: string;
   name: string;
   scheduledAt: string | null;
+}
+
+// ── HU-9: Dashboard ───────────────────────────────────────────────────────────
+
+export interface SessionEventDto {
+  id: string;
+  description: string;
+  occurredAt: string;
+}
+
+export interface SessionDashboard {
+  id: string;
+  name: string;
+  status: string;
+  createdAt: string;
+  scheduledAt: string | null;
+  recentEvents: SessionEventDto[];
 }
