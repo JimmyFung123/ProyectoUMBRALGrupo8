@@ -12,6 +12,12 @@ public class Team
     public Guid SessionId { get; private set; }
     public string Name { get; private set; } = string.Empty;
 
+    /// <summary>Short code the team leader shares so members can join (e.g. "XY42").</summary>
+    public string InviteCode { get; private set; } = string.Empty;
+
+    /// <summary>Number of participants currently in this team (leader counts as 1).</summary>
+    public int MemberCount { get; private set; }
+
     /// <summary>Whether the team has an active WebSocket connection.</summary>
     public bool IsConnected { get; private set; }
 
@@ -42,12 +48,28 @@ public class Team
             Id = Guid.NewGuid(),
             SessionId = sessionId,
             Name = name.Trim(),
+            InviteCode = GenerateInviteCode(),
+            MemberCount = 1,
             IsConnected = false,
             CurrentStageOrder = 0,
             CluesReceivedCurrentStage = 0,
             TotalCluesReceived = 0,
             Score = 0,
         };
+    }
+
+    /// <summary>Adds a member to this team. Succeeds up to MaxMembers (no hard limit enforced here).</summary>
+    public Result<int> Join()
+    {
+        MemberCount++;
+        return Result.Success(MemberCount);
+    }
+
+    private static string GenerateInviteCode()
+    {
+        const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no ambiguous chars
+        return new string(Enumerable.Range(0, 4)
+            .Select(_ => chars[Random.Shared.Next(chars.Length)]).ToArray());
     }
 
     public void SetConnected(bool connected) => IsConnected = connected;

@@ -16,5 +16,7 @@ public class SessionConfiguration : IEntityTypeConfiguration<Session>
         builder.Property(s => s.CreatedAt).IsRequired();
         builder.HasIndex(s => s.MissionId);
         builder.HasIndex(s => s.Status);
+        builder.Property(s => s.AccessCode).IsRequired().HasMaxLength(10);
+        builder.HasIndex(s => s.AccessCode).IsUnique();
     }
 }

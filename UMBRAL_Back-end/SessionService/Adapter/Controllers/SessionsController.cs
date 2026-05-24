@@ -12,6 +12,7 @@ using SessionService.Application.Sessions.Commands.ReleaseClue;
 using SessionService.Application.Sessions.Commands.ResumeSession;
 using SessionService.Application.Sessions.Commands.StartSession;
 using SessionService.Application.Sessions.Commands.UpdateSession;
+using SessionService.Application.Sessions.Queries.GetSessionByCode;
 using SessionService.Application.Sessions.Queries.GetSessionDashboard;
 using SessionService.Application.Sessions.Queries.GetSessionDetail;
 using SessionService.Application.Sessions.Queries.GetSessions;
@@ -33,6 +34,14 @@ public class SessionsController : ControllerBase
     {
         var result = await _sender.Send(new GetSessionsQuery(missionId, status), cancellationToken);
         return Ok(result);
+    }
+
+    /// <summary>Participant entry point: look up a session by its access code.</summary>
+    [HttpGet("by-code/{code}")]
+    public async Task<IActionResult> GetByCode(string code, CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new GetSessionByCodeQuery(code), cancellationToken);
+        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
     }
 
     [HttpGet("{id:guid}")]

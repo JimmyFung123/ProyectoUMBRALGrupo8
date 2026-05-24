@@ -37,11 +37,19 @@ namespace TeamService.Migrations
                     b.Property<int>("CurrentStageOrder")
                         .HasColumnType("integer");
 
+                    b.Property<string>("InviteCode")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
                     b.Property<bool>("IsConnected")
                         .HasColumnType("boolean");
 
                     b.Property<bool>("LastClueWasAutomatic")
                         .HasColumnType("boolean");
+
+                    b.Property<int>("MemberCount")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -58,6 +66,9 @@ namespace TeamService.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("InviteCode")
+                        .IsUnique();
 
                     b.HasIndex("SessionId");
 

@@ -36,6 +36,7 @@ public class GetSessionDashboardQueryHandler
             Status: session.Status.ToString(),
             CreatedAt: session.CreatedAt,
             ScheduledAt: session.ScheduledAt,
+            AccessCode: session.AccessCode,
             RecentEvents: events
                 .Select(e => new SessionEventDto(e.Id, e.Description, e.OccurredAt))
                 .ToList());

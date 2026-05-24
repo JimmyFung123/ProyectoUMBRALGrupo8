@@ -2,9 +2,12 @@ namespace TeamService.Adapter.Controllers;
 
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using TeamService.Application.Teams.Commands.CreateTeam;
 using TeamService.Application.Teams.Commands.ForceAdvance;
+using TeamService.Application.Teams.Commands.JoinTeam;
 using TeamService.Application.Teams.Commands.PenalizeTeam;
 using TeamService.Application.Teams.Commands.ReleaseClue;
+using TeamService.Application.Teams.Queries.GetTeamById;
 using TeamService.Application.Teams.Queries.GetTeamProgress;
 using TeamService.Domain.Teams;
 
@@ -15,6 +18,40 @@ public class TeamsController : ControllerBase
     private readonly ISender _sender;
 
     public TeamsController(ISender sender) => _sender = sender;
+
+    /// <summary>Creates a new team for a session. Called by the team leader.</summary>
+    [HttpPost]
+    public async Task<IActionResult> Create(
+        [FromBody] CreateTeamRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new CreateTeamCommand(request.SessionId, request.TeamName), cancellationToken);
+        return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Error);
+    }
+
+    /// <summary>Joins an existing team using the team's invite code.</summary>
+    [HttpPost("{inviteCode}/join")]
+    public async Task<IActionResult> Join(
+        string inviteCode,
+        CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new JoinTeamCommand(inviteCode), cancellationToken);
+        if (result.IsFailure)
+            return result.Error.Code == TeamErrors.TeamNotFound.Code
+                ? NotFound(result.Error)
+                : BadRequest(result.Error);
+        return Ok(result.Value);
+    }
+
+    /// <summary>Returns basic info for a single team by ID (used by participant waiting room).</summary>
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetById(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new GetTeamByIdQuery(id), cancellationToken);
+        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
+    }
 
     /// <summary>
     /// Returns all teams for a session, ranked by score (highest first).
@@ -87,3 +124,4 @@ public class TeamsController : ControllerBase
 public record ReleaseClueRequest(int TotalCluesForStage, bool IsAutomatic = false);
 public record PenalizeTeamRequest(int Points, string Reason);
 public record ForceAdvanceTeamRequest(int NextStageOrder);
+public record CreateTeamRequest(Guid SessionId, string TeamName);

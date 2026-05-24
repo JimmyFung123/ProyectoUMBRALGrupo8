@@ -54,6 +54,30 @@ export function SessionDetailView({ sessionId, onBack }: Props) {
         <StatusBadge status={detail.status} />
       </div>
 
+      {/* ── Código de acceso ────────────────────────────────────────── */}
+      {detail.accessCode && (
+        <section style={{
+          marginBottom: '1.5rem', padding: '1rem 1.5rem',
+          background: '#eef2ff', border: '2px solid #6366f1', borderRadius: 8,
+          display: 'flex', alignItems: 'center', gap: '1.5rem',
+        }}>
+          <div>
+            <p style={{ margin: 0, fontSize: '0.75rem', color: '#6366f1', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Código de acceso para participantes
+            </p>
+            <p style={{ margin: '0.25rem 0 0', fontSize: '2rem', fontWeight: 700, letterSpacing: '0.3em', color: '#3730a3', fontFamily: 'monospace' }}>
+              {detail.accessCode}
+            </p>
+          </div>
+          <button
+            onClick={() => navigator.clipboard.writeText(detail.accessCode!)}
+            style={{ marginLeft: 'auto', cursor: 'pointer', padding: '0.4rem 0.9rem', borderRadius: 6, border: '1px solid #6366f1', background: 'white', color: '#6366f1', fontWeight: 600 }}
+          >
+            Copiar
+          </button>
+        </section>
+      )}
+
       {/* ── Metadata ────────────────────────────────────────────────── */}
       <section style={{ marginBottom: '1.5rem', padding: '1rem', background: '#f8f9fa', borderRadius: 8 }}>
         <p style={{ margin: '0.2rem 0' }}>

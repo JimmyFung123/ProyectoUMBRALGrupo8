@@ -34,4 +34,8 @@ public class SessionRepository : ISessionRepository
 
     public Task SaveChangesAsync(CancellationToken ct = default)
         => _context.SaveChangesAsync(ct);
+
+    public Task<Session?> GetByAccessCodeAsync(string code, CancellationToken ct = default)
+        => _context.Sessions.FirstOrDefaultAsync(
+               s => s.AccessCode == code.ToUpperInvariant(), ct);
 }

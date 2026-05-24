@@ -39,4 +39,11 @@ public class TeamRepository : ITeamRepository
 
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => _context.SaveChangesAsync(cancellationToken);
+
+    public Task<Team?> GetByInviteCodeAsync(string inviteCode, CancellationToken cancellationToken = default)
+        => _context.Teams.FirstOrDefaultAsync(
+               t => t.InviteCode == inviteCode.ToUpperInvariant(), cancellationToken);
+
+    public async Task AddAsync(Team team, CancellationToken cancellationToken = default)
+        => await _context.Teams.AddAsync(team, cancellationToken);
 }

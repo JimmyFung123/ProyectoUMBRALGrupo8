@@ -26,7 +26,8 @@ public class GetSessionDetailQueryHandler
             session.Name,
             session.Status.ToString(),
             session.CreatedAt,
-            session.ScheduledAt);
+            session.ScheduledAt,
+            session.AccessCode);
 
         return Result.Success(dto);
     }

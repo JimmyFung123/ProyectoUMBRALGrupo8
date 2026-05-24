@@ -236,11 +236,35 @@ export function SessionDashboard({ sessionId, onBack }: Props) {
         />
       </div>
 
+      {/* ── Código de acceso para participantes ─────────────────── */}
+      {data!.accessCode && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '1.5rem',
+          marginBottom: '1.5rem', padding: '0.75rem 1.25rem',
+          background: '#eef2ff', border: '2px solid #6366f1', borderRadius: 8,
+        }}>
+          <div>
+            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#6366f1', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Código para participantes
+            </div>
+            <div style={{ fontSize: '1.8rem', fontWeight: 800, letterSpacing: '0.35em', color: '#3730a3', fontFamily: 'monospace', lineHeight: 1.2 }}>
+              {data!.accessCode}
+            </div>
+          </div>
+          <button
+            onClick={() => navigator.clipboard.writeText(data!.accessCode)}
+            style={{ marginLeft: 'auto', padding: '0.4rem 1rem', borderRadius: 6, border: '1px solid #6366f1', background: 'white', color: '#6366f1', fontWeight: 600, cursor: 'pointer' }}
+          >
+            Copiar
+          </button>
+        </div>
+      )}
+
       {/* ── Métricas ─────────────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '2rem' }}>
         <MetricCard
-          label="Equipos conectados"
-          value={`${teams.filter(t => t.isConnected).length} / ${teams.length}`}
+          label="Equipos registrados"
+          value={teams.length}
           sub={teams.length === 0 ? 'Sin equipos registrados' : undefined}
         />
         <MetricCard

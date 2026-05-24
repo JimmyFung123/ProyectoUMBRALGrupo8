@@ -15,6 +15,7 @@ export interface Session {
   status: SessionStatus;
   createdAt: string;
   scheduledAt: string | null;
+  accessCode?: string;
 }
 
 export interface SessionDetail extends Session {}
@@ -40,5 +41,6 @@ export interface SessionDashboard {
   status: string;
   createdAt: string;
   scheduledAt: string | null;
+  accessCode: string;
   recentEvents: SessionEventDto[];
 }

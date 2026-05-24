@@ -6,4 +6,5 @@ public record SessionDetailDto(
     string Name,
     string Status,
     DateTime CreatedAt,
-    DateTime? ScheduledAt);
+    DateTime? ScheduledAt,
+    string AccessCode);

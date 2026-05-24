@@ -7,4 +7,5 @@ public interface ISessionRepository
     Task<IReadOnlyList<Session>> GetAllInProgressAsync(CancellationToken ct = default);
     Task AddAsync(Session session, CancellationToken ct = default);
     Task SaveChangesAsync(CancellationToken ct = default);
+    Task<Session?> GetByAccessCodeAsync(string code, CancellationToken ct = default);
 }

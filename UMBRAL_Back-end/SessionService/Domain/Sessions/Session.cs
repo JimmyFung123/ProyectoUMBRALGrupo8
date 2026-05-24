@@ -11,6 +11,9 @@ public class Session
     public DateTime CreatedAt { get; private set; }
     public DateTime? ScheduledAt { get; private set; }
 
+    /// <summary>Short alphanumeric code participants use to find this session (e.g. "ABC123").</summary>
+    public string AccessCode { get; private set; } = string.Empty;
+
     private Session() { }
 
     public static Result<Session> Create(Guid missionId, string name, DateTime? scheduledAt = null)
@@ -25,7 +28,8 @@ public class Session
             Name = name.Trim(),
             Status = SessionStatus.Pending,
             CreatedAt = DateTime.UtcNow,
-            ScheduledAt = scheduledAt
+            ScheduledAt = scheduledAt,
+            AccessCode = GenerateCode(6),
         });
     }
 
@@ -98,5 +102,12 @@ public class Session
         Name = name.Trim();
         ScheduledAt = scheduledAt;
         return Result.Success(true);
+    }
+
+    private static string GenerateCode(int length)
+    {
+        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        return new string(Enumerable.Range(0, length)
+            .Select(_ => chars[Random.Shared.Next(chars.Length)]).ToArray());
     }
 }

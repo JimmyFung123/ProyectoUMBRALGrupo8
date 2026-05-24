@@ -7,6 +7,7 @@ public record SessionDashboardDto(
     string Status,
     DateTime CreatedAt,
     DateTime? ScheduledAt,
+    string AccessCode,
     IReadOnlyList<SessionEventDto> RecentEvents
 );
 
