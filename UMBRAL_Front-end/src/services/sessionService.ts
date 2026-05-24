@@ -88,4 +88,11 @@ export const sessionService = {
       body: JSON.stringify({ points, reason }),
     }).then(handleResponse<{ newScore: number }>);
   },
+
+  forceAdvanceTeam(sessionId: string, teamId: string): Promise<boolean> {
+    return fetch(`${BASE_URL}/sessions/${sessionId}/teams/${teamId}/force-advance`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    }).then(handleResponse<boolean>);
+  },
 };

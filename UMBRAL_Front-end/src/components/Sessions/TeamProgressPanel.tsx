@@ -73,6 +73,8 @@ export function TeamProgressPanel({
   const [penaltyLoading, setPenaltyLoading] = useState(false);
   const [penaltyError, setPenaltyError] = useState<string | null>(null);
   const [penaltySuccess, setPenaltySuccess] = useState<{ teamName: string; points: number } | null>(null);
+  const [advancing, setAdvancing] = useState<string | null>(null);
+  const [advanceError, setAdvanceError] = useState<string | null>(null);
 
   if (teams.length === 0) {
     return (
@@ -110,6 +112,24 @@ export function TeamProgressPanel({
       setReleaseError(`No se pudo liberar la pista para ${team.name}`);
     } finally {
       setReleasing(null);
+    }
+  }
+
+  async function handleForceAdvance(team: TeamProgressDto) {
+    const confirmed = window.confirm(
+      `¿Forzar avance de "${team.name}" a la siguiente etapa?\n\nEl equipo recibirá 0 puntos por la etapa actual.`
+    );
+    if (!confirmed) return;
+
+    setAdvancing(team.id);
+    setAdvanceError(null);
+    try {
+      await sessionService.forceAdvanceTeam(sessionId, team.id);
+      onClueReleased(); // reloads ranking and events
+    } catch {
+      setAdvanceError(`No se pudo forzar el avance de ${team.name}`);
+    } finally {
+      setAdvancing(null);
     }
   }
 
@@ -193,6 +213,19 @@ export function TeamProgressPanel({
         </div>
       )}
 
+      {advanceError && (
+        <div style={{
+          marginBottom: '0.75rem',
+          padding: '0.5rem 0.9rem',
+          background: '#fff3cd',
+          borderRadius: 6,
+          fontSize: '0.85rem',
+          color: '#856404',
+        }}>
+          {advanceError}
+        </div>
+      )}
+
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
           <thead>
@@ -213,6 +246,7 @@ export function TeamProgressPanel({
               const exhausted = totalClues > 0 && received >= totalClues;
               const noStage = team.currentStageOrder === 0 || clues.length === 0;
               const isReleasing = releasing === team.id;
+              const isAdvancing = advancing === team.id;
 
               const buttonDisabled = isReleasing || !canReleaseClues || exhausted || noStage;
               const buttonTitle = !canReleaseClues
@@ -304,6 +338,27 @@ export function TeamProgressPanel({
                       }}
                     >
                       🚨 Penalizar
+                    </button>
+                    <button
+                      onClick={() => handleForceAdvance(team)}
+                      disabled={isAdvancing || !canReleaseClues}
+                      title={
+                        !canReleaseClues
+                          ? 'Solo se puede forzar el avance con la sesión en progreso'
+                          : `Forzar avance de ${team.name} a la siguiente etapa (0 puntos)`
+                      }
+                      style={{
+                        marginLeft: '0.4rem',
+                        padding: '0.2rem 0.6rem',
+                        fontSize: '0.8rem',
+                        cursor: isAdvancing || !canReleaseClues ? 'not-allowed' : 'pointer',
+                        opacity: isAdvancing || !canReleaseClues ? 0.45 : 1,
+                        background: '#fff3cd',
+                        border: '1px solid #ffc107',
+                        borderRadius: 4,
+                      }}
+                    >
+                      {isAdvancing ? '…' : '⏭ Forzar'}
                     </button>
                   </td>
                 </tr>

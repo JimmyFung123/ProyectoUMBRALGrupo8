@@ -21,6 +21,9 @@ public interface ITeamServiceClient
 
     /// <summary>Applies a penalty to a team, subtracting the given points. Returns the new score, or int.MinValue on error.</summary>
     Task<int> PenalizeTeamAsync(Guid teamId, int points, string reason, CancellationToken cancellationToken);
+
+    /// <summary>Forces a team to advance to the given next stage, earning 0 points.</summary>
+    Task<bool> ForceAdvanceTeamAsync(Guid teamId, int nextStageOrder, CancellationToken cancellationToken);
 }
 
 public record TeamProgressItem(

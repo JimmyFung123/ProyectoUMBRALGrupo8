@@ -84,6 +84,23 @@ public class Team
     }
 
     /// <summary>
+    /// Forces the team to advance to the specified next stage.
+    /// Score is NOT modified (team earns 0 points for the skipped stage).
+    /// Resets clue tracking for the new stage.
+    /// </summary>
+    public Result<bool> ForceAdvance(int nextStageOrder)
+    {
+        if (nextStageOrder <= CurrentStageOrder)
+            return Result.Failure<bool>(TeamErrors.InvalidNextStage);
+
+        CurrentStageOrder = nextStageOrder;
+        CluesReceivedCurrentStage = 0;
+        ClueTimerResetAt = DateTime.UtcNow;
+        LastClueWasAutomatic = false;
+        return Result.Success(true);
+    }
+
+    /// <summary>
     /// Records the release of the next sequential clue to this team for their current stage.
     /// Fails if all clues for the stage have already been released.
     /// </summary>

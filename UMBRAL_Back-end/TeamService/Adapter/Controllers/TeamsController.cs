@@ -2,6 +2,7 @@ namespace TeamService.Adapter.Controllers;
 
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using TeamService.Application.Teams.Commands.ForceAdvance;
 using TeamService.Application.Teams.Commands.PenalizeTeam;
 using TeamService.Application.Teams.Commands.ReleaseClue;
 using TeamService.Application.Teams.Queries.GetTeamProgress;
@@ -63,7 +64,26 @@ public class TeamsController : ControllerBase
         }
         return Ok(new { newScore = result.Value });
     }
+    /// <summary>
+    /// Forces a team to advance to the specified next stage, earning 0 points for the skipped stage.
+    /// </summary>
+    [HttpPost("{id:guid}/force-advance")]
+    public async Task<IActionResult> ForceAdvance(
+        Guid id,
+        [FromBody] ForceAdvanceTeamRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new ForceAdvanceTeamCommand(id, request.NextStageOrder), cancellationToken);
+        if (result.IsFailure)
+        {
+            return result.Error.Code == TeamErrors.NotFound.Code
+                ? NotFound(result.Error)
+                : BadRequest(result.Error);
+        }
+        return Ok(result.Value);
+    }
 }
 
 public record ReleaseClueRequest(int TotalCluesForStage, bool IsAutomatic = false);
 public record PenalizeTeamRequest(int Points, string Reason);
+public record ForceAdvanceTeamRequest(int NextStageOrder);

@@ -103,6 +103,18 @@ public class TeamServiceClient : ITeamServiceClient
         catch { return int.MinValue; }
     }
 
+    public async Task<bool> ForceAdvanceTeamAsync(Guid teamId, int nextStageOrder, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var payload = JsonSerializer.Serialize(new { nextStageOrder });
+            var content = new StringContent(payload, System.Text.Encoding.UTF8, "application/json");
+            var response = await _http.PostAsync($"api/teams/{teamId}/force-advance", content, cancellationToken);
+            return response.IsSuccessStatusCode;
+        }
+        catch { return false; }
+    }
+
     private record TeamProgressJsonItem(
         Guid Id,
         string Name,

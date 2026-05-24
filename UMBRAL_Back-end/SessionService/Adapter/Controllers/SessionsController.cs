@@ -6,6 +6,7 @@ using SessionService.Application.Sessions.Commands.CancelSession;
 using SessionService.Application.Sessions.Commands.CreateSession;
 using SessionService.Application.Sessions.Commands.FinalizeSession;
 using SessionService.Application.Sessions.Commands.PauseSession;
+using SessionService.Application.Sessions.Commands.ForceAdvanceTeam;
 using SessionService.Application.Sessions.Commands.PenalizeTeam;
 using SessionService.Application.Sessions.Commands.ReleaseClue;
 using SessionService.Application.Sessions.Commands.ResumeSession;
@@ -183,6 +184,26 @@ public class SessionsController : ControllerBase
         }
 
         return Ok(new { newScore = result.Value });
+    }
+
+    [HttpPost("{id:guid}/teams/{teamId:guid}/force-advance")]
+    public async Task<IActionResult> ForceAdvanceTeam(
+        Guid id,
+        Guid teamId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new ForceAdvanceTeamCommand(id, teamId), cancellationToken);
+
+        if (result.IsFailure)
+        {
+            if (result.Error.Code == SessionErrors.NotFound.Code)
+                return NotFound(result.Error);
+            if (result.Error.Code == SessionErrors.TeamAlreadyOnLastStage.Code)
+                return Conflict(result.Error);
+            return BadRequest(result.Error);
+        }
+
+        return Ok(result.Value);
     }
 }
 
