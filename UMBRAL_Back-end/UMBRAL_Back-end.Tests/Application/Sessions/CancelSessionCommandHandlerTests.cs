@@ -1,22 +1,24 @@
 namespace UMBRAL_Back_end.Tests.Application.Sessions;
 
 using FluentAssertions;
+using MassTransit;
 using Moq;
 using SessionService.Application.Sessions.Commands.CancelSession;
 using SessionService.Domain.Sessions;
+using UMBRAL.Contracts.Events;
 using Xunit;
 
 public class CancelSessionCommandHandlerTests
 {
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
-    private readonly Mock<ITeamRepository> _teamRepoMock = new();
+    private readonly Mock<IPublishEndpoint> _publishEndpointMock = new();
     private readonly CancelSessionCommandHandler _handler;
 
     public CancelSessionCommandHandlerTests()
     {
         _handler = new CancelSessionCommandHandler(
             _sessionRepoMock.Object,
-            _teamRepoMock.Object);
+            _publishEndpointMock.Object);
     }
 
     // ── Sesión no encontrada ──────────────────────────────────────────────────
@@ -56,19 +58,19 @@ public class CancelSessionCommandHandlerTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be(SessionErrors.CannotCancelNonPendingSession);
-        _teamRepoMock.Verify(
-            r => r.DeleteBySessionIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+        _publishEndpointMock.Verify(
+            p => p.Publish(It.IsAny<SessionCancelledIntegrationEvent>(), It.IsAny<CancellationToken>()),
             Times.Never);
         _sessionRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    // ── Flujo feliz sin equipos ───────────────────────────────────────────────
+    // ── Flujo feliz ───────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task Handle_WhenSessionIsPendingWithNoTeams_CancelsAndSaves()
+    public async Task Handle_WhenSessionIsPending_CancelsAndPublishesEvent()
     {
         var sessionId = Guid.NewGuid();
-        var session = Session.Create(Guid.NewGuid(), "Sesión sin equipos").Value;
+        var session = Session.Create(Guid.NewGuid(), "Sesión cancelable").Value;
 
         _sessionRepoMock
             .Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
@@ -78,19 +80,19 @@ public class CancelSessionCommandHandlerTests
 
         result.IsSuccess.Should().BeTrue();
         session.Status.Should().Be(SessionStatus.Cancelled);
-        _teamRepoMock.Verify(
-            r => r.DeleteBySessionIdAsync(sessionId, It.IsAny<CancellationToken>()),
-            Times.Once);
         _sessionRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _publishEndpointMock.Verify(
+            p => p.Publish(It.IsAny<SessionCancelledIntegrationEvent>(), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
-    // ── Flujo feliz con equipos ───────────────────────────────────────────────
+    // ── Orden: save antes de publish ──────────────────────────────────────────
 
     [Fact]
-    public async Task Handle_WhenSessionHasTeams_DeletesTeamsBeforeSaving()
+    public async Task Handle_WhenSessionIsPending_SavesBeforePublishing()
     {
         var sessionId = Guid.NewGuid();
-        var session = Session.Create(Guid.NewGuid(), "Sesión con equipos").Value;
+        var session = Session.Create(Guid.NewGuid(), "Sesión ordenada").Value;
 
         _sessionRepoMock
             .Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
@@ -98,20 +100,20 @@ public class CancelSessionCommandHandlerTests
 
         var callOrder = new List<string>();
 
-        _teamRepoMock
-            .Setup(r => r.DeleteBySessionIdAsync(sessionId, It.IsAny<CancellationToken>()))
-            .Callback(() => callOrder.Add("DeleteTeams"))
-            .Returns(Task.CompletedTask);
-
         _sessionRepoMock
             .Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .Callback(() => callOrder.Add("SaveChanges"))
             .Returns(Task.CompletedTask);
 
+        _publishEndpointMock
+            .Setup(p => p.Publish(It.IsAny<SessionCancelledIntegrationEvent>(), It.IsAny<CancellationToken>()))
+            .Callback(() => callOrder.Add("Publish"))
+            .Returns(Task.CompletedTask);
+
         var result = await _handler.Handle(new CancelSessionCommand(sessionId), default);
 
         result.IsSuccess.Should().BeTrue();
-        callOrder.Should().Equal("DeleteTeams", "SaveChanges");
+        callOrder.Should().Equal("SaveChanges", "Publish");
     }
 
     // ── Helper ────────────────────────────────────────────────────────────────

@@ -23,6 +23,7 @@
     <ProjectReference Include="..\SessionService\SessionService.csproj" />
     <ProjectReference Include="..\StageService\StageService.csproj" />
     <ProjectReference Include="..\ClueService\ClueService.csproj" />
+    <ProjectReference Include="..\TeamService\TeamService.csproj" />
   </ItemGroup>
 
 </Project>

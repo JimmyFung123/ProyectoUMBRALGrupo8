@@ -1,20 +1,22 @@
 namespace SessionService.Application.Sessions.Commands.CancelSession;
 
+using MassTransit;
 using MediatR;
 using SessionService.Domain.Common;
 using SessionService.Domain.Sessions;
+using UMBRAL.Contracts.Events;
 
 public class CancelSessionCommandHandler : IRequestHandler<CancelSessionCommand, Result<bool>>
 {
     private readonly ISessionRepository _sessionRepository;
-    private readonly ITeamRepository _teamRepository;
+    private readonly IPublishEndpoint _publishEndpoint;
 
     public CancelSessionCommandHandler(
         ISessionRepository sessionRepository,
-        ITeamRepository teamRepository)
+        IPublishEndpoint publishEndpoint)
     {
         _sessionRepository = sessionRepository;
-        _teamRepository = teamRepository;
+        _publishEndpoint = publishEndpoint;
     }
 
     public async Task<Result<bool>> Handle(CancelSessionCommand request, CancellationToken cancellationToken)
@@ -27,11 +29,12 @@ public class CancelSessionCommandHandler : IRequestHandler<CancelSessionCommand,
         if (cancelResult.IsFailure)
             return cancelResult;
 
-        // Remove all enrolled teams from the session
-        // (WebSocket notification to participants will be added in HU-11)
-        await _teamRepository.DeleteBySessionIdAsync(request.SessionId, cancellationToken);
-
         await _sessionRepository.SaveChangesAsync(cancellationToken);
+
+        await _publishEndpoint.Publish(
+            new SessionCancelledIntegrationEvent(request.SessionId, DateTime.UtcNow),
+            cancellationToken);
+
         return Result.Success(true);
     }
 }

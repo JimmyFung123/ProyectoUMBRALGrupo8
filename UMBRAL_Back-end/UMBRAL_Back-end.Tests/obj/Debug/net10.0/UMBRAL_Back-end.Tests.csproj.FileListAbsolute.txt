@@ -163,3 +163,9 @@ C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\Proyec
 C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\StageService.dll
 C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\StageService.pdb
 C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\ClueService.pdb
+C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\TeamService.deps.json
+C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\TeamService.runtimeconfig.json
+C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\TeamService.staticwebassets.endpoints.json
+C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\TeamService.exe
+C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\TeamService.dll
+C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\UMBRAL_Back-end.Tests\bin\Debug\net10.0\TeamService.pdb

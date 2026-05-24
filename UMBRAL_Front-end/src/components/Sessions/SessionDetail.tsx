@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { sessionService } from '../../services/sessionService';
-import { SESSION_STATUS_LABELS, type SessionDetail, type Team } from '../../types/session';
+import { SESSION_STATUS_LABELS, type SessionDetail } from '../../types/session';
 
 interface Props {
   sessionId: string;
@@ -31,12 +31,8 @@ export function SessionDetailView({ sessionId, onBack }: Props) {
   }
 
   useEffect(() => {
-    // Carga inicial
     fetchDetail(true);
-
-    // Polling automático para reflejar cambios en tiempo real
     intervalRef.current = setInterval(() => fetchDetail(), POLL_INTERVAL_MS);
-
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
@@ -45,8 +41,6 @@ export function SessionDetailView({ sessionId, onBack }: Props) {
   if (loading) return <p style={{ padding: '2rem' }}>Cargando detalle de sesión…</p>;
   if (error)   return <p style={{ padding: '2rem', color: 'red' }}>{error}</p>;
   if (!detail) return null;
-
-  const connectedCount = detail.teams.filter(t => t.isConnected).length;
 
   return (
     <div style={{ maxWidth: 860, margin: '0 auto', padding: '2rem', fontFamily: 'sans-serif' }}>
@@ -80,76 +74,7 @@ export function SessionDetailView({ sessionId, onBack }: Props) {
           Actualización automática cada {POLL_INTERVAL_MS / 1000} s
         </p>
       </section>
-
-      {/* ── Equipos ─────────────────────────────────────────────────── */}
-      <section>
-        <h2 style={{ marginTop: 0 }}>
-          Equipos inscritos{' '}
-          <span style={{ fontWeight: 'normal', fontSize: '0.9rem', color: '#555' }}>
-            ({connectedCount}/{detail.teams.length} conectados)
-          </span>
-        </h2>
-
-        {detail.teams.length === 0 ? (
-          <p style={{ color: '#888' }}>Todavía no hay equipos registrados en esta sesión.</p>
-        ) : (
-          <ul style={{ listStyle: 'none', padding: 0 }}>
-            {detail.teams.map(team => (
-              <TeamRow key={team.id} team={team} />
-            ))}
-          </ul>
-        )}
-      </section>
     </div>
-  );
-}
-
-// ── TeamRow ───────────────────────────────────────────────────────────────────
-
-function TeamRow({ team }: { team: Team }) {
-  return (
-    <li style={{
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      padding: '0.75rem 1rem',
-      marginBottom: '0.5rem',
-      border: '1px solid #ddd',
-      borderRadius: 8,
-      background: team.isConnected ? '#f0fff4' : '#fafafa',
-    }}>
-      {/* Nombre + conexión */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-        <span
-          title={team.isConnected ? 'Conectado' : 'Desconectado'}
-          style={{
-            width: 10, height: 10, borderRadius: '50%',
-            background: team.isConnected ? '#28a745' : '#aaa',
-            display: 'inline-block',
-            flexShrink: 0,
-          }}
-        />
-        <strong>{team.name}</strong>
-      </div>
-
-      {/* Progreso */}
-      <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.85rem', color: '#444' }}>
-        <span>
-          <span style={{ color: '#888' }}>Etapa: </span>
-          <strong>
-            {team.currentStageOrder === 0 ? 'Sin iniciar' : `#${team.currentStageOrder}`}
-          </strong>
-        </span>
-        <span>
-          <span style={{ color: '#888' }}>Pistas etapa: </span>
-          <strong>{team.cluesReceivedCurrentStage}</strong>
-        </span>
-        <span>
-          <span style={{ color: '#888' }}>Pistas total: </span>
-          <strong>{team.totalCluesReceived}</strong>
-        </span>
-      </div>
-    </li>
   );
 }
 

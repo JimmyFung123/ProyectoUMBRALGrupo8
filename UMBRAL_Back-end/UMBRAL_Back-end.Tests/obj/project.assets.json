@@ -1360,6 +1360,28 @@
           "Microsoft.AspNetCore.App"
         ]
       },
+      "TeamService/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v10.0",
+        "dependencies": {
+          "MassTransit": "8.3.6",
+          "MassTransit.RabbitMQ": "8.3.6",
+          "MediatR": "14.1.0",
+          "Microsoft.AspNetCore.OpenApi": "10.0.5",
+          "Microsoft.EntityFrameworkCore": "10.0.5",
+          "Npgsql.EntityFrameworkCore.PostgreSQL": "10.0.1",
+          "UMBRAL.Contracts": "1.0.0"
+        },
+        "compile": {
+          "bin/placeholder/TeamService.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/TeamService.dll": {}
+        },
+        "frameworkReferences": [
+          "Microsoft.AspNetCore.App"
+        ]
+      },
       "UMBRAL.Contracts/1.0.0": {
         "type": "project",
         "framework": ".NETCoreApp,Version=v10.0",
@@ -3114,6 +3136,11 @@
       "path": "../StageService/StageService.csproj",
       "msbuildProject": "../StageService/StageService.csproj"
     },
+    "TeamService/1.0.0": {
+      "type": "project",
+      "path": "../TeamService/TeamService.csproj",
+      "msbuildProject": "../TeamService/TeamService.csproj"
+    },
     "UMBRAL.Contracts/1.0.0": {
       "type": "project",
       "path": "../Shared/UMBRAL.Contracts/UMBRAL.Contracts.csproj",
@@ -3129,6 +3156,7 @@
       "Moq >= 4.20.72",
       "SessionService >= 1.0.0",
       "StageService >= 1.0.0",
+      "TeamService >= 1.0.0",
       "xunit >= 2.9.3",
       "xunit.runner.visualstudio >= 2.8.2"
     ]
@@ -3177,6 +3205,9 @@
             },
             "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\StageService\\StageService.csproj": {
               "projectPath": "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\StageService\\StageService.csproj"
+            },
+            "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\TeamService\\TeamService.csproj": {
+              "projectPath": "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\TeamService\\TeamService.csproj"
             }
           }
         }
