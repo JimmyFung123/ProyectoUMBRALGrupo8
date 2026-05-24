@@ -52,4 +52,24 @@ export const sessionService = {
       body: JSON.stringify(payload),
     }).then(handleResponse<string>);
   },
+
+  start(id: string): Promise<boolean> {
+    return fetch(`${BASE_URL}/sessions/${id}/start`, { method: 'PATCH' })
+      .then(handleResponse<boolean>);
+  },
+
+  pause(id: string): Promise<boolean> {
+    return fetch(`${BASE_URL}/sessions/${id}/pause`, { method: 'PATCH' })
+      .then(handleResponse<boolean>);
+  },
+
+  resume(id: string): Promise<boolean> {
+    return fetch(`${BASE_URL}/sessions/${id}/resume`, { method: 'PATCH' })
+      .then(handleResponse<boolean>);
+  },
+
+  finalize(id: string): Promise<boolean> {
+    return fetch(`${BASE_URL}/sessions/${id}/finalize`, { method: 'PATCH' })
+      .then(handleResponse<boolean>);
+  },
 };

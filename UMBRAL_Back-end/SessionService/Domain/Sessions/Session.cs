@@ -29,6 +29,48 @@ public class Session
         });
     }
 
+    /// <summary>Starts the session. Only allowed while Pending.</summary>
+    public Result<bool> Start()
+    {
+        if (Status != SessionStatus.Pending)
+            return Result.Failure<bool>(SessionErrors.CannotStartSession);
+
+        Status = SessionStatus.InProgress;
+        return Result.Success(true);
+    }
+
+    /// <summary>Pauses the session. Only allowed while InProgress.</summary>
+    public Result<bool> Pause()
+    {
+        if (Status != SessionStatus.InProgress)
+            return Result.Failure<bool>(SessionErrors.CannotPauseSession);
+
+        Status = SessionStatus.Paused;
+        return Result.Success(true);
+    }
+
+    /// <summary>Resumes the session. Only allowed while Paused.</summary>
+    public Result<bool> Resume()
+    {
+        if (Status != SessionStatus.Paused)
+            return Result.Failure<bool>(SessionErrors.CannotResumeSession);
+
+        Status = SessionStatus.InProgress;
+        return Result.Success(true);
+    }
+
+    /// <summary>
+    /// Finalizes the session. Allowed from InProgress or Paused. Irreversible.
+    /// </summary>
+    public Result<bool> Finalize()
+    {
+        if (Status != SessionStatus.InProgress && Status != SessionStatus.Paused)
+            return Result.Failure<bool>(SessionErrors.CannotFinalizeSession);
+
+        Status = SessionStatus.Completed;
+        return Result.Success(true);
+    }
+
     /// <summary>
     /// Cancels the session. Only allowed while still Pending.
     /// Enrolled teams must be removed by the caller before persisting.

@@ -2,6 +2,7 @@ using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using SessionService.Domain.MissionLookup;
 using SessionService.Domain.Sessions;
+using SessionService.Infrastructure.Hubs;
 using SessionService.Infrastructure.Messaging.Consumers;
 using SessionService.Infrastructure.Persistence;
 using SessionService.Infrastructure.Persistence.Repositories;
@@ -45,12 +46,16 @@ builder.Services.AddMassTransit(x =>
     });
 });
 
+// ── SignalR ───────────────────────────────────────────────────────────────────
+builder.Services.AddSignalR();
+
 // ── CORS ──────────────────────────────────────────────────────────────────────
 builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend", policy =>
         policy.WithOrigins("http://localhost:5173")
               .AllowAnyHeader()
-              .AllowAnyMethod()));
+              .AllowAnyMethod()
+              .AllowCredentials()));
 
 var app = builder.Build();
 
@@ -64,5 +69,6 @@ app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<SessionHub>("/hubs/session");
 
 app.Run();

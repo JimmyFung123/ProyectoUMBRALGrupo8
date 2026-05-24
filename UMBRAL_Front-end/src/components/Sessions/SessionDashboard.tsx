@@ -1,10 +1,14 @@
+import * as signalR from '@microsoft/signalr';
 import { useEffect, useRef, useState } from 'react';
 import { sessionService } from '../../services/sessionService';
 import { teamService } from '../../services/teamService';
 import { SESSION_STATUS_LABELS } from '../../types/session';
-import type { SessionDashboard as SessionDashboardData, SessionEventDto } from '../../types/session';
+import type { SessionDashboard as SessionDashboardData, SessionEventDto, SessionStatus } from '../../types/session';
 import type { TeamProgressDto } from '../../types/team';
+import { SessionControls } from './SessionControls';
 import { TeamProgressPanel } from './TeamProgressPanel';
+
+const SIGNALR_URL = import.meta.env.VITE_SESSION_SIGNALR_URL ?? 'http://localhost:5092/hubs/session';
 
 interface Props {
   sessionId: string;
@@ -14,6 +18,7 @@ interface Props {
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   Pending:    { bg: '#fff3cd', text: '#856404' },
   InProgress: { bg: '#cce5ff', text: '#004085' },
+  Paused:     { bg: '#e2d9f3', text: '#4a235a' },
   Completed:  { bg: '#d4edda', text: '#155724' },
   Cancelled:  { bg: '#f8d7da', text: '#721c24' },
 };
@@ -104,6 +109,7 @@ export function SessionDashboard({ sessionId, onBack }: Props) {
   const [error, setError] = useState<string | null>(null);
   const elapsed = useElapsedTime(data?.createdAt ?? null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hubRef = useRef<signalR.HubConnection | null>(null);
 
   async function load() {
     try {
@@ -125,6 +131,33 @@ export function SessionDashboard({ sessionId, onBack }: Props) {
     }
   }
 
+  // ── SignalR connection ─────────────────────────────────────────────────────
+  useEffect(() => {
+    const connection = new signalR.HubConnectionBuilder()
+      .withUrl(SIGNALR_URL)
+      .withAutomaticReconnect()
+      .configureLogging(signalR.LogLevel.Warning)
+      .build();
+
+    connection.on('SessionStateChanged', () => {
+      load();
+    });
+
+    connection
+      .start()
+      .then(() => connection.invoke('JoinSession', sessionId))
+      .catch(() => { /* SignalR unavailable — polling covers it */ });
+
+    hubRef.current = connection;
+
+    return () => {
+      connection.invoke('LeaveSession', sessionId).catch(() => {});
+      connection.stop();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId]);
+
+  // ── Polling fallback ────────────────────────────────────────────────────────
   useEffect(() => {
     load();
     intervalRef.current = setInterval(load, 10_000);
@@ -140,7 +173,7 @@ export function SessionDashboard({ sessionId, onBack }: Props) {
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '2rem', fontFamily: 'sans-serif' }}>
 
       {/* ── Encabezado ───────────────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
         <button onClick={onBack} style={{ padding: '0.3rem 0.8rem', cursor: 'pointer' }}>
           ← Volver
         </button>
@@ -156,6 +189,15 @@ export function SessionDashboard({ sessionId, onBack }: Props) {
         <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: '#aaa' }}>
           Actualización automática cada 10 s
         </span>
+      </div>
+
+      {/* ── Controles de estado ──────────────────────────────────── */}
+      <div style={{ marginBottom: '1.5rem' }}>
+        <SessionControls
+          sessionId={sessionId}
+          status={data!.status as SessionStatus}
+          onStateChange={load}
+        />
       </div>
 
       {/* ── Métricas ─────────────────────────────────────────────── */}

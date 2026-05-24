@@ -4,6 +4,10 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using SessionService.Application.Sessions.Commands.CancelSession;
 using SessionService.Application.Sessions.Commands.CreateSession;
+using SessionService.Application.Sessions.Commands.FinalizeSession;
+using SessionService.Application.Sessions.Commands.PauseSession;
+using SessionService.Application.Sessions.Commands.ResumeSession;
+using SessionService.Application.Sessions.Commands.StartSession;
 using SessionService.Application.Sessions.Commands.UpdateSession;
 using SessionService.Application.Sessions.Queries.GetSessionDashboard;
 using SessionService.Application.Sessions.Queries.GetSessionDetail;
@@ -89,6 +93,50 @@ public class SessionsController : ControllerBase
         return result.IsSuccess
             ? Ok(result.Value)
             : BadRequest(result.Error);
+    }
+
+    [HttpPatch("{id:guid}/start")]
+    public async Task<IActionResult> Start(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new StartSessionCommand(id), cancellationToken);
+        if (result.IsFailure)
+            return result.Error.Code == SessionErrors.NotFound.Code
+                ? NotFound(result.Error)
+                : BadRequest(result.Error);
+        return Ok(result.Value);
+    }
+
+    [HttpPatch("{id:guid}/pause")]
+    public async Task<IActionResult> Pause(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new PauseSessionCommand(id), cancellationToken);
+        if (result.IsFailure)
+            return result.Error.Code == SessionErrors.NotFound.Code
+                ? NotFound(result.Error)
+                : BadRequest(result.Error);
+        return Ok(result.Value);
+    }
+
+    [HttpPatch("{id:guid}/resume")]
+    public async Task<IActionResult> Resume(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new ResumeSessionCommand(id), cancellationToken);
+        if (result.IsFailure)
+            return result.Error.Code == SessionErrors.NotFound.Code
+                ? NotFound(result.Error)
+                : BadRequest(result.Error);
+        return Ok(result.Value);
+    }
+
+    [HttpPatch("{id:guid}/finalize")]
+    public async Task<IActionResult> Finalize(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new FinalizeSessionCommand(id), cancellationToken);
+        if (result.IsFailure)
+            return result.Error.Code == SessionErrors.NotFound.Code
+                ? NotFound(result.Error)
+                : BadRequest(result.Error);
+        return Ok(result.Value);
     }
 }
 

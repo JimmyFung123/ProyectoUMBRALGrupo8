@@ -1,8 +1,9 @@
-export type SessionStatus = 'Pending' | 'InProgress' | 'Completed' | 'Cancelled';
+export type SessionStatus = 'Pending' | 'InProgress' | 'Paused' | 'Completed' | 'Cancelled';
 
 export const SESSION_STATUS_LABELS: Record<SessionStatus, string> = {
   Pending: 'Pendiente',
   InProgress: 'En progreso',
+  Paused: 'Pausada',
   Completed: 'Completada',
   Cancelled: 'Cancelada',
 };
