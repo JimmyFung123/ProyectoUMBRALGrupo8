@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ClueService")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5634eed1dd83cabb3eaea73ba0632914ee6c8eb7")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ec71df368de51a4713c3629d422d189c3dc1686a")]
 [assembly: System.Reflection.AssemblyProductAttribute("ClueService")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ClueService")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

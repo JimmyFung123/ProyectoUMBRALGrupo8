@@ -68,6 +68,22 @@ public class Team
     public void UpdateScore(int score) => Score = score;
 
     /// <summary>
+    /// Subtracts points from the team's score as a penalty.
+    /// Requires a non-empty reason. Points must be positive.
+    /// Score can go negative (no floor enforced).
+    /// </summary>
+    public Result<int> Penalize(int points, string reason)
+    {
+        if (points <= 0)
+            return Result.Failure<int>(TeamErrors.InvalidPenaltyPoints);
+        if (string.IsNullOrWhiteSpace(reason))
+            return Result.Failure<int>(TeamErrors.PenaltyReasonRequired);
+
+        Score -= points;
+        return Result.Success(Score);
+    }
+
+    /// <summary>
     /// Records the release of the next sequential clue to this team for their current stage.
     /// Fails if all clues for the stage have already been released.
     /// </summary>

@@ -18,6 +18,9 @@ public interface ITeamServiceClient
 
     /// <summary>Gets current progress for all teams in a session (used by auto-release worker).</summary>
     Task<IReadOnlyList<TeamProgressItem>> GetTeamProgressAsync(Guid sessionId, CancellationToken cancellationToken);
+
+    /// <summary>Applies a penalty to a team, subtracting the given points. Returns the new score, or int.MinValue on error.</summary>
+    Task<int> PenalizeTeamAsync(Guid teamId, int points, string reason, CancellationToken cancellationToken);
 }
 
 public record TeamProgressItem(

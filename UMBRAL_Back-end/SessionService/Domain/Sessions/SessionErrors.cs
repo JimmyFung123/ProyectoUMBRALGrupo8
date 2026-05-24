@@ -16,4 +16,5 @@ public static class SessionErrors
     public static readonly Error NoTeamsEnrolled         = new("Session.NoTeamsEnrolled",     "The session cannot start because no teams are enrolled.");
     public static readonly Error CannotReleaseClue       = new("Session.CannotReleaseClue",    "Clues can only be released while the session is in progress.");
     public static readonly Error AllCluesAlreadyReleased = new("Session.AllCluesReleased",     "All configured clues for this stage have already been released to the team.");
+    public static readonly Error CannotPenalizeTeam = new("Session.CannotPenalizeTeam", "Team penalties can only be applied while the session is in progress.");
 }

@@ -6,6 +6,7 @@ using SessionService.Application.Sessions.Commands.CancelSession;
 using SessionService.Application.Sessions.Commands.CreateSession;
 using SessionService.Application.Sessions.Commands.FinalizeSession;
 using SessionService.Application.Sessions.Commands.PauseSession;
+using SessionService.Application.Sessions.Commands.PenalizeTeam;
 using SessionService.Application.Sessions.Commands.ReleaseClue;
 using SessionService.Application.Sessions.Commands.ResumeSession;
 using SessionService.Application.Sessions.Commands.StartSession;
@@ -162,8 +163,30 @@ public class SessionsController : ControllerBase
 
         return Ok(result.Value);
     }
+
+    [HttpPost("{id:guid}/teams/{teamId:guid}/penalize")]
+    public async Task<IActionResult> PenalizeTeam(
+        Guid id,
+        Guid teamId,
+        [FromBody] PenalizeTeamRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(
+            new PenalizeTeamCommand(id, teamId, request.Points, request.Reason),
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return result.Error.Code == SessionErrors.NotFound.Code
+                ? NotFound(result.Error)
+                : BadRequest(result.Error);
+        }
+
+        return Ok(new { newScore = result.Value });
+    }
 }
 
 public record CreateSessionRequest(Guid MissionId, string Name, DateTime? ScheduledAt);
 public record UpdateSessionRequest(string Name, DateTime? ScheduledAt);
 public record ReleaseClueRequest(int TotalCluesForStage, string ClueContent);
+public record PenalizeTeamRequest(int Points, string Reason);

@@ -67,6 +67,12 @@ export function TeamProgressPanel({
   const [releasing, setReleasing] = useState<string | null>(null);
   const [releaseError, setReleaseError] = useState<string | null>(null);
   const [lastReleased, setLastReleased] = useState<{ teamName: string; content: string } | null>(null);
+  const [penaltyTarget, setPenaltyTarget] = useState<TeamProgressDto | null>(null);
+  const [penaltyPoints, setPenaltyPoints] = useState<number>(1);
+  const [penaltyReason, setPenaltyReason] = useState<string>('');
+  const [penaltyLoading, setPenaltyLoading] = useState(false);
+  const [penaltyError, setPenaltyError] = useState<string | null>(null);
+  const [penaltySuccess, setPenaltySuccess] = useState<{ teamName: string; points: number } | null>(null);
 
   if (teams.length === 0) {
     return (
@@ -107,6 +113,24 @@ export function TeamProgressPanel({
     }
   }
 
+  async function handlePenalize() {
+    if (!penaltyTarget || !penaltyReason.trim() || penaltyPoints < 1) return;
+    setPenaltyLoading(true);
+    setPenaltyError(null);
+    try {
+      await sessionService.penalizeTeam(sessionId, penaltyTarget.id, penaltyPoints, penaltyReason.trim());
+      setPenaltySuccess({ teamName: penaltyTarget.name, points: penaltyPoints });
+      setPenaltyTarget(null);
+      setPenaltyPoints(1);
+      setPenaltyReason('');
+      onClueReleased(); // reloads ranking
+    } catch {
+      setPenaltyError('No se pudo aplicar la penalización. Verifique los datos.');
+    } finally {
+      setPenaltyLoading(false);
+    }
+  }
+
   const canReleaseClues = sessionStatus === 'InProgress';
 
   return (
@@ -134,6 +158,25 @@ export function TeamProgressPanel({
           >
             ✕
           </button>
+        </div>
+      )}
+
+      {penaltySuccess && (
+        <div style={{
+          marginBottom: '0.75rem',
+          padding: '0.6rem 0.9rem',
+          background: '#f8d7da',
+          border: '1px solid #f5c6cb',
+          borderRadius: 6,
+          fontSize: '0.85rem',
+          color: '#721c24',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}>
+          <span>🚨 Penalización aplicada a <strong>{penaltySuccess.teamName}</strong>: -{penaltySuccess.points} pts</span>
+          <button onClick={() => setPenaltySuccess(null)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', color: '#721c24' }}>✕</button>
         </div>
       )}
 
@@ -240,6 +283,28 @@ export function TeamProgressPanel({
                     >
                       {isReleasing ? '…' : exhausted ? '✓ Agotadas' : '💡 Liberar pista'}
                     </button>
+                    <button
+                      onClick={() => {
+                        setPenaltyTarget(team);
+                        setPenaltyPoints(1);
+                        setPenaltyReason('');
+                        setPenaltyError(null);
+                      }}
+                      disabled={!canReleaseClues}
+                      title={!canReleaseClues ? 'Solo se puede penalizar con la sesión en progreso' : `Aplicar penalización a ${team.name}`}
+                      style={{
+                        marginLeft: '0.4rem',
+                        padding: '0.2rem 0.6rem',
+                        fontSize: '0.8rem',
+                        cursor: !canReleaseClues ? 'not-allowed' : 'pointer',
+                        opacity: !canReleaseClues ? 0.45 : 1,
+                        background: '#f8d7da',
+                        border: '1px solid #f5c6cb',
+                        borderRadius: 4,
+                      }}
+                    >
+                      🚨 Penalizar
+                    </button>
                   </td>
                 </tr>
               );
@@ -247,6 +312,86 @@ export function TeamProgressPanel({
           </tbody>
         </table>
       </div>
+
+      {penaltyTarget && (
+        <div style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(0,0,0,0.45)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 1000,
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: 8, padding: '1.5rem',
+            minWidth: 360, maxWidth: 480, width: '90%',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.2)',
+          }}>
+            <h3 style={{ margin: '0 0 1rem', fontSize: '1rem' }}>
+              🚨 Penalizar equipo: <strong>{penaltyTarget.name}</strong>
+            </h3>
+
+            <label style={{ display: 'block', marginBottom: '0.75rem' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#555' }}>
+                Puntos a restar <span style={{ color: '#c0392b' }}>*</span>
+              </span>
+              <input
+                type="number"
+                min={1}
+                value={penaltyPoints}
+                onChange={e => setPenaltyPoints(Math.max(1, Number(e.target.value)))}
+                style={{
+                  display: 'block', width: '100%', marginTop: '0.3rem',
+                  padding: '0.4rem 0.6rem', border: '1px solid #ccc', borderRadius: 4,
+                  fontSize: '0.9rem', boxSizing: 'border-box',
+                }}
+              />
+            </label>
+
+            <label style={{ display: 'block', marginBottom: '0.75rem' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#555' }}>
+                Motivo <span style={{ color: '#c0392b' }}>*</span>
+              </span>
+              <textarea
+                rows={3}
+                placeholder="Describe el motivo de la penalización…"
+                value={penaltyReason}
+                onChange={e => setPenaltyReason(e.target.value)}
+                style={{
+                  display: 'block', width: '100%', marginTop: '0.3rem',
+                  padding: '0.4rem 0.6rem', border: '1px solid #ccc', borderRadius: 4,
+                  fontSize: '0.9rem', resize: 'vertical', boxSizing: 'border-box',
+                }}
+              />
+            </label>
+
+            {penaltyError && (
+              <p style={{ margin: '0 0 0.75rem', color: '#c0392b', fontSize: '0.85rem' }}>{penaltyError}</p>
+            )}
+
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => { setPenaltyTarget(null); setPenaltyError(null); }}
+                disabled={penaltyLoading}
+                style={{ padding: '0.4rem 0.9rem', cursor: 'pointer', borderRadius: 4, border: '1px solid #ccc' }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handlePenalize}
+                disabled={penaltyLoading || !penaltyReason.trim() || penaltyPoints < 1}
+                style={{
+                  padding: '0.4rem 0.9rem', cursor: penaltyLoading || !penaltyReason.trim() ? 'not-allowed' : 'pointer',
+                  borderRadius: 4, border: '1px solid #c0392b',
+                  background: penaltyLoading || !penaltyReason.trim() ? '#f8d7da' : '#c0392b',
+                  color: '#fff', fontWeight: 600,
+                  opacity: penaltyLoading || !penaltyReason.trim() ? 0.6 : 1,
+                }}
+              >
+                {penaltyLoading ? 'Aplicando…' : 'Aplicar penalización'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

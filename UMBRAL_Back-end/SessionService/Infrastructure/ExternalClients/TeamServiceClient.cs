@@ -88,6 +88,21 @@ public class TeamServiceClient : ITeamServiceClient
         }
     }
 
+    public async Task<int> PenalizeTeamAsync(Guid teamId, int points, string reason, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var payload = JsonSerializer.Serialize(new { points, reason });
+            var content = new StringContent(payload, System.Text.Encoding.UTF8, "application/json");
+            var response = await _http.PostAsync($"api/teams/{teamId}/penalize", content, cancellationToken);
+            if (!response.IsSuccessStatusCode) return int.MinValue;
+            var json = await response.Content.ReadAsStringAsync(cancellationToken);
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.GetProperty("newScore").GetInt32();
+        }
+        catch { return int.MinValue; }
+    }
+
     private record TeamProgressJsonItem(
         Guid Id,
         string Name,

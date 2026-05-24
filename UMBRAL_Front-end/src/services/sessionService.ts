@@ -80,4 +80,12 @@ export const sessionService = {
       body: JSON.stringify({ totalCluesForStage, clueContent }),
     }).then(handleResponse<boolean>);
   },
+
+  penalizeTeam(sessionId: string, teamId: string, points: number, reason: string): Promise<{ newScore: number }> {
+    return fetch(`${BASE_URL}/sessions/${sessionId}/teams/${teamId}/penalize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ points, reason }),
+    }).then(handleResponse<{ newScore: number }>);
+  },
 };

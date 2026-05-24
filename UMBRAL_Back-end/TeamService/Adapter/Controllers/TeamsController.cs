@@ -2,6 +2,7 @@ namespace TeamService.Adapter.Controllers;
 
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using TeamService.Application.Teams.Commands.PenalizeTeam;
 using TeamService.Application.Teams.Commands.ReleaseClue;
 using TeamService.Application.Teams.Queries.GetTeamProgress;
 using TeamService.Domain.Teams;
@@ -46,6 +47,23 @@ public class TeamsController : ControllerBase
         }
         return Ok(new { cluesReceived = result.Value });
     }
+
+    [HttpPost("{id:guid}/penalize")]
+    public async Task<IActionResult> Penalize(
+        Guid id,
+        [FromBody] PenalizeTeamRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new PenalizeTeamCommand(id, request.Points, request.Reason), cancellationToken);
+        if (result.IsFailure)
+        {
+            return result.Error.Code == TeamErrors.NotFound.Code
+                ? NotFound(result.Error)
+                : BadRequest(result.Error);
+        }
+        return Ok(new { newScore = result.Value });
+    }
 }
 
 public record ReleaseClueRequest(int TotalCluesForStage, bool IsAutomatic = false);
+public record PenalizeTeamRequest(int Points, string Reason);
