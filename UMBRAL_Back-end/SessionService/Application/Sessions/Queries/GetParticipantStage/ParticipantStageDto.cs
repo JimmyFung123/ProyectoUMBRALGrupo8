@@ -11,4 +11,6 @@ public record ParticipantStageDto(
     IReadOnlyList<ParticipantOptionDto> Options,
     string SessionStatus,
     int CurrentStageOrder,
-    bool IsLastStage);
+    bool IsLastStage,
+    double? Latitude = null,
+    double? Longitude = null);

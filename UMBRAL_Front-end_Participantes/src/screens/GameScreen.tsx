@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ParticipantStage, SessionInfo, TriviaAnswerResult } from '../types';
-import { getParticipantStage, submitTriviaAnswer } from '../services/sessionService';
+import type { ParticipantStage, QrValidationResult, SessionInfo, TriviaAnswerResult } from '../types';
+import { getParticipantStage, submitTriviaAnswer, validateQrCode } from '../services/sessionService';
 import { TriviaScreen } from './TriviaScreen';
+import { TreasureHuntScreen } from './TreasureHuntScreen';
 
 type TeamProp = { teamId: string; isLeader: boolean };
 
@@ -12,9 +13,11 @@ interface Props {
   initialStage: ParticipantStage;
 }
 
+type StageResult = TriviaAnswerResult | QrValidationResult;
+
 type AnswerState =
   | { phase: 'answering' }
-  | { phase: 'result'; result: TriviaAnswerResult };
+  | { phase: 'result'; result: StageResult };
 
 const POLL_INTERVAL_MS = 8_000;
 const RESULT_DISPLAY_MS = 3_000;
@@ -50,7 +53,7 @@ export function GameScreen({ session, team, nickname, initialStage }: Props) {
     };
   }, [session.id, team.teamId]);
 
-  function handleAnswered(result: TriviaAnswerResult) {
+  function handleAnswered(result: StageResult) {
     setAnswerState({ phase: 'result', result });
 
     // After 3s, advance to next stage view via polling refresh
@@ -116,17 +119,25 @@ export function GameScreen({ session, team, nickname, initialStage }: Props) {
     );
   }
 
-  // TreasureHunt placeholder
+  // TreasureHunt
   if (stage.type === 'TreasureHunt') {
     return (
-      <div style={styles.container}>
-        <div style={styles.card}>
-          <div style={styles.icon}>🗺️</div>
-          <h2 style={styles.title}>{stage.title}</h2>
-          <p style={styles.subtitle}>Esta etapa es de búsqueda del tesoro.</p>
-          <p style={styles.hint}>Seguí las instrucciones de tu profesor.</p>
-        </div>
-      </div>
+      <>
+        {error && (
+          <div style={styles.errorBanner}>
+            {error}
+            <button onClick={() => setError(null)} style={styles.errorClose}>✕</button>
+          </div>
+        )}
+        <TreasureHuntScreen
+          stage={stage}
+          sessionId={session.id}
+          teamId={team.teamId}
+          onResolved={handleAnswered}
+          onError={setError}
+          validateQr={validateQrCode}
+        />
+      </>
     );
   }
 

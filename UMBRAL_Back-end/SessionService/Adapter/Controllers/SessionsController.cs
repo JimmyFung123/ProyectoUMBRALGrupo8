@@ -13,6 +13,7 @@ using SessionService.Application.Sessions.Commands.ResumeSession;
 using SessionService.Application.Sessions.Commands.StartSession;
 using SessionService.Application.Sessions.Commands.SubmitTriviaAnswer;
 using SessionService.Application.Sessions.Commands.UpdateSession;
+using SessionService.Application.Sessions.Commands.ValidateQrCode;
 using SessionService.Application.Sessions.Queries.GetParticipantStage;
 using SessionService.Application.Sessions.Queries.GetSessionByCode;
 using SessionService.Application.Sessions.Queries.GetSessionDashboard;
@@ -261,6 +262,31 @@ public class SessionsController : ControllerBase
 
         return Ok(result.Value);
     }
+
+    /// <summary>
+    /// Validates the QR code scanned by a participant team for a Treasure Hunt stage.
+    /// Wrong codes do not advance the team and do not award points (HU-19).
+    /// </summary>
+    [HttpPost("{id:guid}/teams/{teamId:guid}/validate-qr")]
+    public async Task<IActionResult> ValidateQr(
+        Guid id,
+        Guid teamId,
+        [FromBody] ValidateQrRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(
+            new ValidateQrCodeCommand(id, teamId, request.StageId, request.ScannedCode),
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return result.Error.Code == SessionErrors.NotFound.Code
+                ? NotFound(result.Error)
+                : BadRequest(result.Error);
+        }
+
+        return Ok(result.Value);
+    }
 }
 
 public record CreateSessionRequest(Guid MissionId, string Name, DateTime? ScheduledAt);
@@ -268,3 +294,4 @@ public record UpdateSessionRequest(string Name, DateTime? ScheduledAt);
 public record ReleaseClueRequest(int TotalCluesForStage, string ClueContent);
 public record PenalizeTeamRequest(int Points, string Reason);
 public record SubmitTriviaAnswerRequest(Guid StageId, Guid OptionId);
+public record ValidateQrRequest(Guid StageId, string ScannedCode);

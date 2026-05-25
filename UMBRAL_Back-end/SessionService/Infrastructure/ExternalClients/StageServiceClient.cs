@@ -40,7 +40,8 @@ public class StageServiceClient : IStageServiceClient
 
             return new StageWithOptionsInfo(
                 item.Id, item.Title, item.Type, item.Order, item.BaseScore,
-                item.Question, options);
+                item.Question, options,
+                item.Latitude, item.Longitude, item.QrCode);
         }
         catch { return null; }
     }
@@ -56,5 +57,8 @@ public class StageServiceClient : IStageServiceClient
         int Order,
         int BaseScore,
         string? Question,
-        List<OptionJsonItem>? Options);
+        List<OptionJsonItem>? Options,
+        double? Latitude,
+        double? Longitude,
+        string? QrCode);
 }

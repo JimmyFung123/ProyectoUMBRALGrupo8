@@ -24,4 +24,7 @@ public static class SessionErrors
     public static readonly Error StageNotFound           = new("Session.StageNotFound",           "The specified stage was not found.");
     public static readonly Error OptionNotFound          = new("Session.OptionNotFound",          "The selected option does not belong to this stage.");
     public static readonly Error CannotAnswerTrivia      = new("Session.CannotAnswerTrivia",      "Failed to record the trivia answer. Please try again.");
+    public static readonly Error StageIsNotTreasureHunt  = new("Session.StageIsNotTreasureHunt",  "QR validation only applies to Treasure Hunt stages.");
+    public static readonly Error StageMissingQrCode      = new("Session.StageMissingQrCode",      "The stage does not have a QR code configured.");
+    public static readonly Error CannotValidateQr        = new("Session.CannotValidateQr",        "Failed to record the QR validation. Please try again.");
 }

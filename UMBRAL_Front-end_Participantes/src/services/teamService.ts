@@ -1,4 +1,6 @@
-const BASE_URL = import.meta.env.VITE_TEAM_API_URL ?? 'http://localhost:5095/api';
+// Default: relative path → Vite proxy routes /team-api → TeamService (rewritten to /api).
+// Works on localhost AND through HTTPS tunnels (cloudflared/ngrok).
+const BASE_URL = import.meta.env.VITE_TEAM_API_URL ?? '/team-api';
 
 export async function createTeam(sessionId: string, teamName: string) {
   const res = await fetch(`${BASE_URL}/teams`, {

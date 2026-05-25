@@ -96,6 +96,11 @@ public class GetParticipantStageQueryHandler : IRequestHandler<GetParticipantSta
 
         bool isLastStage = currentStageOrder == maxOrder;
 
+        // For TreasureHunt stages, expose only Latitude/Longitude (the QrCode stays server-side)
+        bool isTreasureHunt = string.Equals(stageDetails.Type, "TreasureHunt", StringComparison.OrdinalIgnoreCase);
+        double? latitude = isTreasureHunt ? stageDetails.Latitude : null;
+        double? longitude = isTreasureHunt ? stageDetails.Longitude : null;
+
         return Result.Success(new ParticipantStageDto(
             stageDetails.Id,
             stageDetails.Title,
@@ -105,6 +110,8 @@ public class GetParticipantStageQueryHandler : IRequestHandler<GetParticipantSta
             options,
             session.Status.ToString(),
             currentStageOrder,
-            isLastStage));
+            isLastStage,
+            latitude,
+            longitude));
     }
 }

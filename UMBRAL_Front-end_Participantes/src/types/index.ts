@@ -33,9 +33,18 @@ export interface ParticipantStage {
   sessionStatus: string;
   currentStageOrder: number;
   isLastStage: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface TriviaAnswerResult {
+  isCorrect: boolean;
+  newScore: number;
+  nextStageOrder: number;
+  isLastStage: boolean;
+}
+
+export interface QrValidationResult {
   isCorrect: boolean;
   newScore: number;
   nextStageOrder: number;

@@ -20,6 +20,9 @@ public record StageWithOptionsInfo(
     int Order,
     int BaseScore,
     string? Question,
-    IReadOnlyList<TriviaOptionInfo> Options);
+    IReadOnlyList<TriviaOptionInfo> Options,
+    double? Latitude = null,
+    double? Longitude = null,
+    string? QrCode = null);
 
 public record TriviaOptionInfo(Guid Id, string Text, bool IsCorrect);
