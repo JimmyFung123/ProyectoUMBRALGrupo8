@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { JoinSessionScreen } from './screens/JoinSessionScreen';
 import { TeamChoiceScreen } from './screens/TeamChoiceScreen';
 import { CreateTeamScreen } from './screens/CreateTeamScreen';
@@ -13,12 +13,57 @@ type TeamState =
   | { isLeader: true; data: TeamCreatedInfo }
   | { isLeader: false; data: TeamJoinedInfo };
 
+// Survives accidental reloads (Vite HMR reconnects, mobile background-kill, F5).
+// sessionStorage is per-tab and clears on tab close — matches the spec's
+// "identidad temporal de los participantes".
+const STORAGE_KEY = 'umbral.participant.state.v1';
+
+interface PersistedState {
+  screen: Screen;
+  session: SessionInfo | null;
+  nickname: string;
+  team: TeamState | null;
+  currentStage: ParticipantStage | null;
+}
+
+function loadState(): PersistedState | null {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as PersistedState) : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistState(s: PersistedState) {
+  try {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+  } catch {
+    // storage quota / private mode — ignore
+  }
+}
+
+function clearPersistedState() {
+  try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
+}
+
 export default function App() {
-  const [screen, setScreen] = useState<Screen>('join-session');
-  const [session, setSession] = useState<SessionInfo | null>(null);
-  const [nickname, setNickname] = useState('');
-  const [team, setTeam] = useState<TeamState | null>(null);
-  const [currentStage, setCurrentStage] = useState<ParticipantStage | null>(null);
+  const initial = loadState();
+
+  const [screen, setScreen] = useState<Screen>(initial?.screen ?? 'join-session');
+  const [session, setSession] = useState<SessionInfo | null>(initial?.session ?? null);
+  const [nickname, setNickname] = useState(initial?.nickname ?? '');
+  const [team, setTeam] = useState<TeamState | null>(initial?.team ?? null);
+  const [currentStage, setCurrentStage] = useState<ParticipantStage | null>(initial?.currentStage ?? null);
+
+  // Persist on every relevant change so reconnects/reloads don't drop the user out.
+  useEffect(() => {
+    if (screen === 'join-session' && !session && !team) {
+      clearPersistedState();
+      return;
+    }
+    persistState({ screen, session, nickname, team, currentStage });
+  }, [screen, session, nickname, team, currentStage]);
 
   function handleSessionFound(s: SessionInfo) {
     setSession(s);
@@ -40,6 +85,15 @@ export default function App() {
     setScreen('game');
   }
 
+  function handleLeaveSession() {
+    clearPersistedState();
+    setSession(null);
+    setNickname('');
+    setTeam(null);
+    setCurrentStage(null);
+    setScreen('join-session');
+  }
+
   if (screen === 'join-session') {
     return <JoinSessionScreen onSessionFound={handleSessionFound} />;
   }
@@ -52,7 +106,7 @@ export default function App() {
         onNicknameChange={setNickname}
         onCreateTeam={() => setScreen('create-team')}
         onJoinTeam={() => setScreen('join-team')}
-        onBack={() => { setSession(null); setScreen('join-session'); }}
+        onBack={handleLeaveSession}
       />
     );
   }
@@ -105,5 +159,6 @@ export default function App() {
     );
   }
 
+  // Fallback if persisted state is inconsistent (e.g., partial data after manual edits).
   return <JoinSessionScreen onSessionFound={handleSessionFound} />;
 }

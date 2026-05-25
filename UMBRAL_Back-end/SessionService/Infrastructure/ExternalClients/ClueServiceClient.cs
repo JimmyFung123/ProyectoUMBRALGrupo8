@@ -19,12 +19,23 @@ public class ClueServiceClient : IClueServiceClient
             if (!response.IsSuccessStatusCode) return [];
             var json = await response.Content.ReadAsStringAsync(ct);
             var items = JsonSerializer.Deserialize<List<ClueJsonItem>>(json, _jsonOptions) ?? [];
-            return items.Select(x => new ClueInfo(x.Id, x.Content, x.Order, x.AutoReleaseAfterMinutes))
-                        .OrderBy(c => c.Order)
-                        .ToList();
+            return items
+                .Select(x => new ClueInfo(
+                    x.Id, x.Order, x.Content,
+                    x.Latitude, x.Longitude, x.RadiusMeters,
+                    x.AutoReleaseAfterMinutes))
+                .OrderBy(c => c.Order)
+                .ToList();
         }
         catch { return []; }
     }
 
-    private record ClueJsonItem(Guid Id, string Content, int Order, int? AutoReleaseAfterMinutes);
+    private record ClueJsonItem(
+        Guid Id,
+        int Order,
+        string? Content,
+        double? Latitude,
+        double? Longitude,
+        int? RadiusMeters,
+        int? AutoReleaseAfterMinutes);
 }

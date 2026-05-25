@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ParticipantStage, QrValidationResult, SessionInfo, TriviaAnswerResult } from '../types';
 import { getParticipantStage, submitTriviaAnswer, validateQrCode } from '../services/sessionService';
+import { useClueStream } from '../services/clueStream';
 import { TriviaScreen } from './TriviaScreen';
 import { TreasureHuntScreen } from './TreasureHuntScreen';
 
@@ -28,6 +29,12 @@ export function GameScreen({ session, team, nickname, initialStage }: Props) {
   const [error, setError] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Real-time clue stream (HU-20): SignalR + API resync after reconnect.
+  const { clues, status: clueStatus, resetClues } = useClueStream({
+    sessionId: session.id,
+    teamId: team.teamId,
+  });
+
   // Poll for stage updates (handles operator force-advance, session pause, etc.)
   useEffect(() => {
     function startPolling() {
@@ -38,6 +45,8 @@ export function GameScreen({ session, team, nickname, initialStage }: Props) {
           setStage((prev) => {
             if (updated.currentStageOrder !== prev.currentStageOrder) {
               setAnswerState({ phase: 'answering' });
+              // Clues belong to a specific stage — clear them on advance.
+              resetClues();
             }
             return updated;
           });
@@ -51,7 +60,7 @@ export function GameScreen({ session, team, nickname, initialStage }: Props) {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [session.id, team.teamId]);
+  }, [session.id, team.teamId, resetClues]);
 
   function handleAnswered(result: StageResult) {
     setAnswerState({ phase: 'result', result });
@@ -62,6 +71,7 @@ export function GameScreen({ session, team, nickname, initialStage }: Props) {
         const updated = await getParticipantStage(session.id, team.teamId);
         setStage(updated);
         setAnswerState({ phase: 'answering' });
+        resetClues();
       } catch {
         setAnswerState({ phase: 'answering' });
       }
@@ -136,6 +146,8 @@ export function GameScreen({ session, team, nickname, initialStage }: Props) {
           onResolved={handleAnswered}
           onError={setError}
           validateQr={validateQrCode}
+          clues={clues}
+          clueStatus={clueStatus}
         />
       </>
     );
@@ -157,6 +169,8 @@ export function GameScreen({ session, team, nickname, initialStage }: Props) {
         onAnswered={handleAnswered}
         onError={setError}
         submitAnswer={submitTriviaAnswer}
+        clues={clues}
+        clueStatus={clueStatus}
       />
     </>
   );

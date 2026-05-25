@@ -31,7 +31,6 @@ public class ReleaseClueCommandHandler : IRequestHandler<ReleaseClueCommand, Res
         if (session is null)
             return Result.Failure<bool>(SessionErrors.NotFound);
 
-        // Clues can only be released while the session is active
         if (session.Status != SessionStatus.InProgress)
             return Result.Failure<bool>(SessionErrors.CannotReleaseClue);
 
@@ -47,9 +46,12 @@ public class ReleaseClueCommandHandler : IRequestHandler<ReleaseClueCommand, Res
         // Audit log — resolve team name for human-readable message
         var teamInfo = await _teamServiceClient.GetTeamByIdAsync(request.TeamId, cancellationToken);
         var teamName = teamInfo?.Name ?? request.TeamId.ToString();
-        var auditEvent = SessionEvent.Create(
-            request.SessionId,
-            $"Pista #{cluesReceived} liberada al equipo '{teamName}': \"{request.ClueContent}\".");
+
+        var auditMessage = request.ClueContent is not null
+            ? $"Pista #{cluesReceived} liberada al equipo '{teamName}': \"{request.ClueContent}\"."
+            : $"Pista #{cluesReceived} liberada al equipo '{teamName}': zona geográfica (radio {request.ClueRadiusMeters ?? 0}m).";
+
+        var auditEvent = SessionEvent.Create(request.SessionId, auditMessage);
         await _eventRepository.AddAsync(auditEvent, cancellationToken);
         await _eventRepository.SaveChangesAsync(cancellationToken);
 
@@ -59,10 +61,14 @@ public class ReleaseClueCommandHandler : IRequestHandler<ReleaseClueCommand, Res
             .SendAsync("ClueReleased",
                 new
                 {
-                    SessionId   = request.SessionId,
-                    TeamId      = request.TeamId,
-                    ClueContent = request.ClueContent,
-                    ClueNumber  = cluesReceived,
+                    SessionId      = request.SessionId,
+                    TeamId         = request.TeamId,
+                    ClueContent    = request.ClueContent,
+                    ClueLatitude   = request.ClueLatitude,
+                    ClueLongitude  = request.ClueLongitude,
+                    ClueRadiusMeters = request.ClueRadiusMeters,
+                    ClueNumber     = cluesReceived,
+                    IsAutomatic    = false,
                 },
                 cancellationToken);
 

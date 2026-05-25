@@ -3,7 +3,9 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using ClueService.Application.Clues.Commands.AddClue;
 using ClueService.Application.Clues.Commands.RemoveClue;
+using ClueService.Application.Clues.Commands.UpdateClue;
 using ClueService.Application.Clues.Queries.GetCluesByStage;
+using ClueService.Domain.Clues;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -22,8 +24,49 @@ public class CluesController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Add([FromBody] AddClueRequest request, CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new AddClueCommand(request.StageId, request.Content, request.AutoReleaseAfterMinutes), cancellationToken);
-        return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Error);
+        var result = await _sender.Send(
+            new AddClueCommand(
+                request.StageId,
+                request.Order ?? 0,
+                request.Content,
+                request.Latitude,
+                request.Longitude,
+                request.RadiusMeters,
+                request.AutoReleaseAfterMinutes),
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return result.Error.Code == ClueErrors.StageNotFound.Code
+                ? NotFound(result.Error)
+                : BadRequest(result.Error);
+        }
+        return Ok(result.Value);
+    }
+
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> Update(
+        Guid id,
+        [FromBody] UpdateClueRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(
+            new UpdateClueCommand(
+                id,
+                request.Order,
+                request.Content,
+                request.Latitude,
+                request.Longitude,
+                request.RadiusMeters),
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return result.Error.Code == ClueErrors.NotFound.Code
+                ? NotFound(result.Error)
+                : BadRequest(result.Error);
+        }
+        return NoContent();
     }
 
     [HttpDelete("{id:guid}")]
@@ -34,4 +77,18 @@ public class CluesController : ControllerBase
     }
 }
 
-public record AddClueRequest(Guid StageId, string Content, int? AutoReleaseAfterMinutes = null);
+public record AddClueRequest(
+    Guid StageId,
+    int? Order = null,
+    string? Content = null,
+    double? Latitude = null,
+    double? Longitude = null,
+    int? RadiusMeters = null,
+    int? AutoReleaseAfterMinutes = null);
+
+public record UpdateClueRequest(
+    int Order,
+    string? Content = null,
+    double? Latitude = null,
+    double? Longitude = null,
+    int? RadiusMeters = null);

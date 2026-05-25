@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "targets": {
     "net10.0": {
       "Castle.Core/5.1.1": {
@@ -3162,23 +3162,23 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\Windows\\.nuget\\packages\\": {},
+    "C:\\Users\\Jeiber Ortega\\.nuget\\packages\\": {},
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\UMBRAL_Back-end.Tests\\UMBRAL_Back-end.Tests.csproj",
+      "projectUniqueName": "C:\\Users\\Jeiber Ortega\\Proyecto Desarrollo\\ProyectoUMBRALGrupo8\\UMBRAL_Back-end\\UMBRAL_Back-end.Tests\\UMBRAL_Back-end.Tests.csproj",
       "projectName": "UMBRAL_Back-end.Tests",
-      "projectPath": "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\UMBRAL_Back-end.Tests\\UMBRAL_Back-end.Tests.csproj",
-      "packagesPath": "C:\\Users\\Windows\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\UMBRAL_Back-end.Tests\\obj\\",
+      "projectPath": "C:\\Users\\Jeiber Ortega\\Proyecto Desarrollo\\ProyectoUMBRALGrupo8\\UMBRAL_Back-end\\UMBRAL_Back-end.Tests\\UMBRAL_Back-end.Tests.csproj",
+      "packagesPath": "C:\\Users\\Jeiber Ortega\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\Jeiber Ortega\\Proyecto Desarrollo\\ProyectoUMBRALGrupo8\\UMBRAL_Back-end\\UMBRAL_Back-end.Tests\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
       ],
       "configFilePaths": [
-        "C:\\Users\\Windows\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Users\\Jeiber Ortega\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
@@ -3192,22 +3192,23 @@
       },
       "frameworks": {
         "net10.0": {
+          "framework": "net10.0",
           "targetAlias": "net10.0",
           "projectReferences": {
-            "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\ClueService\\ClueService.csproj": {
-              "projectPath": "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\ClueService\\ClueService.csproj"
+            "C:\\Users\\Jeiber Ortega\\Proyecto Desarrollo\\ProyectoUMBRALGrupo8\\UMBRAL_Back-end\\ClueService\\ClueService.csproj": {
+              "projectPath": "C:\\Users\\Jeiber Ortega\\Proyecto Desarrollo\\ProyectoUMBRALGrupo8\\UMBRAL_Back-end\\ClueService\\ClueService.csproj"
             },
-            "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\MissionService\\MissionService.csproj": {
-              "projectPath": "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\MissionService\\MissionService.csproj"
+            "C:\\Users\\Jeiber Ortega\\Proyecto Desarrollo\\ProyectoUMBRALGrupo8\\UMBRAL_Back-end\\MissionService\\MissionService.csproj": {
+              "projectPath": "C:\\Users\\Jeiber Ortega\\Proyecto Desarrollo\\ProyectoUMBRALGrupo8\\UMBRAL_Back-end\\MissionService\\MissionService.csproj"
             },
-            "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\SessionService\\SessionService.csproj": {
-              "projectPath": "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\SessionService\\SessionService.csproj"
+            "c:\\Users\\Jeiber Ortega\\Proyecto Desarrollo\\ProyectoUMBRALGrupo8\\UMBRAL_Back-end\\SessionService\\SessionService.csproj": {
+              "projectPath": "c:\\Users\\Jeiber Ortega\\Proyecto Desarrollo\\ProyectoUMBRALGrupo8\\UMBRAL_Back-end\\SessionService\\SessionService.csproj"
             },
-            "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\StageService\\StageService.csproj": {
-              "projectPath": "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\StageService\\StageService.csproj"
+            "C:\\Users\\Jeiber Ortega\\Proyecto Desarrollo\\ProyectoUMBRALGrupo8\\UMBRAL_Back-end\\StageService\\StageService.csproj": {
+              "projectPath": "C:\\Users\\Jeiber Ortega\\Proyecto Desarrollo\\ProyectoUMBRALGrupo8\\UMBRAL_Back-end\\StageService\\StageService.csproj"
             },
-            "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\TeamService\\TeamService.csproj": {
-              "projectPath": "C:\\Users\\Windows\\Documents\\UCAB\\10 decimo semestre\\Desarrollo de software\\ProyectoUMBRAL_Grupo8\\UMBRAL_Back-end\\TeamService\\TeamService.csproj"
+            "c:\\Users\\Jeiber Ortega\\Proyecto Desarrollo\\ProyectoUMBRALGrupo8\\UMBRAL_Back-end\\TeamService\\TeamService.csproj": {
+              "projectPath": "c:\\Users\\Jeiber Ortega\\Proyecto Desarrollo\\ProyectoUMBRALGrupo8\\UMBRAL_Back-end\\TeamService\\TeamService.csproj"
             }
           }
         }
@@ -3222,10 +3223,11 @@
         "auditLevel": "low",
         "auditMode": "all"
       },
-      "SdkAnalysisLevel": "10.0.200"
+      "SdkAnalysisLevel": "10.0.300"
     },
     "frameworks": {
       "net10.0": {
+        "framework": "net10.0",
         "targetAlias": "net10.0",
         "dependencies": {
           "FluentAssertions": {
@@ -3267,7 +3269,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.201/PortableRuntimeIdentifierGraph.json",
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.300/PortableRuntimeIdentifierGraph.json",
         "packagesToPrune": {
           "Microsoft.CSharp": "(,4.7.32767]",
           "Microsoft.VisualBasic": "(,10.4.32767]",

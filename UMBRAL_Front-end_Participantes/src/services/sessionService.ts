@@ -1,4 +1,9 @@
-import type { ParticipantStage, QrValidationResult, TriviaAnswerResult } from '../types';
+import type {
+  ParticipantStage,
+  QrValidationResult,
+  ReleasedClues,
+  TriviaAnswerResult,
+} from '../types';
 
 // Default: relative path → Vite proxy routes to SessionService.
 // Works on localhost AND through HTTPS tunnels (cloudflared/ngrok).
@@ -32,6 +37,17 @@ export async function submitTriviaAnswer(
     body: JSON.stringify({ stageId, optionId }),
   });
   if (!res.ok) throw new Error('No se pudo registrar la respuesta');
+  return res.json();
+}
+
+export async function getReleasedClues(
+  sessionId: string,
+  teamId: string,
+): Promise<ReleasedClues> {
+  const res = await fetch(
+    `${BASE_URL}/sessions/${sessionId}/teams/${teamId}/released-clues`,
+  );
+  if (!res.ok) throw new Error('No se pudieron obtener las pistas liberadas');
   return res.json();
 }
 

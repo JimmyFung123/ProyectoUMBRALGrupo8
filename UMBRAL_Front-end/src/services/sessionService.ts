@@ -73,11 +73,21 @@ export const sessionService = {
       .then(handleResponse<boolean>);
   },
 
-  releaseClue(sessionId: string, teamId: string, totalCluesForStage: number, clueContent: string): Promise<boolean> {
+  releaseClue(
+    sessionId: string,
+    teamId: string,
+    totalCluesForStage: number,
+    cluePayload: {
+      clueContent?: string | null;
+      clueLatitude?: number | null;
+      clueLongitude?: number | null;
+      clueRadiusMeters?: number | null;
+    },
+  ): Promise<boolean> {
     return fetch(`${BASE_URL}/sessions/${sessionId}/teams/${teamId}/release-clue`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ totalCluesForStage, clueContent }),
+      body: JSON.stringify({ totalCluesForStage, ...cluePayload }),
     }).then(handleResponse<boolean>);
   },
 

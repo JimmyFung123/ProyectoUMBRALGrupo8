@@ -1,5 +1,11 @@
 import { useState } from 'react';
-import type { ParticipantStage, TriviaAnswerResult } from '../types';
+import type {
+  ClueStreamStatus,
+  ParticipantStage,
+  ReleasedClue,
+  TriviaAnswerResult,
+} from '../types';
+import { CluePanel } from './CluePanel';
 
 interface Props {
   stage: ParticipantStage;
@@ -13,9 +19,13 @@ interface Props {
     stageId: string,
     optionId: string,
   ) => Promise<TriviaAnswerResult>;
+  clues: ReleasedClue[];
+  clueStatus: ClueStreamStatus;
 }
 
-export function TriviaScreen({ stage, sessionId, teamId, onAnswered, onError, submitAnswer }: Props) {
+export function TriviaScreen({
+  stage, sessionId, teamId, onAnswered, onError, submitAnswer, clues, clueStatus,
+}: Props) {
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -80,6 +90,9 @@ export function TriviaScreen({ stage, sessionId, teamId, onAnswered, onError, su
         >
           {submitting ? 'Enviando…' : 'Confirmar respuesta'}
         </button>
+
+        {/* Released clues — HU-20 */}
+        <CluePanel clues={clues} status={clueStatus} variant="trivia" />
       </div>
     </div>
   );

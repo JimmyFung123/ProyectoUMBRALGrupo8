@@ -50,3 +50,28 @@ export interface QrValidationResult {
   nextStageOrder: number;
   isLastStage: boolean;
 }
+
+export interface ReleasedClue {
+  id: string;
+  order: number;
+  content: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  radiusMeters: number | null;
+}
+
+export interface ReleasedClues {
+  stageId: string;
+  stageOrder: number;
+  stageType: string;
+  cluesReceived: number;
+  totalCluesForStage: number;
+  clues: ReleasedClue[];
+}
+
+export type ClueStreamStatus =
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'disconnected';
+

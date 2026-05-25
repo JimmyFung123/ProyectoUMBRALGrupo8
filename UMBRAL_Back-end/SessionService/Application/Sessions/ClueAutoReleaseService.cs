@@ -88,11 +88,14 @@ public class ClueAutoReleaseService
             await _hub.Clients.Group(session.Id.ToString())
                 .SendAsync("ClueReleased", new
                 {
-                    sessionId = session.Id,
-                    teamId = team.Id,
-                    clueContent = nextClue.Content,
+                    sessionId        = session.Id,
+                    teamId           = team.Id,
+                    clueContent      = nextClue.Content,
+                    clueLatitude     = nextClue.Latitude,
+                    clueLongitude    = nextClue.Longitude,
+                    clueRadiusMeters = nextClue.RadiusMeters,
                     clueNumber,
-                    isAutomatic = true,
+                    isAutomatic      = true,
                 }, ct);
         }
     }

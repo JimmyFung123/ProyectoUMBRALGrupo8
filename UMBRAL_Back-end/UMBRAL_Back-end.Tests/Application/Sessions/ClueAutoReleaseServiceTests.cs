@@ -64,7 +64,7 @@ public class ClueAutoReleaseServiceTests
         _stageClientMock.Setup(s => s.GetStagesByMissionAsync(session.MissionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync([new StageInfo(stageId, 1)]);
         _clueClientMock.Setup(c => c.GetCluesByStageAsync(stageId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync([new ClueInfo(Guid.NewGuid(), "Find the fountain", 1, AutoReleaseAfterMinutes: null)]);
+            .ReturnsAsync([new ClueInfo(Guid.NewGuid(), 1, "Find the fountain", null, null, null, AutoReleaseAfterMinutes: null)]);
 
         await _service.ProcessAsync(default);
 
@@ -87,7 +87,7 @@ public class ClueAutoReleaseServiceTests
         _stageClientMock.Setup(s => s.GetStagesByMissionAsync(session.MissionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync([new StageInfo(stageId, 1)]);
         _clueClientMock.Setup(c => c.GetCluesByStageAsync(stageId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync([new ClueInfo(Guid.NewGuid(), "Find it", 1, AutoReleaseAfterMinutes: 5)]);
+            .ReturnsAsync([new ClueInfo(Guid.NewGuid(), 1, "Find it", null, null, null, AutoReleaseAfterMinutes: 5)]);
 
         await _service.ProcessAsync(default);
 
@@ -111,7 +111,7 @@ public class ClueAutoReleaseServiceTests
         _stageClientMock.Setup(s => s.GetStagesByMissionAsync(session.MissionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync([new StageInfo(stageId, 1)]);
         _clueClientMock.Setup(c => c.GetCluesByStageAsync(stageId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync([new ClueInfo(clueId, "Find the fountain", 1, AutoReleaseAfterMinutes: 5)]);
+            .ReturnsAsync([new ClueInfo(clueId, 1, "Find the fountain", null, null, null, AutoReleaseAfterMinutes: 5)]);
         _teamClientMock.Setup(t => t.ReleaseClueAsync(teamId, 1, It.IsAny<CancellationToken>(), true))
             .ReturnsAsync(1);
 
@@ -161,8 +161,8 @@ public class ClueAutoReleaseServiceTests
             .ReturnsAsync([new StageInfo(stageId, 1)]);
         _clueClientMock.Setup(c => c.GetCluesByStageAsync(stageId, It.IsAny<CancellationToken>()))
             .ReturnsAsync([
-                new ClueInfo(Guid.NewGuid(), "Clue 1", 1, 5),
-                new ClueInfo(Guid.NewGuid(), "Clue 2", 2, 5),
+                new ClueInfo(Guid.NewGuid(), 1, "Clue 1", null, null, null, 5),
+                new ClueInfo(Guid.NewGuid(), 2, "Clue 2", null, null, null, 5),
             ]);
 
         await _service.ProcessAsync(default);

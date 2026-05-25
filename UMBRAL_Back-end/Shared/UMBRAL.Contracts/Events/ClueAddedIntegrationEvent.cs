@@ -1,2 +1,10 @@
 namespace UMBRAL.Contracts.Events;
-public record ClueAddedIntegrationEvent(Guid ClueId, Guid StageId, Guid MissionId, string Content, DateTime OccurredAt);
+public record ClueAddedIntegrationEvent(
+    Guid ClueId,
+    Guid StageId,
+    Guid MissionId,
+    string? Content,
+    double? Latitude,
+    double? Longitude,
+    int? RadiusMeters,
+    DateTime OccurredAt);

@@ -24,6 +24,12 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path: string) => path.replace(/^\/team-api/, '/api'),
       },
+      // SignalR hub for real-time clue/session updates (HU-20)
+      '/hubs': {
+        target: 'http://localhost:5092',
+        changeOrigin: true,
+        ws: true,
+      },
     },
     // Allow cloudflared / ngrok tunnel hosts
     allowedHosts: true,

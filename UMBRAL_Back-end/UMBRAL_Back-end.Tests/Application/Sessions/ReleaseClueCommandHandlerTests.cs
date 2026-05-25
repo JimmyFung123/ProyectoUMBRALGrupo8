@@ -32,7 +32,9 @@ public class ReleaseClueCommandHandlerTests
     }
 
     private static ReleaseClueCommand MakeCommand(Guid sessionId, Guid teamId)
-        => new(sessionId, teamId, TotalCluesForStage: 3, ClueContent: "Busca la fuente de la plaza");
+        => new(sessionId, teamId, TotalCluesForStage: 3,
+               ClueContent: "Busca la fuente de la plaza",
+               ClueLatitude: null, ClueLongitude: null, ClueRadiusMeters: null);
 
     // ── Session not found ─────────────────────────────────────────────────────
 

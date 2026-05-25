@@ -1,8 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { Circle, MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { Html5Qrcode } from 'html5-qrcode';
-import type { ParticipantStage, QrValidationResult } from '../types';
+import type {
+  ClueStreamStatus,
+  ParticipantStage,
+  QrValidationResult,
+  ReleasedClue,
+} from '../types';
+import { CluePanel } from './CluePanel';
 
 // Fix Leaflet default icon paths (the bundler does not serve them automatically)
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
@@ -24,12 +30,25 @@ interface Props {
     stageId: string,
     scannedCode: string,
   ) => Promise<QrValidationResult>;
+  clues: ReleasedClue[];
+  clueStatus: ClueStreamStatus;
+}
+
+// Default search radius (meters) used until the operator releases a geo clue.
+// Once geo clues arrive, we use the most-recent one's configured radius (HU-3 / RB-21).
+const DEFAULT_RADIUS_METERS = 400;
+
+function activeGeoClue(clues: ReleasedClue[]): ReleasedClue | undefined {
+  // Latest released geo clue takes precedence (it's the tightest hint).
+  return [...clues].reverse().find(
+    (c) => c.latitude != null && c.longitude != null && c.radiusMeters != null,
+  );
 }
 
 const SCANNER_ELEMENT_ID = 'umbral-qr-scanner';
 
 export function TreasureHuntScreen({
-  stage, sessionId, teamId, onResolved, onError, validateQr,
+  stage, sessionId, teamId, onResolved, onError, validateQr, clues, clueStatus,
 }: Props) {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -38,8 +57,13 @@ export function TreasureHuntScreen({
   const [manualCode, setManualCode] = useState('');
   const scannerRef = useRef<Html5Qrcode | null>(null);
 
+  // Prefer the latest geo clue's center; fall back to the stage's destination.
+  const geoClue = activeGeoClue(clues);
+  const centerLat = geoClue?.latitude ?? stage.latitude;
+  const centerLng = geoClue?.longitude ?? stage.longitude;
+  const radius = geoClue?.radiusMeters ?? DEFAULT_RADIUS_METERS;
   const hasCoordinates =
-    typeof stage.latitude === 'number' && typeof stage.longitude === 'number';
+    typeof centerLat === 'number' && typeof centerLng === 'number';
 
   useEffect(() => {
     return () => {
@@ -148,7 +172,7 @@ export function TreasureHuntScreen({
         {hasCoordinates ? (
           <div style={styles.mapWrapper}>
             <MapContainer
-              center={[stage.latitude as number, stage.longitude as number]}
+              center={[centerLat as number, centerLng as number]}
               zoom={16}
               style={styles.map}
               scrollWheelZoom={false}
@@ -157,10 +181,15 @@ export function TreasureHuntScreen({
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
-              <Marker position={[stage.latitude as number, stage.longitude as number]}>
+              <Marker position={[centerLat as number, centerLng as number]}>
                 <Popup>Zona aproximada del tesoro</Popup>
               </Marker>
-              <RecenterMap lat={stage.latitude as number} lng={stage.longitude as number} />
+              <Circle
+                center={[centerLat as number, centerLng as number]}
+                radius={radius}
+                pathOptions={{ color: '#6366f1', weight: 2, fillColor: '#6366f1', fillOpacity: 0.15 }}
+              />
+              <RecenterMap lat={centerLat as number} lng={centerLng as number} />
             </MapContainer>
           </div>
         ) : (
@@ -204,6 +233,9 @@ export function TreasureHuntScreen({
         <p style={styles.hint}>
           El escáner usa la cámara de tu dispositivo. Solo el QR correcto avanza la etapa.
         </p>
+
+        {/* Released clues — HU-20 */}
+        <CluePanel clues={clues} status={clueStatus} variant="treasure" />
       </div>
 
       {scannerOpen && (

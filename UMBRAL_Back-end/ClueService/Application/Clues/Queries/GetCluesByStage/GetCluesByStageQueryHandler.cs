@@ -9,6 +9,12 @@ public class GetCluesByStageQueryHandler : IRequestHandler<GetCluesByStageQuery,
     public async Task<List<ClueDto>> Handle(GetCluesByStageQuery request, CancellationToken cancellationToken)
     {
         var clues = await _repository.GetByStageIdAsync(request.StageId, cancellationToken);
-        return clues.Select(c => new ClueDto(c.Id, c.StageId, c.MissionId, c.Content, c.Order, c.AutoReleaseAfterMinutes, c.CreatedAt)).ToList();
+        return clues
+            .OrderBy(c => c.Order)
+            .Select(c => new ClueDto(
+                c.Id, c.StageId, c.MissionId, c.StageType,
+                c.Order, c.Content, c.Latitude, c.Longitude, c.RadiusMeters,
+                c.AutoReleaseAfterMinutes, c.CreatedAt))
+            .ToList();
     }
 }

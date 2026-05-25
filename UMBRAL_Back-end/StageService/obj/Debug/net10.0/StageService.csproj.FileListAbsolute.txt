@@ -132,3 +132,165 @@ C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\Proyec
 C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\StageService\obj\Debug\net10.0\StageService.pdb
 C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\StageService\obj\Debug\net10.0\StageService.genruntimeconfig.cache
 C:\Users\Windows\Documents\UCAB\10 decimo semestre\Desarrollo de software\ProyectoUMBRAL_Grupo8\UMBRAL_Back-end\StageService\obj\Debug\net10.0\ref\StageService.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\appsettings.json
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\StageService.staticwebassets.endpoints.json
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\StageService.exe
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\StageService.deps.json
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\StageService.runtimeconfig.json
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\StageService.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\StageService.pdb
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\Humanizer.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\MassTransit.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\MassTransit.Abstractions.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\MassTransit.RabbitMqTransport.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\MediatR.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\MediatR.Contracts.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\Microsoft.AspNetCore.OpenApi.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\Microsoft.Build.Framework.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\Microsoft.CodeAnalysis.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\Microsoft.CodeAnalysis.CSharp.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\Microsoft.CodeAnalysis.CSharp.Workspaces.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\Microsoft.CodeAnalysis.Workspaces.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\Microsoft.CodeAnalysis.ExternalAccess.RazorCompiler.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\Microsoft.CodeAnalysis.Workspaces.MSBuild.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\Microsoft.EntityFrameworkCore.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\Microsoft.EntityFrameworkCore.Abstractions.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\Microsoft.EntityFrameworkCore.Design.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\Microsoft.EntityFrameworkCore.Relational.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\Microsoft.Extensions.DependencyModel.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\Microsoft.IdentityModel.Abstractions.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\Microsoft.IdentityModel.JsonWebTokens.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\Microsoft.IdentityModel.Logging.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\Microsoft.IdentityModel.Tokens.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\Microsoft.OpenApi.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\Microsoft.VisualStudio.SolutionPersistence.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\Mono.TextTemplating.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\Newtonsoft.Json.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\Npgsql.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\Npgsql.EntityFrameworkCore.PostgreSQL.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\RabbitMQ.Client.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\System.CodeDom.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\System.Composition.AttributedModel.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\System.Composition.Convention.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\System.Composition.Hosting.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\System.Composition.Runtime.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\System.Composition.TypedParts.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\cs\Microsoft.CodeAnalysis.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\de\Microsoft.CodeAnalysis.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\es\Microsoft.CodeAnalysis.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\fr\Microsoft.CodeAnalysis.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\it\Microsoft.CodeAnalysis.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\ja\Microsoft.CodeAnalysis.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\ko\Microsoft.CodeAnalysis.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\pl\Microsoft.CodeAnalysis.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\pt-BR\Microsoft.CodeAnalysis.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\ru\Microsoft.CodeAnalysis.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\tr\Microsoft.CodeAnalysis.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\zh-Hans\Microsoft.CodeAnalysis.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\zh-Hant\Microsoft.CodeAnalysis.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\cs\Microsoft.CodeAnalysis.CSharp.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\de\Microsoft.CodeAnalysis.CSharp.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\es\Microsoft.CodeAnalysis.CSharp.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\fr\Microsoft.CodeAnalysis.CSharp.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\it\Microsoft.CodeAnalysis.CSharp.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\ja\Microsoft.CodeAnalysis.CSharp.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\ko\Microsoft.CodeAnalysis.CSharp.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\pl\Microsoft.CodeAnalysis.CSharp.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\pt-BR\Microsoft.CodeAnalysis.CSharp.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\ru\Microsoft.CodeAnalysis.CSharp.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\tr\Microsoft.CodeAnalysis.CSharp.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\zh-Hans\Microsoft.CodeAnalysis.CSharp.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\zh-Hant\Microsoft.CodeAnalysis.CSharp.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\cs\Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\de\Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\es\Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\fr\Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\it\Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\ja\Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\ko\Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\pl\Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\pt-BR\Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\ru\Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\tr\Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\zh-Hans\Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\zh-Hant\Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\cs\Microsoft.CodeAnalysis.Workspaces.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\de\Microsoft.CodeAnalysis.Workspaces.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\es\Microsoft.CodeAnalysis.Workspaces.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\fr\Microsoft.CodeAnalysis.Workspaces.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\it\Microsoft.CodeAnalysis.Workspaces.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\ja\Microsoft.CodeAnalysis.Workspaces.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\ko\Microsoft.CodeAnalysis.Workspaces.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\pl\Microsoft.CodeAnalysis.Workspaces.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\pt-BR\Microsoft.CodeAnalysis.Workspaces.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\ru\Microsoft.CodeAnalysis.Workspaces.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\tr\Microsoft.CodeAnalysis.Workspaces.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\zh-Hans\Microsoft.CodeAnalysis.Workspaces.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\zh-Hant\Microsoft.CodeAnalysis.Workspaces.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\cs\Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\de\Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\es\Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\fr\Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\it\Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\ja\Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\ko\Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\pl\Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\pt-BR\Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\ru\Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\tr\Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\zh-Hans\Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\zh-Hant\Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\UMBRAL.Contracts.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\bin\Debug\net10.0\UMBRAL.Contracts.pdb
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\obj\Debug\net10.0\StageService.csproj.AssemblyReference.cache
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\obj\Debug\net10.0\rpswa.dswa.cache.json
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\obj\Debug\net10.0\StageService.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\obj\Debug\net10.0\StageService.AssemblyInfoInputs.cache
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\obj\Debug\net10.0\StageService.AssemblyInfo.cs
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\obj\Debug\net10.0\StageService.csproj.CoreCompileInputs.cache
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\obj\Debug\net10.0\StageService.MvcApplicationPartsAssemblyInfo.cs
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\obj\Debug\net10.0\StageService.MvcApplicationPartsAssemblyInfo.cache
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\obj\Debug\net10.0\StageService.sourcelink.json
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\obj\Debug\net10.0\rjimswa.dswa.cache.json
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\obj\Debug\net10.0\rjsmrazor.dswa.cache.json
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\obj\Debug\net10.0\rjsmcshtml.dswa.cache.json
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\obj\Debug\net10.0\scopedcss\bundle\StageService.styles.css
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\obj\Debug\net10.0\staticwebassets.build.json
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\obj\Debug\net10.0\staticwebassets.build.json.cache
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\obj\Debug\net10.0\staticwebassets.development.json
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\obj\Debug\net10.0\staticwebassets.build.endpoints.json
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\obj\Debug\net10.0\swae.build.ex.cache
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\obj\Debug\net10.0\StageSer.ED06FCC1.Up2Date
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\obj\Debug\net10.0\StageService.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\obj\Debug\net10.0\refint\StageService.dll
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\obj\Debug\net10.0\StageService.pdb
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\obj\Debug\net10.0\StageService.genruntimeconfig.cache
+C:\Users\Jeiber Ortega\Proyecto Desarrollo\ProyectoUMBRALGrupo8\UMBRAL_Back-end\StageService\obj\Debug\net10.0\ref\StageService.dll
+C:\Users\Jeiber Ortega\AppData\Local\Temp\umbral-hu20-tests\appsettings.json
+C:\Users\Jeiber Ortega\AppData\Local\Temp\umbral-hu20-tests\StageService.staticwebassets.endpoints.json
+C:\Users\Jeiber Ortega\AppData\Local\Temp\umbral-hu20-tests\StageService.exe
+C:\Users\Jeiber Ortega\AppData\Local\Temp\umbral-hu20-tests\StageService.deps.json
+C:\Users\Jeiber Ortega\AppData\Local\Temp\umbral-hu20-tests\StageService.runtimeconfig.json
+C:\Users\Jeiber Ortega\AppData\Local\Temp\umbral-hu20-tests\StageService.dll
+C:\Users\Jeiber Ortega\AppData\Local\Temp\umbral-hu20-tests\StageService.pdb
+C:\Users\Jeiber Ortega\AppData\Local\Temp\umbral-hu3-tests\appsettings.json
+C:\Users\Jeiber Ortega\AppData\Local\Temp\umbral-hu3-tests\StageService.staticwebassets.endpoints.json
+C:\Users\Jeiber Ortega\AppData\Local\Temp\umbral-hu3-tests\StageService.exe
+C:\Users\Jeiber Ortega\AppData\Local\Temp\umbral-hu3-tests\StageService.deps.json
+C:\Users\Jeiber Ortega\AppData\Local\Temp\umbral-hu3-tests\StageService.runtimeconfig.json
+C:\Users\Jeiber Ortega\AppData\Local\Temp\umbral-hu3-tests\StageService.dll
+C:\Users\Jeiber Ortega\AppData\Local\Temp\umbral-hu3-tests\StageService.pdb
+C:\Users\Jeiber Ortega\AppData\Local\Temp\umbral-hu3-tests2\appsettings.json
+C:\Users\Jeiber Ortega\AppData\Local\Temp\umbral-hu3-tests2\StageService.staticwebassets.endpoints.json
+C:\Users\Jeiber Ortega\AppData\Local\Temp\umbral-hu3-tests2\StageService.exe
+C:\Users\Jeiber Ortega\AppData\Local\Temp\umbral-hu3-tests2\StageService.deps.json
+C:\Users\Jeiber Ortega\AppData\Local\Temp\umbral-hu3-tests2\StageService.runtimeconfig.json
+C:\Users\Jeiber Ortega\AppData\Local\Temp\umbral-hu3-tests2\StageService.dll
+C:\Users\Jeiber Ortega\AppData\Local\Temp\umbral-hu3-tests2\StageService.pdb
+C:\Users\Jeiber Ortega\AppData\Local\Temp\umbral-hu3-final\appsettings.json
+C:\Users\Jeiber Ortega\AppData\Local\Temp\umbral-hu3-final\StageService.staticwebassets.endpoints.json
+C:\Users\Jeiber Ortega\AppData\Local\Temp\umbral-hu3-final\StageService.exe
+C:\Users\Jeiber Ortega\AppData\Local\Temp\umbral-hu3-final\StageService.deps.json
+C:\Users\Jeiber Ortega\AppData\Local\Temp\umbral-hu3-final\StageService.runtimeconfig.json
+C:\Users\Jeiber Ortega\AppData\Local\Temp\umbral-hu3-final\StageService.dll
+C:\Users\Jeiber Ortega\AppData\Local\Temp\umbral-hu3-final\StageService.pdb

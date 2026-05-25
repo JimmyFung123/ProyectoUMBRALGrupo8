@@ -15,6 +15,7 @@ using SessionService.Application.Sessions.Commands.SubmitTriviaAnswer;
 using SessionService.Application.Sessions.Commands.UpdateSession;
 using SessionService.Application.Sessions.Commands.ValidateQrCode;
 using SessionService.Application.Sessions.Queries.GetParticipantStage;
+using SessionService.Application.Sessions.Queries.GetReleasedClues;
 using SessionService.Application.Sessions.Queries.GetSessionByCode;
 using SessionService.Application.Sessions.Queries.GetSessionDashboard;
 using SessionService.Application.Sessions.Queries.GetSessionDetail;
@@ -162,7 +163,14 @@ public class SessionsController : ControllerBase
         CancellationToken cancellationToken)
     {
         var result = await _sender.Send(
-            new ReleaseClueCommand(id, teamId, request.TotalCluesForStage, request.ClueContent),
+            new ReleaseClueCommand(
+                id,
+                teamId,
+                request.TotalCluesForStage,
+                request.ClueContent,
+                request.ClueLatitude,
+                request.ClueLongitude,
+                request.ClueRadiusMeters),
             cancellationToken);
 
         if (result.IsFailure)
@@ -264,6 +272,26 @@ public class SessionsController : ControllerBase
     }
 
     /// <summary>
+    /// Returns the ordered list of clues that have already been released to a team
+    /// for its current stage. Used by participants to re-sync after a SignalR reconnect (HU-20).
+    /// </summary>
+    [HttpGet("{id:guid}/teams/{teamId:guid}/released-clues")]
+    public async Task<IActionResult> GetReleasedClues(
+        Guid id,
+        Guid teamId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new GetReleasedCluesQuery(id, teamId), cancellationToken);
+        if (result.IsFailure)
+        {
+            return result.Error.Code == SessionErrors.NotFound.Code
+                ? NotFound(result.Error)
+                : BadRequest(result.Error);
+        }
+        return Ok(result.Value);
+    }
+
+    /// <summary>
     /// Validates the QR code scanned by a participant team for a Treasure Hunt stage.
     /// Wrong codes do not advance the team and do not award points (HU-19).
     /// </summary>
@@ -291,7 +319,12 @@ public class SessionsController : ControllerBase
 
 public record CreateSessionRequest(Guid MissionId, string Name, DateTime? ScheduledAt);
 public record UpdateSessionRequest(string Name, DateTime? ScheduledAt);
-public record ReleaseClueRequest(int TotalCluesForStage, string ClueContent);
+public record ReleaseClueRequest(
+    int TotalCluesForStage,
+    string? ClueContent = null,
+    double? ClueLatitude = null,
+    double? ClueLongitude = null,
+    int? ClueRadiusMeters = null);
 public record PenalizeTeamRequest(int Points, string Reason);
 public record SubmitTriviaAnswerRequest(Guid StageId, Guid OptionId);
 public record ValidateQrRequest(Guid StageId, string ScannedCode);

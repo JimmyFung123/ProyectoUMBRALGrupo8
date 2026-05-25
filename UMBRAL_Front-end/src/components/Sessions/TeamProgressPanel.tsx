@@ -105,8 +105,15 @@ export function TeamProgressPanel({
     setReleaseError(null);
 
     try {
-      await sessionService.releaseClue(sessionId, team.id, clues.length, nextClue.content);
-      setLastReleased({ teamName: team.name, content: nextClue.content });
+      await sessionService.releaseClue(sessionId, team.id, clues.length, {
+        clueContent: nextClue.content,
+        clueLatitude: nextClue.latitude,
+        clueLongitude: nextClue.longitude,
+        clueRadiusMeters: nextClue.radiusMeters,
+      });
+      const summary = nextClue.content
+        ?? `Zona geográfica (radio ${nextClue.radiusMeters ?? '?'}m)`;
+      setLastReleased({ teamName: team.name, content: summary });
       onClueReleased();
     } catch {
       setReleaseError(`No se pudo liberar la pista para ${team.name}`);

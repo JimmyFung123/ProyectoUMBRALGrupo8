@@ -25,16 +25,32 @@ public class AddClueCommandHandler : IRequestHandler<AddClueCommand, Result<Guid
         if (stage is null) return Result.Failure<Guid>(ClueErrors.StageNotFound);
 
         var existing = await _clueRepository.GetByStageIdAsync(request.StageId, cancellationToken);
-        var result = Clue.Create(request.StageId, stage.MissionId, request.Content, existing.Count + 1, request.AutoReleaseAfterMinutes);
+        // Respect the order the operator provided, falling back to the next sequential slot.
+        var order = request.Order > 0 ? request.Order : existing.Count + 1;
+
+        var result = Clue.Create(
+            request.StageId,
+            stage.MissionId,
+            stage.Name,
+            order,
+            request.Content,
+            request.Latitude,
+            request.Longitude,
+            request.RadiusMeters,
+            request.AutoReleaseAfterMinutes);
         if (result.IsFailure) return Result.Failure<Guid>(result.Error);
 
-        await _clueRepository.AddAsync(result.Value, cancellationToken);
+        var clue = result.Value;
+        await _clueRepository.AddAsync(clue, cancellationToken);
         await _clueRepository.SaveChangesAsync(cancellationToken);
 
         await _bus.Publish(
-            new ClueAddedIntegrationEvent(result.Value.Id, request.StageId, stage.MissionId, request.Content, DateTime.UtcNow),
+            new ClueAddedIntegrationEvent(
+                clue.Id, clue.StageId, clue.MissionId,
+                clue.Content, clue.Latitude, clue.Longitude, clue.RadiusMeters,
+                DateTime.UtcNow),
             cancellationToken);
 
-        return Result.Success(result.Value.Id);
+        return Result.Success(clue.Id);
     }
 }
