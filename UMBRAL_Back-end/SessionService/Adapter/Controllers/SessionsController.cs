@@ -19,6 +19,7 @@ using SessionService.Application.Sessions.Queries.GetReleasedClues;
 using SessionService.Application.Sessions.Queries.GetSessionByCode;
 using SessionService.Application.Sessions.Queries.GetSessionDashboard;
 using SessionService.Application.Sessions.Queries.GetSessionDetail;
+using SessionService.Application.Sessions.Queries.GetSessionRanking;
 using SessionService.Application.Sessions.Queries.GetSessions;
 using SessionService.Domain.Sessions;
 
@@ -59,6 +60,18 @@ public class SessionsController : ControllerBase
     public async Task<IActionResult> GetDashboard(Guid id, CancellationToken cancellationToken)
     {
         var result = await _sender.Send(new GetSessionDashboardQuery(id), cancellationToken);
+        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
+    }
+
+    /// <summary>
+    /// Returns the live ranking for a session (HU-21).
+    /// Reads the optimized projection from TeamService through the orchestrator
+    /// so participants can call SessionService instead of TeamService directly.
+    /// </summary>
+    [HttpGet("{id:guid}/ranking")]
+    public async Task<IActionResult> GetRanking(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new GetSessionRankingQuery(id), cancellationToken);
         return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
     }
 

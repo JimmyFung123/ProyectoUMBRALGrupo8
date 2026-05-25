@@ -10,6 +10,7 @@ import type { Stage } from '../../types/stage';
 import type { Clue } from '../../types/clue';
 import type { TeamProgressDto } from '../../types/team';
 import { SessionControls } from './SessionControls';
+import { SessionRankingPanel } from './SessionRankingPanel';
 import { TeamProgressPanel } from './TeamProgressPanel';
 
 const SIGNALR_URL = import.meta.env.VITE_SESSION_SIGNALR_URL ?? 'http://localhost:5092/hubs/session';
@@ -278,10 +279,10 @@ export function SessionDashboard({ sessionId, onBack }: Props) {
         />
       </div>
 
-      {/* ── Progreso de equipos (ranking en vivo) ────────────────── */}
+      {/* ── Progreso de equipos (panel operativo) ────────────────── */}
       <section style={{ border: '1px solid #ddd', borderRadius: 8, padding: '1rem', marginBottom: '1.5rem' }}>
         <h2 style={{ margin: '0 0 0.75rem', fontSize: '1rem', color: '#444' }}>
-          Ranking en vivo
+          Progreso y acciones por equipo
         </h2>
         <TeamProgressPanel
           teams={teams}
@@ -291,6 +292,14 @@ export function SessionDashboard({ sessionId, onBack }: Props) {
           cluesByStage={cluesByStage}
           onClueReleased={load}
         />
+      </section>
+
+      {/* ── Ranking en vivo (HU-21) ──────────────────────────────── */}
+      <section style={{ border: '1px solid #ddd', borderRadius: 8, padding: '1rem', marginBottom: '1.5rem' }}>
+        <h2 style={{ margin: '0 0 0.75rem', fontSize: '1rem', color: '#444' }}>
+          🏆 Ranking en vivo
+        </h2>
+        <SessionRankingPanel sessionId={sessionId} />
       </section>
 
       {/* ── Log de eventos ────────────────────────────────────────── */}

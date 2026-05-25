@@ -33,7 +33,28 @@ public interface ITeamServiceClient
 
     /// <summary>Returns basic info for a single team by ID.</summary>
     Task<TeamInfoItem?> GetTeamByIdAsync(Guid teamId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Returns the live ranking snapshot (HU-21). Reads the optimized projection
+    /// exposed by TeamService — never goes through the write/command path.
+    /// On error, returns null so the proxy can surface a 503-ish response.
+    /// </summary>
+    Task<SessionRankingSnapshot?> GetSessionRankingAsync(Guid sessionId, CancellationToken cancellationToken);
 }
+
+public record SessionRankingSnapshot(
+    Guid SessionId,
+    DateTime GeneratedAt,
+    IReadOnlyList<SessionRankingTeamItem> Teams);
+
+public record SessionRankingTeamItem(
+    Guid TeamId,
+    string Name,
+    int Score,
+    int Rank,
+    int CurrentStageOrder,
+    bool IsConnected,
+    DateTime? LastStageCompletedAt);
 
 public record TeamProgressItem(
     Guid Id,

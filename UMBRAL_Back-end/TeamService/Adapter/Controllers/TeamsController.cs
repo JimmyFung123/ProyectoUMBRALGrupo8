@@ -8,6 +8,7 @@ using TeamService.Application.Teams.Commands.ForceAdvance;
 using TeamService.Application.Teams.Commands.JoinTeam;
 using TeamService.Application.Teams.Commands.PenalizeTeam;
 using TeamService.Application.Teams.Commands.ReleaseClue;
+using TeamService.Application.Teams.Queries.GetSessionRanking;
 using TeamService.Application.Teams.Queries.GetTeamById;
 using TeamService.Application.Teams.Queries.GetTeamProgress;
 using TeamService.Domain.Teams;
@@ -64,6 +65,20 @@ public class TeamsController : ControllerBase
         CancellationToken cancellationToken)
     {
         var result = await _sender.Send(new GetTeamProgressQuery(sessionId), cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Returns the live ranking for a session (HU-21). Optimized read model:
+    /// score descending, with resolution-time (LastStageCompletedAt) as tie-breaker.
+    /// Safe to call from operator dashboards and the participant app — no write side-effects.
+    /// </summary>
+    [HttpGet("ranking")]
+    public async Task<IActionResult> GetSessionRanking(
+        [FromQuery] Guid sessionId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new GetSessionRankingQuery(sessionId), cancellationToken);
         return Ok(result);
     }
 

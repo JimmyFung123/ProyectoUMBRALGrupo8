@@ -39,6 +39,14 @@ public class Team
     /// <summary>Whether the last clue released to this team was automatic (system-triggered).</summary>
     public bool LastClueWasAutomatic { get; private set; }
 
+    /// <summary>
+    /// Timestamp of the team's last legitimately-resolved stage. Used as the tie-breaker
+    /// for the live ranking (HU-21, RB-08): on equal score, the team that resolved its
+    /// most recent stage earlier wins. Null until the team completes its first stage.
+    /// Forced advances do NOT update this field — they don't count as resolution time.
+    /// </summary>
+    public DateTime? LastStageCompletedAt { get; private set; }
+
     private Team() { }
 
     public static Team Create(Guid sessionId, string name)
@@ -133,6 +141,8 @@ public class Team
         CluesReceivedCurrentStage = 0;
         ClueTimerResetAt = DateTime.UtcNow;
         LastClueWasAutomatic = false;
+        if (isCorrect)
+            LastStageCompletedAt = DateTime.UtcNow;
         return Result.Success(Score);
     }
 

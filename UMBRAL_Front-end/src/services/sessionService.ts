@@ -1,3 +1,4 @@
+import type { SessionRanking } from '../types/ranking';
 import type { CreateSessionPayload, Session, SessionDashboard, SessionDetail, SessionStatus } from '../types/session';
 
 const BASE_URL = import.meta.env.VITE_SESSION_API_URL ?? 'http://localhost:5092/api';
@@ -43,6 +44,11 @@ export const sessionService = {
 
   getDashboard(id: string): Promise<SessionDashboard> {
     return fetch(`${BASE_URL}/sessions/${id}/dashboard`).then(handleResponse<SessionDashboard>);
+  },
+
+  /** HU-21: optimized read-model ranking — Score desc, resolution time as tie-breaker. */
+  getRanking(id: string): Promise<SessionRanking> {
+    return fetch(`${BASE_URL}/sessions/${id}/ranking`).then(handleResponse<SessionRanking>);
   },
 
   create(payload: CreateSessionPayload): Promise<string> {

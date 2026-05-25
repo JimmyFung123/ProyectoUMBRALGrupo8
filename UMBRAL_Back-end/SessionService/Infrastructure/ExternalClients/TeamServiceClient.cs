@@ -144,6 +144,49 @@ public class TeamServiceClient : ITeamServiceClient
         catch { return null; }
     }
 
+    public async Task<SessionRankingSnapshot?> GetSessionRankingAsync(Guid sessionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await _http.GetAsync(
+                $"api/teams/ranking?sessionId={sessionId}",
+                cancellationToken);
+            if (!response.IsSuccessStatusCode) return null;
+
+            var json = await response.Content.ReadAsStringAsync(cancellationToken);
+            var snapshot = JsonSerializer.Deserialize<SessionRankingJsonSnapshot>(json, _jsonOptions);
+            if (snapshot is null) return null;
+
+            var teams = (snapshot.Teams ?? new List<SessionRankingTeamJsonItem>())
+                .Select(t => new SessionRankingTeamItem(
+                    t.TeamId,
+                    t.Name,
+                    t.Score,
+                    t.Rank,
+                    t.CurrentStageOrder,
+                    t.IsConnected,
+                    t.LastStageCompletedAt))
+                .ToList();
+
+            return new SessionRankingSnapshot(snapshot.SessionId, snapshot.GeneratedAt, teams);
+        }
+        catch { return null; }
+    }
+
+    private record SessionRankingJsonSnapshot(
+        Guid SessionId,
+        DateTime GeneratedAt,
+        List<SessionRankingTeamJsonItem>? Teams);
+
+    private record SessionRankingTeamJsonItem(
+        Guid TeamId,
+        string Name,
+        int Score,
+        int Rank,
+        int CurrentStageOrder,
+        bool IsConnected,
+        DateTime? LastStageCompletedAt);
+
     private record TeamProgressJsonItem(
         Guid Id,
         string Name,

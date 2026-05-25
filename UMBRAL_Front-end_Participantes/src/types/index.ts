@@ -75,3 +75,20 @@ export type ClueStreamStatus =
   | 'reconnecting'
   | 'disconnected';
 
+export interface SessionRankingTeam {
+  teamId: string;
+  name: string;
+  score: number;
+  rank: number;
+  currentStageOrder: number;
+  isConnected: boolean;
+  lastStageCompletedAt: string | null;
+}
+
+export interface SessionRanking {
+  sessionId: string;
+  sessionStatus: string;
+  generatedAt: string;
+  teams: SessionRankingTeam[];
+}
+

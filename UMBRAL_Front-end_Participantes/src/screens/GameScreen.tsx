@@ -4,6 +4,7 @@ import { getParticipantStage, submitTriviaAnswer, validateQrCode } from '../serv
 import { useClueStream } from '../services/clueStream';
 import { TriviaScreen } from './TriviaScreen';
 import { TreasureHuntScreen } from './TreasureHuntScreen';
+import { RankingScreen } from './RankingScreen';
 
 type TeamProp = { teamId: string; isLeader: boolean };
 
@@ -12,6 +13,8 @@ interface Props {
   team: TeamProp;
   nickname: string;
   initialStage: ParticipantStage;
+  /** Called when the user wants to exit the session (e.g. after completing the mission). */
+  onLeaveSession: () => void;
 }
 
 type StageResult = TriviaAnswerResult | QrValidationResult;
@@ -23,10 +26,11 @@ type AnswerState =
 const POLL_INTERVAL_MS = 8_000;
 const RESULT_DISPLAY_MS = 3_000;
 
-export function GameScreen({ session, team, nickname, initialStage }: Props) {
+export function GameScreen({ session, team, nickname, initialStage, onLeaveSession }: Props) {
   const [stage, setStage] = useState<ParticipantStage>(initialStage);
   const [answerState, setAnswerState] = useState<AnswerState>({ phase: 'answering' });
   const [error, setError] = useState<string | null>(null);
+  const [showRanking, setShowRanking] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Real-time clue stream (HU-20): SignalR + API resync after reconnect.
@@ -78,21 +82,42 @@ export function GameScreen({ session, team, nickname, initialStage }: Props) {
     }, RESULT_DISPLAY_MS);
   }
 
+  // HU-21: ranking renders as a full-screen overlay above the active game
+  // screen — never replacing it, so TriviaScreen / TreasureHuntScreen stay
+  // mounted and the participant's clue history is preserved when they go
+  // back from the ranking view.
+  const rankingOverlay = showRanking && (
+    <RankingScreen
+      sessionId={session.id}
+      teamId={team.teamId}
+      onBack={() => setShowRanking(false)}
+    />
+  );
+
   // Completed: team has gone past the last stage
   if (stage.type === 'Completed' || (stage.isLastStage && answerState.phase === 'result' && answerState.result.nextStageOrder > stage.order)) {
     return (
-      <div style={styles.container}>
-        <div style={styles.card}>
-          <div style={styles.icon}>🏆</div>
-          <h2 style={styles.title}>¡Completaste la misión!</h2>
-          <p style={styles.subtitle}>
-            Bien jugado, <strong style={{ color: '#6366f1' }}>{nickname}</strong>.
-          </p>
-          {answerState.phase === 'result' && (
-            <p style={styles.score}>Puntaje final: <strong>{answerState.result.newScore}</strong></p>
-          )}
+      <>
+        <div style={styles.container}>
+          <div style={styles.card}>
+            <div style={styles.icon}>🏆</div>
+            <h2 style={styles.title}>¡Completaste la misión!</h2>
+            <p style={styles.subtitle}>
+              Bien jugado, <strong style={{ color: '#6366f1' }}>{nickname}</strong>.
+            </p>
+            {answerState.phase === 'result' && (
+              <p style={styles.score}>Puntaje final: <strong>{answerState.result.newScore}</strong></p>
+            )}
+            <button onClick={() => setShowRanking(true)} style={styles.viewRankingButton}>
+              🏆 Ver ranking final
+            </button>
+            <button onClick={onLeaveSession} style={styles.leaveButton}>
+              ↩ Volver al inicio
+            </button>
+          </div>
         </div>
-      </div>
+        {rankingOverlay}
+      </>
     );
   }
 
@@ -100,34 +125,58 @@ export function GameScreen({ session, team, nickname, initialStage }: Props) {
   if (answerState.phase === 'result') {
     const { result } = answerState;
     return (
-      <div style={styles.container}>
-        <div style={styles.card}>
-          <div style={styles.icon}>{result.isCorrect ? '✅' : '❌'}</div>
-          <h2 style={{ ...styles.title, color: result.isCorrect ? '#34d399' : '#f87171' }}>
-            {result.isCorrect ? '¡Correcto!' : 'Incorrecto'}
-          </h2>
-          <p style={styles.scoreLabel}>Puntaje actual</p>
-          <p style={styles.scoreBig}>{result.newScore}</p>
-          <p style={styles.subtitle}>
-            {result.isLastStage ? 'Última etapa completada…' : 'Avanzando a la siguiente etapa…'}
-          </p>
+      <>
+        <div style={styles.container}>
+          <div style={styles.card}>
+            <div style={styles.icon}>{result.isCorrect ? '✅' : '❌'}</div>
+            <h2 style={{ ...styles.title, color: result.isCorrect ? '#34d399' : '#f87171' }}>
+              {result.isCorrect ? '¡Correcto!' : 'Incorrecto'}
+            </h2>
+            <p style={styles.scoreLabel}>Puntaje actual</p>
+            <p style={styles.scoreBig}>{result.newScore}</p>
+            <p style={styles.subtitle}>
+              {result.isLastStage ? 'Última etapa completada…' : 'Avanzando a la siguiente etapa…'}
+            </p>
+          </div>
         </div>
-      </div>
+        {rankingOverlay}
+      </>
     );
   }
 
   // Waiting for session to start / stage assigned
   if (stage.type === 'Waiting') {
     return (
-      <div style={styles.container}>
-        <div style={styles.card}>
-          <div style={styles.icon}>⏳</div>
-          <h2 style={styles.title}>Esperando inicio…</h2>
-          <p style={styles.subtitle}>La actividad comenzará en breve.</p>
+      <>
+        <div style={styles.container}>
+          <div style={styles.card}>
+            <div style={styles.icon}>⏳</div>
+            <h2 style={styles.title}>Esperando inicio…</h2>
+            <p style={styles.subtitle}>La actividad comenzará en breve.</p>
+            <button onClick={() => setShowRanking(true)} style={styles.viewRankingButton}>
+              🏆 Ver ranking
+            </button>
+            <button onClick={onLeaveSession} style={styles.leaveButton}>
+              ↩ Salir de la sesión
+            </button>
+          </div>
         </div>
-      </div>
+        {rankingOverlay}
+      </>
     );
   }
+
+  // HU-21: floating button to open the ranking from any in-game screen.
+  const rankingFab = (
+    <button
+      onClick={() => setShowRanking(true)}
+      style={styles.rankingFab}
+      aria-label="Ver ranking"
+      title="Ver ranking"
+    >
+      🏆
+    </button>
+  );
 
   // TreasureHunt
   if (stage.type === 'TreasureHunt') {
@@ -149,6 +198,8 @@ export function GameScreen({ session, team, nickname, initialStage }: Props) {
           clues={clues}
           clueStatus={clueStatus}
         />
+        {rankingFab}
+        {rankingOverlay}
       </>
     );
   }
@@ -172,6 +223,8 @@ export function GameScreen({ session, team, nickname, initialStage }: Props) {
         clues={clues}
         clueStatus={clueStatus}
       />
+      {rankingFab}
+      {rankingOverlay}
     </>
   );
 }
@@ -205,5 +258,46 @@ const styles: Record<string, React.CSSProperties> = {
   errorClose: {
     background: 'none', border: 'none', color: '#fff',
     fontSize: '1rem', cursor: 'pointer', padding: '0 0.25rem',
+  },
+  rankingFab: {
+    position: 'fixed',
+    bottom: '1rem',
+    right: '1rem',
+    width: 56,
+    height: 56,
+    borderRadius: '50%',
+    background: '#6366f1',
+    border: 'none',
+    color: '#fff',
+    fontSize: '1.5rem',
+    cursor: 'pointer',
+    boxShadow: '0 6px 18px rgba(99,102,241,0.5)',
+    // Above Leaflet's panes/controls (max ~1000) so it stays visible on the
+    // TreasureHunt map, but below the ranking overlay itself (zIndex 2000).
+    zIndex: 1500,
+  },
+  viewRankingButton: {
+    marginTop: '1.5rem',
+    padding: '0.75rem 1.25rem',
+    background: '#6366f1',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 10,
+    fontSize: '0.95rem',
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
+  leaveButton: {
+    display: 'block',
+    width: '100%',
+    marginTop: '0.6rem',
+    padding: '0.7rem 1.25rem',
+    background: 'transparent',
+    color: '#94a3b8',
+    border: '1px solid #334155',
+    borderRadius: 10,
+    fontSize: '0.9rem',
+    fontWeight: 600,
+    cursor: 'pointer',
   },
 };

@@ -269,6 +269,9 @@ hubMock.Setup(h => h.Clients).Returns(clientsMock.Object);
 | HU-16 | Forzar avance de etapa | SessionService, TeamService |
 | HU-17 | Ingreso de participantes y formación de equipo | SessionService, TeamService, Front Participante |
 | HU-18 | Responder trivia | SessionService, TeamService, StageService, Front Participante |
+| HU-19 | Resolver etapa de Búsqueda del Tesoro | SessionService, TeamService, StageService, Front Participante |
+| HU-20 | Visualización de pistas en la interfaz del juego | SessionService, Front Participante |
+| HU-21 | Consultar ranking de la sesión (lectura optimizada + SignalR) | SessionService, TeamService, Front Operador, Front Participante |
 
 ---
 

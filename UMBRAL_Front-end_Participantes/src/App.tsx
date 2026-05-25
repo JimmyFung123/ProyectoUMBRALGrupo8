@@ -155,6 +155,7 @@ export default function App() {
         team={teamProp}
         nickname={nickname}
         initialStage={currentStage}
+        onLeaveSession={handleLeaveSession}
       />
     );
   }

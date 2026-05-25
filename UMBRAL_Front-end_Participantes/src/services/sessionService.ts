@@ -2,6 +2,7 @@ import type {
   ParticipantStage,
   QrValidationResult,
   ReleasedClues,
+  SessionRanking,
   TriviaAnswerResult,
 } from '../types';
 
@@ -48,6 +49,13 @@ export async function getReleasedClues(
     `${BASE_URL}/sessions/${sessionId}/teams/${teamId}/released-clues`,
   );
   if (!res.ok) throw new Error('No se pudieron obtener las pistas liberadas');
+  return res.json();
+}
+
+/** HU-21: live ranking — same endpoint operator uses, served through SessionService. */
+export async function getSessionRanking(sessionId: string): Promise<SessionRanking> {
+  const res = await fetch(`${BASE_URL}/sessions/${sessionId}/ranking`);
+  if (!res.ok) throw new Error('No se pudo obtener el ranking');
   return res.json();
 }
 

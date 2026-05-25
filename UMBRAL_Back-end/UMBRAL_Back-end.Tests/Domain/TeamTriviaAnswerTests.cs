@@ -76,4 +76,30 @@ public class TeamTriviaAnswerTests
 
         team.ClueTimerResetAt.Should().NotBeNull();
     }
+
+    // ── HU-21: tiempo de resolución (LastStageCompletedAt) ────────────────────
+
+    [Fact]
+    public void AnswerTrivia_CorrectAnswer_StampsLastStageCompletedAt()
+    {
+        var team = Team.Create(Guid.NewGuid(), "Resolutor");
+        team.LastStageCompletedAt.Should().BeNull();
+
+        var before = DateTime.UtcNow;
+        team.AnswerTrivia(isCorrect: true, scoreChange: 50, nextStageOrder: 2);
+        var after = DateTime.UtcNow;
+
+        team.LastStageCompletedAt.Should().NotBeNull();
+        team.LastStageCompletedAt!.Value.Should().BeOnOrAfter(before).And.BeOnOrBefore(after);
+    }
+
+    [Fact]
+    public void AnswerTrivia_IncorrectAnswer_DoesNotStampLastStageCompletedAt()
+    {
+        var team = Team.Create(Guid.NewGuid(), "Errado");
+
+        team.AnswerTrivia(isCorrect: false, scoreChange: 50, nextStageOrder: 2);
+
+        team.LastStageCompletedAt.Should().BeNull();
+    }
 }
