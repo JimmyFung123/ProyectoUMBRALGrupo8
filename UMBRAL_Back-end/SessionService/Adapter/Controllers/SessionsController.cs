@@ -17,6 +17,7 @@ using SessionService.Application.Sessions.Commands.ValidateQrCode;
 using SessionService.Application.Sessions.Queries.GetParticipantStage;
 using SessionService.Application.Sessions.Queries.GetReleasedClues;
 using SessionService.Application.Sessions.Queries.GetSessionByCode;
+using SessionService.Application.Sessions.Queries.GetSessionAudit;
 using SessionService.Application.Sessions.Queries.GetSessionDashboard;
 using SessionService.Application.Sessions.Queries.GetSessionDetail;
 using SessionService.Application.Sessions.Queries.GetSessionRanking;
@@ -30,6 +31,21 @@ public class SessionsController : ControllerBase
     private readonly ISender _sender;
 
     public SessionsController(ISender sender) => _sender = sender;
+
+    /// <summary>
+    /// Header used by the operator front-end to identify who is performing an
+    /// action (HU-22). Falls back to null when not provided — handlers default
+    /// to "Operador" so we never break the audit log.
+    /// </summary>
+    private const string OperatorNameHeader = "X-Operator-Name";
+
+    private string? GetOperatorName()
+    {
+        if (!Request.Headers.TryGetValue(OperatorNameHeader, out var raw))
+            return null;
+        var value = raw.ToString().Trim();
+        return string.IsNullOrWhiteSpace(value) ? null : value;
+    }
 
     [HttpGet]
     public async Task<IActionResult> GetAll(
@@ -75,10 +91,22 @@ public class SessionsController : ControllerBase
         return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
     }
 
+    /// <summary>
+    /// Returns the full audit timeline of a session (HU-22). Used by Operator
+    /// and Administrator to review every clue release, penalty, forced advance
+    /// and state change with the exact timestamp and the actor that triggered it.
+    /// </summary>
+    [HttpGet("{id:guid}/audit")]
+    public async Task<IActionResult> GetAudit(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new GetSessionAuditQuery(id), cancellationToken);
+        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
+    }
+
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Cancel(Guid id, CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new CancelSessionCommand(id), cancellationToken);
+        var result = await _sender.Send(new CancelSessionCommand(id, GetOperatorName()), cancellationToken);
 
         if (result.IsFailure)
         {
@@ -127,7 +155,7 @@ public class SessionsController : ControllerBase
     [HttpPatch("{id:guid}/start")]
     public async Task<IActionResult> Start(Guid id, CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new StartSessionCommand(id), cancellationToken);
+        var result = await _sender.Send(new StartSessionCommand(id, GetOperatorName()), cancellationToken);
         if (result.IsFailure)
             return result.Error.Code == SessionErrors.NotFound.Code
                 ? NotFound(result.Error)
@@ -138,7 +166,7 @@ public class SessionsController : ControllerBase
     [HttpPatch("{id:guid}/pause")]
     public async Task<IActionResult> Pause(Guid id, CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new PauseSessionCommand(id), cancellationToken);
+        var result = await _sender.Send(new PauseSessionCommand(id, GetOperatorName()), cancellationToken);
         if (result.IsFailure)
             return result.Error.Code == SessionErrors.NotFound.Code
                 ? NotFound(result.Error)
@@ -149,7 +177,7 @@ public class SessionsController : ControllerBase
     [HttpPatch("{id:guid}/resume")]
     public async Task<IActionResult> Resume(Guid id, CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new ResumeSessionCommand(id), cancellationToken);
+        var result = await _sender.Send(new ResumeSessionCommand(id, GetOperatorName()), cancellationToken);
         if (result.IsFailure)
             return result.Error.Code == SessionErrors.NotFound.Code
                 ? NotFound(result.Error)
@@ -160,7 +188,7 @@ public class SessionsController : ControllerBase
     [HttpPatch("{id:guid}/finalize")]
     public async Task<IActionResult> Finalize(Guid id, CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new FinalizeSessionCommand(id), cancellationToken);
+        var result = await _sender.Send(new FinalizeSessionCommand(id, GetOperatorName()), cancellationToken);
         if (result.IsFailure)
             return result.Error.Code == SessionErrors.NotFound.Code
                 ? NotFound(result.Error)
@@ -183,7 +211,8 @@ public class SessionsController : ControllerBase
                 request.ClueContent,
                 request.ClueLatitude,
                 request.ClueLongitude,
-                request.ClueRadiusMeters),
+                request.ClueRadiusMeters,
+                GetOperatorName()),
             cancellationToken);
 
         if (result.IsFailure)
@@ -206,7 +235,7 @@ public class SessionsController : ControllerBase
         CancellationToken cancellationToken)
     {
         var result = await _sender.Send(
-            new PenalizeTeamCommand(id, teamId, request.Points, request.Reason),
+            new PenalizeTeamCommand(id, teamId, request.Points, request.Reason, GetOperatorName()),
             cancellationToken);
 
         if (result.IsFailure)
@@ -225,7 +254,7 @@ public class SessionsController : ControllerBase
         Guid teamId,
         CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new ForceAdvanceTeamCommand(id, teamId), cancellationToken);
+        var result = await _sender.Send(new ForceAdvanceTeamCommand(id, teamId, GetOperatorName()), cancellationToken);
 
         if (result.IsFailure)
         {

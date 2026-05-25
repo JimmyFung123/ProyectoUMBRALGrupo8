@@ -16,5 +16,6 @@ public record ReleaseClueCommand(
     string? ClueContent,
     double? ClueLatitude,
     double? ClueLongitude,
-    int? ClueRadiusMeters
+    int? ClueRadiusMeters,
+    string? OperatorName = null
 ) : IRequest<Result<bool>>;

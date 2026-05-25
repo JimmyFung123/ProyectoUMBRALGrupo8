@@ -9,13 +9,16 @@ using SessionService.Infrastructure.Hubs;
 public class PauseSessionCommandHandler : IRequestHandler<PauseSessionCommand, Result<bool>>
 {
     private readonly ISessionRepository _sessionRepository;
+    private readonly ISessionEventRepository _eventRepository;
     private readonly IHubContext<SessionHub> _hub;
 
     public PauseSessionCommandHandler(
         ISessionRepository sessionRepository,
+        ISessionEventRepository eventRepository,
         IHubContext<SessionHub> hub)
     {
         _sessionRepository = sessionRepository;
+        _eventRepository = eventRepository;
         _hub = hub;
     }
 
@@ -30,6 +33,14 @@ public class PauseSessionCommandHandler : IRequestHandler<PauseSessionCommand, R
             return result;
 
         await _sessionRepository.SaveChangesAsync(cancellationToken);
+
+        // HU-22: audit log
+        var auditEvent = SessionEvent.Create(
+            request.SessionId,
+            "La sesión fue pausada.",
+            actorName: request.OperatorName);
+        await _eventRepository.AddAsync(auditEvent, cancellationToken);
+        await _eventRepository.SaveChangesAsync(cancellationToken);
 
         await _hub.Clients
             .Group(request.SessionId.ToString())

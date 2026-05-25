@@ -1,15 +1,13 @@
-import * as signalR from '@microsoft/signalr';
 import { useEffect, useRef, useState } from 'react';
 import { sessionService } from '../../services/sessionService';
+import { connectToSessionHub, type HubConnState } from '../../services/sessionHub';
 import type { SessionRanking, SessionRankingTeam } from '../../types/ranking';
-
-const SIGNALR_URL = import.meta.env.VITE_SESSION_SIGNALR_URL ?? 'http://localhost:5092/hubs/session';
 
 // Fallback HTTP poll period when SignalR is unavailable or while it reconnects.
 // HU-21 expects "instantáneo" via WebSockets — polling is the safety net (AC #4).
 const FALLBACK_POLL_MS = 10_000;
 
-type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'disconnected';
+type ConnectionState = HubConnState;
 
 interface Props {
   sessionId: string;
@@ -89,7 +87,6 @@ export function SessionRankingPanel({ sessionId }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [, setTick] = useState(0); // re-render every second for "hace Xs"
 
-  const hubRef = useRef<signalR.HubConnection | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   async function loadRanking() {
@@ -111,31 +108,11 @@ export function SessionRankingPanel({ sessionId }: Props) {
 
   // SignalR + polling fallback
   useEffect(() => {
-    const connection = new signalR.HubConnectionBuilder()
-      .withUrl(SIGNALR_URL)
-      .withAutomaticReconnect()
-      .configureLogging(signalR.LogLevel.Warning)
-      .build();
-
-    connection.on('SessionStateChanged', () => { void loadRanking(); });
-
-    connection.onreconnecting(() => setConnState('reconnecting'));
-    connection.onreconnected(() => {
-      setConnState('connected');
-      // Re-join the group and resync state after reconnection.
-      connection.invoke('JoinSession', sessionId).catch(() => { /* swallow */ });
-      void loadRanking();
+    const hub = connectToSessionHub({
+      sessionId,
+      onRefresh: () => { void loadRanking(); },
+      onStateChange: setConnState,
     });
-    connection.onclose(() => setConnState('disconnected'));
-
-    connection.start()
-      .then(() => {
-        setConnState('connected');
-        return connection.invoke('JoinSession', sessionId);
-      })
-      .catch(() => setConnState('disconnected'));
-
-    hubRef.current = connection;
 
     // Always run the HTTP fallback poll, regardless of SignalR state.
     void loadRanking();
@@ -143,8 +120,7 @@ export function SessionRankingPanel({ sessionId }: Props) {
 
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
-      connection.invoke('LeaveSession', sessionId).catch(() => {});
-      connection.stop().catch(() => {});
+      hub.dispose();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);

@@ -49,7 +49,8 @@ public class PenalizeTeamCommandHandler : IRequestHandler<PenalizeTeamCommand, R
         var teamName = teamInfo?.Name ?? request.TeamId.ToString();
         var auditEvent = SessionEvent.Create(
             request.SessionId,
-            $"Equipo '{teamName}' penalizado {request.Points} pts. Motivo: \"{request.Reason}\". Nuevo puntaje: {newScore}.");
+            $"Equipo '{teamName}' penalizado {request.Points} pts. Motivo: \"{request.Reason}\". Nuevo puntaje: {newScore}.",
+            actorName: request.OperatorName);
         await _eventRepository.AddAsync(auditEvent, cancellationToken);
         await _eventRepository.SaveChangesAsync(cancellationToken);
 

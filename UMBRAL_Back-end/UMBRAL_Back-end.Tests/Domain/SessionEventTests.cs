@@ -66,4 +66,42 @@ public class SessionEventTests
 
         evt.Description.Should().Be(description);
     }
+
+    // ── HU-22: ActorName ──────────────────────────────────────────────────────
+
+    [Fact]
+    public void Create_WithoutActorName_DefaultsToSistema()
+    {
+        var evt = SessionEvent.Create(Guid.NewGuid(), "Evento automático");
+
+        evt.ActorName.Should().Be(SessionEvent.SystemActor);
+        evt.ActorName.Should().Be("Sistema");
+    }
+
+    [Fact]
+    public void Create_WithActorName_StoresExactValue()
+    {
+        var evt = SessionEvent.Create(Guid.NewGuid(), "Pista liberada", actorName: "Prof. Ortega");
+
+        evt.ActorName.Should().Be("Prof. Ortega");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public void Create_WithBlankActorName_FallsBackToSistema(string? actorName)
+    {
+        var evt = SessionEvent.Create(Guid.NewGuid(), "Evento", actorName: actorName);
+
+        evt.ActorName.Should().Be("Sistema");
+    }
+
+    [Fact]
+    public void Create_TrimsActorName()
+    {
+        var evt = SessionEvent.Create(Guid.NewGuid(), "Evento", actorName: "  Operador X  ");
+
+        evt.ActorName.Should().Be("Operador X");
+    }
 }

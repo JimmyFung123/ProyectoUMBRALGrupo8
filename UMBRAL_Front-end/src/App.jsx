@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { MissionList } from './components/Missions/MissionList'
+import { OperatorIdentityBar } from './components/OperatorIdentityBar'
 import { SessionDashboard } from './components/Sessions/SessionDashboard'
 import { SessionList } from './components/Sessions/SessionList'
 
@@ -20,6 +21,9 @@ function App() {
 
   return (
     <div style={{ textAlign: 'left' }}>
+      {/* ── HU-22: identidad del operador para el audit log ── */}
+      <OperatorIdentityBar />
+
       {/* ── Barra de pestañas ── */}
       <nav style={{
         display: 'flex', gap: '0.25rem',

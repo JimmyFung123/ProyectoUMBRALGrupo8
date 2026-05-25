@@ -272,6 +272,7 @@ hubMock.Setup(h => h.Clients).Returns(clientsMock.Object);
 | HU-19 | Resolver etapa de Búsqueda del Tesoro | SessionService, TeamService, StageService, Front Participante |
 | HU-20 | Visualización de pistas en la interfaz del juego | SessionService, Front Participante |
 | HU-21 | Consultar ranking de la sesión (lectura optimizada + SignalR) | SessionService, TeamService, Front Operador, Front Participante |
+| HU-22 | Consultar historial de auditoría de sesión | SessionService, Front Operador |
 
 ---
 

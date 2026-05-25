@@ -15,6 +15,7 @@ public class ClueAutoReleaseService
     private readonly ITeamServiceClient _teamClient;
     private readonly IStageServiceClient _stageClient;
     private readonly IClueServiceClient _clueClient;
+    private readonly ISessionEventRepository _eventRepository;
     private readonly IHubContext<SessionHub> _hub;
     private readonly ILogger<ClueAutoReleaseService> _logger;
 
@@ -23,6 +24,7 @@ public class ClueAutoReleaseService
         ITeamServiceClient teamClient,
         IStageServiceClient stageClient,
         IClueServiceClient clueClient,
+        ISessionEventRepository eventRepository,
         IHubContext<SessionHub> hub,
         ILogger<ClueAutoReleaseService> logger)
     {
@@ -30,6 +32,7 @@ public class ClueAutoReleaseService
         _teamClient = teamClient;
         _stageClient = stageClient;
         _clueClient = clueClient;
+        _eventRepository = eventRepository;
         _hub = hub;
         _logger = logger;
     }
@@ -84,6 +87,16 @@ public class ClueAutoReleaseService
             _logger.LogInformation(
                 "Auto-released clue {ClueNumber}/{Total} to team {TeamId} in session {SessionId}",
                 clueNumber, clues.Count, team.Id, session.Id);
+
+            // HU-14 criterion 2 + HU-22: record on the audit timeline as "Sistema".
+            // SessionEvent.Create defaults actorName to "Sistema" when omitted.
+            var auditMessage = nextClue.Content is not null
+                ? $"Pista #{clueNumber} liberada automáticamente al equipo '{team.Name}': \"{nextClue.Content}\"."
+                : $"Pista #{clueNumber} liberada automáticamente al equipo '{team.Name}': zona geográfica (radio {nextClue.RadiusMeters ?? 0}m).";
+            await _eventRepository.AddAsync(
+                SessionEvent.Create(session.Id, auditMessage),
+                ct);
+            await _eventRepository.SaveChangesAsync(ct);
 
             await _hub.Clients.Group(session.Id.ToString())
                 .SendAsync("ClueReleased", new

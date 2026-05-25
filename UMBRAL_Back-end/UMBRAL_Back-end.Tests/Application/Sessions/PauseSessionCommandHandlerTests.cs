@@ -11,6 +11,7 @@ using Xunit;
 public class PauseSessionCommandHandlerTests
 {
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
+    private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
     private readonly Mock<IHubContext<SessionHub>> _hubMock = new();
     private readonly PauseSessionCommandHandler _handler;
 
@@ -23,6 +24,7 @@ public class PauseSessionCommandHandlerTests
 
         _handler = new PauseSessionCommandHandler(
             _sessionRepoMock.Object,
+            _eventRepoMock.Object,
             _hubMock.Object);
     }
 

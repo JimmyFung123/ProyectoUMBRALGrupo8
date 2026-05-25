@@ -11,6 +11,7 @@ using Xunit;
 public class CancelSessionCommandHandlerTests
 {
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
+    private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
     private readonly Mock<IPublishEndpoint> _publishEndpointMock = new();
     private readonly CancelSessionCommandHandler _handler;
 
@@ -18,6 +19,7 @@ public class CancelSessionCommandHandlerTests
     {
         _handler = new CancelSessionCommandHandler(
             _sessionRepoMock.Object,
+            _eventRepoMock.Object,
             _publishEndpointMock.Object);
     }
 

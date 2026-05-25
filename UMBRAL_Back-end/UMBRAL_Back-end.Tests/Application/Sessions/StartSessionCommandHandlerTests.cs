@@ -13,6 +13,7 @@ public class StartSessionCommandHandlerTests
 {
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
     private readonly Mock<ITeamServiceClient> _teamClientMock = new();
+    private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
     private readonly Mock<IHubContext<SessionHub>> _hubMock = new();
     private readonly StartSessionCommandHandler _handler;
 
@@ -26,6 +27,7 @@ public class StartSessionCommandHandlerTests
         _handler = new StartSessionCommandHandler(
             _sessionRepoMock.Object,
             _teamClientMock.Object,
+            _eventRepoMock.Object,
             _hubMock.Object);
     }
 
@@ -145,6 +147,34 @@ public class StartSessionCommandHandlerTests
         session.Status.Should().Be(SessionStatus.InProgress);
         _sessionRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         _hubMock.Verify(h => h.Clients.Group(sessionId.ToString()), Times.Once);
+        // HU-22: audit event recorded
+        _eventRepoMock.Verify(
+            r => r.AddAsync(It.Is<SessionEvent>(e => e.Description.Contains("iniciada")), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_WhenOperatorNameProvided_RecordsAuditWithThatActor()
+    {
+        var sessionId = Guid.NewGuid();
+        var session = Session.Create(Guid.NewGuid(), "Sesión auditada").Value;
+
+        _sessionRepoMock
+            .Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(session);
+        _teamClientMock
+            .Setup(t => t.HasEnrolledTeamsAsync(sessionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        SessionEvent? captured = null;
+        _eventRepoMock
+            .Setup(r => r.AddAsync(It.IsAny<SessionEvent>(), It.IsAny<CancellationToken>()))
+            .Callback<SessionEvent, CancellationToken>((ev, _) => captured = ev);
+
+        await _handler.Handle(new StartSessionCommand(sessionId, OperatorName: "Prof. Ortega"), default);
+
+        captured.Should().NotBeNull();
+        captured!.ActorName.Should().Be("Prof. Ortega");
     }
 
     // ── Validation order: NotFound > NoTeams > CannotStart ───────────────────

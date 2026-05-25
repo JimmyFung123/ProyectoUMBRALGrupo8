@@ -1,6 +1,6 @@
-import * as signalR from '@microsoft/signalr';
 import { useEffect, useRef, useState } from 'react';
 import { clueService } from '../../services/clueService';
+import { connectToSessionHub } from '../../services/sessionHub';
 import { sessionService } from '../../services/sessionService';
 import { stageService } from '../../services/stageService';
 import { teamService } from '../../services/teamService';
@@ -9,11 +9,10 @@ import type { SessionDashboard as SessionDashboardData, SessionEventDto, Session
 import type { Stage } from '../../types/stage';
 import type { Clue } from '../../types/clue';
 import type { TeamProgressDto } from '../../types/team';
+import { SessionAuditTimeline } from './SessionAuditTimeline';
 import { SessionControls } from './SessionControls';
 import { SessionRankingPanel } from './SessionRankingPanel';
 import { TeamProgressPanel } from './TeamProgressPanel';
-
-const SIGNALR_URL = import.meta.env.VITE_SESSION_SIGNALR_URL ?? 'http://localhost:5092/hubs/session';
 
 interface Props {
   sessionId: string;
@@ -116,7 +115,6 @@ export function SessionDashboard({ sessionId, onBack }: Props) {
   const [error, setError] = useState<string | null>(null);
   const elapsed = useElapsedTime(data?.createdAt ?? null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const hubRef = useRef<signalR.HubConnection | null>(null);
 
   async function loadStagesAndClues(missionId: string) {
     try {
@@ -169,27 +167,8 @@ export function SessionDashboard({ sessionId, onBack }: Props) {
 
   // ── SignalR connection ─────────────────────────────────────────────────────
   useEffect(() => {
-    const connection = new signalR.HubConnectionBuilder()
-      .withUrl(SIGNALR_URL)
-      .withAutomaticReconnect()
-      .configureLogging(signalR.LogLevel.Warning)
-      .build();
-
-    connection.on('SessionStateChanged', () => {
-      load();
-    });
-
-    connection
-      .start()
-      .then(() => connection.invoke('JoinSession', sessionId))
-      .catch(() => { /* SignalR unavailable — polling covers it */ });
-
-    hubRef.current = connection;
-
-    return () => {
-      connection.invoke('LeaveSession', sessionId).catch(() => {});
-      connection.stop();
-    };
+    const hub = connectToSessionHub({ sessionId, onRefresh: () => load() });
+    return () => hub.dispose();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
@@ -302,8 +281,8 @@ export function SessionDashboard({ sessionId, onBack }: Props) {
         <SessionRankingPanel sessionId={sessionId} />
       </section>
 
-      {/* ── Log de eventos ────────────────────────────────────────── */}
-      <section style={{ border: '1px solid #ddd', borderRadius: 8, padding: '1rem' }}>
+      {/* ── Log de eventos recientes (HU-9) ───────────────────────── */}
+      <section style={{ border: '1px solid #ddd', borderRadius: 8, padding: '1rem', marginBottom: '1.5rem' }}>
         <h2 style={{ margin: '0 0 0.75rem', fontSize: '1rem', color: '#444' }}>
           Eventos recientes
         </h2>
@@ -318,6 +297,18 @@ export function SessionDashboard({ sessionId, onBack }: Props) {
             ))}
           </ul>
         )}
+      </section>
+
+      {/* ── Historial completo de auditoría (HU-22) ──────────────── */}
+      <section style={{ border: '1px solid #ddd', borderRadius: 8, padding: '1rem' }}>
+        <h2 style={{ margin: '0 0 0.75rem', fontSize: '1rem', color: '#444' }}>
+          📜 Historial de auditoría
+        </h2>
+        <p style={{ margin: '0 0 0.75rem', fontSize: '0.82rem', color: '#777' }}>
+          Línea de tiempo completa con quién, qué y cuándo. Útil para revisar
+          reclamos o auditar la operación.
+        </p>
+        <SessionAuditTimeline sessionId={sessionId} />
       </section>
 
       {/* ── Info adicional ────────────────────────────────────────── */}

@@ -10,15 +10,18 @@ public class StartSessionCommandHandler : IRequestHandler<StartSessionCommand, R
 {
     private readonly ISessionRepository _sessionRepository;
     private readonly ITeamServiceClient _teamServiceClient;
+    private readonly ISessionEventRepository _eventRepository;
     private readonly IHubContext<SessionHub> _hub;
 
     public StartSessionCommandHandler(
         ISessionRepository sessionRepository,
         ITeamServiceClient teamServiceClient,
+        ISessionEventRepository eventRepository,
         IHubContext<SessionHub> hub)
     {
         _sessionRepository = sessionRepository;
         _teamServiceClient = teamServiceClient;
+        _eventRepository = eventRepository;
         _hub = hub;
     }
 
@@ -38,6 +41,14 @@ public class StartSessionCommandHandler : IRequestHandler<StartSessionCommand, R
             return result;
 
         await _sessionRepository.SaveChangesAsync(cancellationToken);
+
+        // HU-22: audit log of the state change
+        var auditEvent = SessionEvent.Create(
+            request.SessionId,
+            "La sesión fue iniciada.",
+            actorName: request.OperatorName);
+        await _eventRepository.AddAsync(auditEvent, cancellationToken);
+        await _eventRepository.SaveChangesAsync(cancellationToken);
 
         await _hub.Clients
             .Group(request.SessionId.ToString())

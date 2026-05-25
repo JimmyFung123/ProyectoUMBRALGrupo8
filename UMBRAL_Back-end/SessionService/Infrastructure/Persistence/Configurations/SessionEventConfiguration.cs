@@ -17,6 +17,10 @@ public class SessionEventConfiguration : IEntityTypeConfiguration<SessionEvent>
 
         builder.Property(e => e.OccurredAt).IsRequired();
 
+        builder.Property(e => e.ActorName)
+            .IsRequired()
+            .HasMaxLength(100);
+
         // Composite index for efficient "recent events for session" queries
         builder.HasIndex(e => new { e.SessionId, e.OccurredAt });
     }

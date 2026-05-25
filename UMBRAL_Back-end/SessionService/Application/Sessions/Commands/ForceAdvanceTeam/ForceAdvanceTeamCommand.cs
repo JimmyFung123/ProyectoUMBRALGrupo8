@@ -3,4 +3,7 @@ namespace SessionService.Application.Sessions.Commands.ForceAdvanceTeam;
 using MediatR;
 using SessionService.Domain.Common;
 
-public record ForceAdvanceTeamCommand(Guid SessionId, Guid TeamId) : IRequest<Result<bool>>;
+public record ForceAdvanceTeamCommand(
+    Guid SessionId,
+    Guid TeamId,
+    string? OperatorName = null) : IRequest<Result<bool>>;

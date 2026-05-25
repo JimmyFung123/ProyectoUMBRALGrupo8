@@ -15,6 +15,7 @@ public class ClueAutoReleaseServiceTests
     private readonly Mock<ITeamServiceClient> _teamClientMock = new();
     private readonly Mock<IStageServiceClient> _stageClientMock = new();
     private readonly Mock<IClueServiceClient> _clueClientMock = new();
+    private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
     private readonly Mock<IHubContext<SessionHub>> _hubMock = new();
     private readonly ClueAutoReleaseService _service;
 
@@ -30,6 +31,7 @@ public class ClueAutoReleaseServiceTests
             _teamClientMock.Object,
             _stageClientMock.Object,
             _clueClientMock.Object,
+            _eventRepoMock.Object,
             _hubMock.Object,
             NullLogger<ClueAutoReleaseService>.Instance);
     }
