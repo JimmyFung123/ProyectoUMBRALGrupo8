@@ -44,6 +44,19 @@ Get-Process powershell -ErrorAction SilentlyContinue |
         try { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue } catch { }
     }
 
+# Apagar el build-server de .NET (VBCSCompiler / MSBuild) que sobrevive a los
+# procesos dotnet run y mantiene cacheado UMBRAL.Auth.dll, lo cual genera
+# "file is being used by another process" al intentar rebuildear con cambios
+# en la libreria compartida.
+Write-Host "==> Apagando build-server de .NET (VBCSCompiler / MSBuild)..." -ForegroundColor Cyan
+try {
+    dotnet build-server shutdown 2>&1 | Out-Null
+} catch { }
+Get-Process VBCSCompiler, MSBuild -ErrorAction SilentlyContinue |
+    ForEach-Object {
+        try { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue } catch { }
+    }
+
 Write-Host "    Procesos cerrados." -ForegroundColor Green
 
 # ── 2. Bajar infra ──────────────────────────────────────────────────────────

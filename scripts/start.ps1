@@ -82,6 +82,28 @@ if (-not $SkipInfra) {
         }
     } while (-not $ready)
     Write-Host "    RabbitMQ listo." -ForegroundColor Green
+
+    # Esperar a Keycloak (puerto 8090). El healthcheck del contenedor usa el
+    # puerto 9000 interno; aca probamos contra el endpoint OIDC publico para
+    # asegurarnos que el realm UMBRAL ya esta cargado.
+    Write-Host "==> Esperando a Keycloak..." -ForegroundColor Cyan
+    $attempts = 0
+    do {
+        Start-Sleep -Seconds 3
+        $attempts++
+        $ready = $false
+        try {
+            $resp = Invoke-WebRequest -Uri 'http://localhost:8090/realms/umbral/.well-known/openid-configuration' `
+                       -UseBasicParsing -TimeoutSec 5 -ErrorAction Stop
+            if ($resp.StatusCode -eq 200) { $ready = $true }
+        } catch { }
+        if ($attempts -gt 30) {
+            Write-Host "ERROR: Keycloak no respondio tras ~90s. Verifica logs con 'docker logs umbral-keycloak'." -ForegroundColor Red
+            exit 1
+        }
+    } while (-not $ready)
+    Write-Host "    Keycloak listo. Admin console: http://localhost:8090 (admin / admin)" -ForegroundColor Green
+    Write-Host "    Admin UMBRAL: admin@umbral.local / Umbral2026!" -ForegroundColor Green
 }
 
 # ── 3. Restaurar y migrar ───────────────────────────────────────────────────
@@ -142,6 +164,7 @@ Start-InNewWindow 'UMBRAL - MissionService (5091)' 'UMBRAL_Back-end\MissionServi
 Start-InNewWindow 'UMBRAL - StageService (5093)'   'UMBRAL_Back-end\StageService'   'dotnet run'
 Start-InNewWindow 'UMBRAL - ClueService (5094)'    'UMBRAL_Back-end\ClueService'    'dotnet run'
 Start-InNewWindow 'UMBRAL - TeamService (5095)'    'UMBRAL_Back-end\TeamService'    'dotnet run'
+Start-InNewWindow 'UMBRAL - UserService (5096)'    'UMBRAL_Back-end\UserService'    'dotnet run'
 Start-Sleep -Seconds 2  # dar tiempo a que los servicios satelite arranquen primero
 Start-InNewWindow 'UMBRAL - SessionService (5092)' 'UMBRAL_Back-end\SessionService' 'dotnet run'
 
@@ -160,9 +183,12 @@ Write-Host "   SessionService  http://localhost:5092/swagger"
 Write-Host "   StageService    http://localhost:5093/swagger"
 Write-Host "   ClueService     http://localhost:5094/swagger"
 Write-Host "   TeamService     http://localhost:5095/swagger"
+Write-Host "   UserService     http://localhost:5096/swagger  (HU-23)"
 Write-Host " Infra:"
-Write-Host "   PostgreSQL      localhost:5432  (postgres / 12345)"
+Write-Host "   PostgreSQL      localhost:5432   (postgres / 12345)"
 Write-Host "   RabbitMQ UI     http://localhost:15672  (guest / guest)"
+Write-Host "   Keycloak        http://localhost:8090   (admin / admin)"
+Write-Host "                   Admin UMBRAL: admin@umbral.local / Umbral2026!"
 if (-not $BackOnly) {
     Write-Host " Front:"
     Write-Host "   Operador       http://localhost:5173"

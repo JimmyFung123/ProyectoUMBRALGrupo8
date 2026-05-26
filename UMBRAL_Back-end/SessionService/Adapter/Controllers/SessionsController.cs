@@ -1,6 +1,7 @@
 namespace SessionService.Adapter.Controllers;
 
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SessionService.Application.Sessions.Commands.CancelSession;
 using SessionService.Application.Sessions.Commands.CreateSession;
@@ -23,9 +24,12 @@ using SessionService.Application.Sessions.Queries.GetSessionDetail;
 using SessionService.Application.Sessions.Queries.GetSessionRanking;
 using SessionService.Application.Sessions.Queries.GetSessions;
 using SessionService.Domain.Sessions;
+using UMBRAL.Auth;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize] // HU-23: requires Keycloak Bearer token by default; participant-facing
+            // endpoints are explicitly marked [AllowAnonymous] below.
 public class SessionsController : ControllerBase
 {
     private readonly ISender _sender;
@@ -33,19 +37,11 @@ public class SessionsController : ControllerBase
     public SessionsController(ISender sender) => _sender = sender;
 
     /// <summary>
-    /// Header used by the operator front-end to identify who is performing an
-    /// action (HU-22). Falls back to null when not provided — handlers default
-    /// to "Operador" so we never break the audit log.
+    /// Returns the operator display name extracted from the JWT, used by the
+    /// audit log (HU-22). Returns null on anonymous endpoints — the audit
+    /// handlers fall back to "Sistema" in that case.
     /// </summary>
-    private const string OperatorNameHeader = "X-Operator-Name";
-
-    private string? GetOperatorName()
-    {
-        if (!Request.Headers.TryGetValue(OperatorNameHeader, out var raw))
-            return null;
-        var value = raw.ToString().Trim();
-        return string.IsNullOrWhiteSpace(value) ? null : value;
-    }
+    private string? GetOperatorName() => User.GetOperatorDisplayName();
 
     [HttpGet]
     public async Task<IActionResult> GetAll(
@@ -59,6 +55,7 @@ public class SessionsController : ControllerBase
 
     /// <summary>Participant entry point: look up a session by its access code.</summary>
     [HttpGet("by-code/{code}")]
+    [AllowAnonymous] // HU-17: participantes anónimos
     public async Task<IActionResult> GetByCode(string code, CancellationToken cancellationToken)
     {
         var result = await _sender.Send(new GetSessionByCodeQuery(code), cancellationToken);
@@ -85,6 +82,7 @@ public class SessionsController : ControllerBase
     /// so participants can call SessionService instead of TeamService directly.
     /// </summary>
     [HttpGet("{id:guid}/ranking")]
+    [AllowAnonymous] // HU-21: visible para Admin, Operador y Participante
     public async Task<IActionResult> GetRanking(Guid id, CancellationToken cancellationToken)
     {
         var result = await _sender.Send(new GetSessionRankingQuery(id), cancellationToken);
@@ -273,6 +271,7 @@ public class SessionsController : ControllerBase
     /// Strips IsCorrect from options before returning.
     /// </summary>
     [HttpGet("{id:guid}/participant-stage/{teamId:guid}")]
+    [AllowAnonymous] // participantes anónimos
     public async Task<IActionResult> GetParticipantStage(
         Guid id,
         Guid teamId,
@@ -293,6 +292,7 @@ public class SessionsController : ControllerBase
     /// Rejects with 400 when the session is Paused/Completed/Cancelled.
     /// </summary>
     [HttpPost("{id:guid}/teams/{teamId:guid}/answer-trivia")]
+    [AllowAnonymous] // HU-18: participantes responden trivias sin login
     public async Task<IActionResult> SubmitTriviaAnswer(
         Guid id,
         Guid teamId,
@@ -318,6 +318,7 @@ public class SessionsController : ControllerBase
     /// for its current stage. Used by participants to re-sync after a SignalR reconnect (HU-20).
     /// </summary>
     [HttpGet("{id:guid}/teams/{teamId:guid}/released-clues")]
+    [AllowAnonymous] // HU-20: participantes resincronizan tras reconexión
     public async Task<IActionResult> GetReleasedClues(
         Guid id,
         Guid teamId,
@@ -338,6 +339,7 @@ public class SessionsController : ControllerBase
     /// Wrong codes do not advance the team and do not award points (HU-19).
     /// </summary>
     [HttpPost("{id:guid}/teams/{teamId:guid}/validate-qr")]
+    [AllowAnonymous] // HU-19: participantes anónimos escanean el QR
     public async Task<IActionResult> ValidateQr(
         Guid id,
         Guid teamId,

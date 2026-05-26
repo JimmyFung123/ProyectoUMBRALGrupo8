@@ -1,0 +1,16 @@
+<!--
+  Static page used by keycloak-js to refresh the access token in a hidden iframe
+  without redirecting the whole app. Required by AuthProvider.init({
+    onLoad: 'check-sso',
+    silentCheckSsoRedirectUri: '/silent-check-sso.html'
+  }).
+  Reference: https://www.keycloak.org/securing-apps/javascript-adapter
+-->
+<!DOCTYPE html>
+<html>
+<body>
+  <script>
+    parent.postMessage(location.href, location.origin);
+  </script>
+</body>
+</html>

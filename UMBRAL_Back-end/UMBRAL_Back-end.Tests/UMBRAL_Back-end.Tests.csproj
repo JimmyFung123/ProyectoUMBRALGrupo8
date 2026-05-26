@@ -24,6 +24,7 @@
     <ProjectReference Include="..\StageService\StageService.csproj" />
     <ProjectReference Include="..\ClueService\ClueService.csproj" />
     <ProjectReference Include="..\TeamService\TeamService.csproj" />
+    <ProjectReference Include="..\UserService\UserService.csproj" />
   </ItemGroup>
 
 </Project>

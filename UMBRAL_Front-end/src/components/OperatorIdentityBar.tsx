@@ -1,84 +1,24 @@
-import { useEffect, useState } from 'react';
-import { clearOperatorName, getOperatorName, setOperatorName } from '../services/operatorIdentity';
+import { useAuth } from '../auth/AuthProvider';
 
 /**
- * HU-22: barra superior que captura el nombre del operador la primera vez
- * que abre el dashboard y lo recuerda en localStorage. Cada acción modificadora
- * (start, pause, penalize, force-advance, etc.) viaja con ese nombre vía
- * X-Operator-Name para que el SessionEvent quede atribuido correctamente.
- *
- * No hay autenticación real — es un campo libre. Validar identidad queda
- * pendiente para una HU futura de gestión de personal operativo (HU-23).
+ * HU-23: barra superior que ahora muestra al usuario autenticado vía Keycloak.
+ * Reemplaza el flujo manual con localStorage que usábamos en HU-22 — el nombre
+ * y el rol vienen directamente del JWT y no se pueden falsificar desde el front.
  */
 export function OperatorIdentityBar() {
-  const [name, setName] = useState<string | null>(getOperatorName());
-  const [editing, setEditing] = useState<boolean>(name === null);
-  const [draft, setDraft] = useState<string>(name ?? '');
+  const { user, isAdmin, logout } = useAuth();
+  if (!user) return null;
 
-  // Si el nombre se limpia desde otra tab, refrescamos.
-  useEffect(() => {
-    function onStorage(e: StorageEvent) {
-      if (e.key === 'umbral.operator.name') {
-        setName(getOperatorName());
-      }
-    }
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  }, []);
-
-  function handleSave() {
-    const trimmed = draft.trim();
-    if (trimmed.length === 0) return;
-    setOperatorName(trimmed);
-    setName(trimmed);
-    setEditing(false);
-  }
-
-  function handleClear() {
-    clearOperatorName();
-    setName(null);
-    setDraft('');
-    setEditing(true);
-  }
-
-  if (editing) {
-    return (
-      <div style={{ ...styles.bar, background: '#fff3cd', borderBottom: '1px solid #ffd966' }}>
-        <span style={styles.label}>👤 Identifícate como operador:</span>
-        <input
-          autoFocus
-          type="text"
-          placeholder="Tu nombre (ej. Prof. Ortega)"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); }}
-          style={styles.input}
-        />
-        <button onClick={handleSave} disabled={draft.trim().length === 0} style={styles.primaryBtn}>
-          Guardar
-        </button>
-        {name && (
-          <button onClick={() => { setDraft(name); setEditing(false); }} style={styles.linkBtn}>
-            Cancelar
-          </button>
-        )}
-        <span style={styles.hint}>
-          Se usa para atribuir tus acciones en el historial de auditoría.
-        </span>
-      </div>
-    );
-  }
+  const roleLabel = isAdmin ? 'Administrador' : 'Operador';
+  const roleColor = isAdmin ? '#3730a3' : '#0e7490';
 
   return (
     <div style={styles.bar}>
-      <span style={styles.label}>
-        👤 Operador: <strong style={{ color: '#3730a3' }}>{name}</strong>
-      </span>
-      <button onClick={() => { setDraft(name ?? ''); setEditing(true); }} style={styles.linkBtn}>
-        Cambiar
-      </button>
-      <button onClick={handleClear} style={styles.linkBtn}>
-        Salir
+      <span style={styles.label}>👤 {user.name}</span>
+      <span style={{ ...styles.rolePill, background: roleColor }}>{roleLabel}</span>
+      <span style={styles.email}>{user.email}</span>
+      <button onClick={logout} style={styles.logoutBtn} title="Cerrar sesión y volver al login de Keycloak">
+        Cerrar sesión
       </button>
     </div>
   );
@@ -88,43 +28,37 @@ const styles: Record<string, React.CSSProperties> = {
   bar: {
     display: 'flex',
     alignItems: 'center',
-    gap: '0.6rem',
+    gap: '0.75rem',
     padding: '0.45rem 1rem',
     background: '#eef2ff',
     borderBottom: '1px solid #c7d2fe',
     fontSize: '0.85rem',
     flexWrap: 'wrap',
   },
-  label: { color: '#4338ca' },
-  input: {
-    padding: '0.3rem 0.6rem',
-    fontSize: '0.85rem',
-    border: '1px solid #c0c0c0',
-    borderRadius: 4,
-    minWidth: 200,
-  },
-  primaryBtn: {
-    padding: '0.3rem 0.8rem',
-    fontSize: '0.85rem',
-    background: '#6366f1',
+  label: { color: '#4338ca', fontWeight: 600 },
+  rolePill: {
     color: '#fff',
-    border: 'none',
-    borderRadius: 4,
-    fontWeight: 600,
-    cursor: 'pointer',
+    fontSize: '0.7rem',
+    fontWeight: 700,
+    padding: '0.15rem 0.55rem',
+    borderRadius: 9999,
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
   },
-  linkBtn: {
-    background: 'transparent',
-    border: 'none',
-    color: '#6366f1',
-    fontSize: '0.8rem',
-    cursor: 'pointer',
-    textDecoration: 'underline',
-    padding: '0.15rem 0.4rem',
+  email: {
+    color: '#6b7280',
+    fontSize: '0.78rem',
+    fontFamily: 'monospace',
   },
-  hint: {
-    color: '#856404',
-    fontSize: '0.75rem',
+  logoutBtn: {
     marginLeft: 'auto',
+    background: 'transparent',
+    border: '1px solid #6366f1',
+    color: '#6366f1',
+    fontSize: '0.78rem',
+    fontWeight: 600,
+    padding: '0.25rem 0.7rem',
+    borderRadius: 4,
+    cursor: 'pointer',
   },
 };

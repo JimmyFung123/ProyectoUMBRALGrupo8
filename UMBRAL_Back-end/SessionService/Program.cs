@@ -9,6 +9,7 @@ using SessionService.Infrastructure.Hubs;
 using SessionService.Infrastructure.Messaging.Consumers;
 using SessionService.Infrastructure.Persistence;
 using SessionService.Infrastructure.Persistence.Repositories;
+using UMBRAL.Auth;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -74,6 +75,12 @@ builder.Services.AddHostedService<ClueAutoReleaseWorker>();
 // ── SignalR ───────────────────────────────────────────────────────────────────
 builder.Services.AddSignalR();
 
+// ── Keycloak JWT auth (HU-23) ─────────────────────────────────────────────────
+// Optional: endpoints stay public unless decorated with [Authorize]. When a
+// Bearer token is present we validate it against the umbral realm and expose
+// the operator's identity via HttpContext.User for the audit log.
+builder.Services.AddUmbralJwtAuth(builder.Configuration);
+
 // ── CORS ──────────────────────────────────────────────────────────────────────
 // Allows any LAN origin on Vite dev ports (5173/5174) so participants can connect
 // from phones on the same network. SetIsOriginAllowed is needed because we keep
@@ -103,6 +110,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<SessionHub>("/hubs/session");

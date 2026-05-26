@@ -5,6 +5,7 @@ using ClueService.Domain.StageLookup;
 using ClueService.Infrastructure.Messaging.Consumers;
 using ClueService.Infrastructure.Persistence;
 using ClueService.Infrastructure.Persistence.Repositories;
+using UMBRAL.Auth;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,6 +37,8 @@ builder.Services.AddMassTransit(x =>
     });
 });
 
+builder.Services.AddUmbralJwtAuth(builder.Configuration);
+
 builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend", policy =>
         policy.WithOrigins("http://localhost:5173")
@@ -52,6 +55,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 

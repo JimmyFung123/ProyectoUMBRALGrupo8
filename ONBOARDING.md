@@ -16,9 +16,12 @@ ProyectoUMBRAL_Grupo8/
 │   ├── ClueService/           # Puerto 5094 — pistas
 │   ├── StageService/          # Puerto 5093 — etapas de misiones
 │   ├── MissionService/        # Puerto 5091 — misiones
+│   ├── UserService/           # Puerto 5096 — personal operativo (HU-23, fachada Keycloak)
+│   ├── Shared/UMBRAL.Auth/    # Librería compartida con JwtBearer + helpers
+│   ├── Shared/UMBRAL.Contracts/ # Eventos integration (MassTransit)
 │   └── UMBRAL_Back-end.Tests/ # xUnit + Moq + FluentAssertions
-├── UMBRAL_Front-end/          # Puerto 5173 — operador/administrador (React 19 + Vite)
-└── UMBRAL_Front-end_Participantes/  # Puerto 5174 — participantes, mobile-first (React 19 + Vite)
+├── UMBRAL_Front-end/          # Puerto 5173 — operador/administrador (React 19 + Vite, auth Keycloak)
+└── UMBRAL_Front-end_Participantes/  # Puerto 5174 — participantes anónimos, mobile-first (React 19 + Vite)
 ```
 
 ---
@@ -32,13 +35,104 @@ ProyectoUMBRAL_Grupo8/
 | Mediator | MediatR (CQRS) |
 | Mensajería | MassTransit + RabbitMQ |
 | Tiempo real | SignalR |
+| **Identidad (HU-23)** | **Keycloak 25 con realm `umbral` (PKCE + JWT)** |
 | Tests | xUnit + Moq + FluentAssertions |
-| Frontend operador | React 19 + TypeScript + Vite (puerto 5173) |
-| Frontend participante | React 19 + TypeScript + Vite (puerto 5174) |
+| Frontend operador | React 19 + TypeScript + Vite + **keycloak-js** (puerto 5173) |
+| Frontend participante | React 19 + TypeScript + Vite, **sin auth** (puerto 5174) |
+
+---
+
+## Identidad y autenticación (HU-23)
+
+UMBRAL usa **Keycloak 25** como proveedor de identidad. El realm `umbral` se
+importa automáticamente al primer arranque desde
+`scripts/keycloak/umbral-realm.json` — no hay que tocar la consola manualmente
+salvo que se quiera modificar algo del realm.
+
+### URLs y credenciales
+
+| Qué | URL / valor |
+|---|---|
+| Admin console de Keycloak | http://localhost:8090 (`admin` / `admin`, realm `master`) |
+| OIDC well-known del realm | http://localhost:8090/realms/umbral/.well-known/openid-configuration |
+| Admin inicial de UMBRAL | `admin@umbral.local` / `Umbral2026!` (realm `umbral`) |
+| Client SPA (operador) | `umbral-frontend` — público, PKCE S256 |
+| Client backend (Admin API) | `umbral-backend` — confidencial, service account |
+
+### Cómo se valida el token en cada servicio
+
+Toda la lógica vive en `UMBRAL_Back-end/Shared/UMBRAL.Auth/`:
+
+- `UmbralAuthExtensions.AddUmbralJwtAuth(config)` — registra JwtBearer y
+  aplana `realm_access.roles` en claims `umbral_role` para que
+  `[Authorize(Roles = "admin")]` funcione directo.
+- `OperatorPrincipal.GetOperatorDisplayName()` extiende `ClaimsPrincipal` para
+  obtener el nombre del operador (`name` → `preferred_username` → `email`).
+- `OperatorPrincipal.IsAdmin()` / `IsOperator()` — atajos de rol.
+
+Cada servicio configura esto en su `Program.cs` con dos líneas:
+
+```csharp
+builder.Services.AddUmbralJwtAuth(builder.Configuration);
+// …
+app.UseAuthentication();
+app.UseAuthorization();
+```
+
+### Política de autorización por endpoint
+
+| Tipo | Decorator | Quién accede |
+|---|---|---|
+| Endpoints internos del operador | `[Authorize]` (default class-level en `SessionsController`) | Admin u Operador autenticado |
+| Endpoints de gestión de personal (UserService) | `[Authorize(Roles="admin")]` | Solo administradores |
+| Endpoints de participantes | `[AllowAnonymous]` (override explícito) | Cualquiera con código de sesión |
+
+Los participantes (front 5174) NO usan Keycloak. Acceden a los endpoints
+marcados `[AllowAnonymous]` usando solo el PIN de la sesión, como antes.
+
+### Flujo OIDC en el front operador
+
+`UMBRAL_Front-end/src/auth/AuthProvider.tsx` envuelve la app. Al primer
+render, llama `keycloak.init({ onLoad: 'login-required' })`, lo cual:
+
+1. Si no hay sesión → redirige al login del realm Keycloak.
+2. Tras autenticar, vuelve al app con el código → keycloak-js lo intercambia
+   por tokens (access + refresh) que se guardan en memoria.
+3. El helper `services/http.ts` adjunta `Authorization: Bearer <token>` en
+   cada request al backend y refresca el token automáticamente cuando le
+   quedan ≤30 s de vida.
+
+### Cómo agregar usuarios operativos
+
+Como administrador, entrá a la pestaña **👥 Personal** del operador (5173).
+- ➕ Nuevo usuario → email único, nombre, apellido, password temporal, rol.
+- 🔄 Cambiar rol → entre Administrador y Operador (con protección al último admin).
+- 🚫 Deshabilitar / ✅ Habilitar → soft-delete que preserva el historial de auditoría.
+
+Todos los cambios se reflejan en Keycloak en tiempo real. El próximo
+`access_token` del usuario afectado ya trae los roles nuevos.
+
+### Variables de entorno (opcional, defaults sirven en local)
+
+`UMBRAL_Front-end/.env` (no obligatorio, solo si querés apuntar a otro host):
+
+```bash
+VITE_KEYCLOAK_URL=http://localhost:8090
+VITE_KEYCLOAK_REALM=umbral
+VITE_KEYCLOAK_CLIENT_ID=umbral-frontend
+VITE_USER_API_URL=http://localhost:5096/api
+```
 
 ---
 
 ## Cómo levantar el proyecto
+
+### Atajo: scripts/start.ps1
+
+```powershell
+.\scripts\start.ps1   # arranca infra + servicios + fronts en ventanas separadas
+.\scripts\stop.ps1    # cierra todo (incluye VBCSCompiler para evitar locks)
+```
 
 ### Backend (cada servicio en su propia terminal)
 
@@ -48,6 +142,7 @@ cd UMBRAL_Back-end/TeamService    && dotnet run
 cd UMBRAL_Back-end/ClueService    && dotnet run
 cd UMBRAL_Back-end/StageService   && dotnet run
 cd UMBRAL_Back-end/MissionService && dotnet run
+cd UMBRAL_Back-end/UserService    && dotnet run    # HU-23
 ```
 
 ### Migraciones (primera vez o cuando haya cambios de schema)
@@ -273,6 +368,7 @@ hubMock.Setup(h => h.Clients).Returns(clientsMock.Object);
 | HU-20 | Visualización de pistas en la interfaz del juego | SessionService, Front Participante |
 | HU-21 | Consultar ranking de la sesión (lectura optimizada + SignalR) | SessionService, TeamService, Front Operador, Front Participante |
 | HU-22 | Consultar historial de auditoría de sesión | SessionService, Front Operador |
+| HU-23 | Gestión integral de personal operativo (KeyCloak) | Infra (Docker), UMBRAL.Auth, UserService (5096), Front Operador |
 
 ---
 

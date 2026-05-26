@@ -5,6 +5,7 @@ using StageService.Domain.Stages;
 using StageService.Infrastructure.Messaging.Consumers;
 using StageService.Infrastructure.Persistence;
 using StageService.Infrastructure.Persistence.Repositories;
+using UMBRAL.Auth;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -37,6 +38,8 @@ builder.Services.AddMassTransit(x =>
     });
 });
 
+builder.Services.AddUmbralJwtAuth(builder.Configuration);
+
 builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend", policy =>
         policy.WithOrigins("http://localhost:5173")
@@ -53,6 +56,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 

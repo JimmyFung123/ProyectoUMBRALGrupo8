@@ -1,6 +1,7 @@
 # UMBRAL — Infraestructura local
 #
-# Levanta PostgreSQL (con las 5 bases auto-creadas) y RabbitMQ.
+# Levanta PostgreSQL (con las 5 bases de UMBRAL auto-creadas), RabbitMQ,
+# y Keycloak (con su propio Postgres aislado).
 # Los servicios .NET y los front-ends se ejecutan localmente con scripts/start.ps1.
 
 services:
@@ -35,5 +36,59 @@ services:
       timeout: 5s
       retries: 10
 
+  # ── Keycloak (HU-23) ───────────────────────────────────────────────────────
+  # Base de datos dedicada, separada de la de UMBRAL para aislar permisos
+  # y para que un wipe de Keycloak no afecte misiones / sesiones / equipos.
+  keycloak-db:
+    image: postgres:15-alpine
+    container_name: umbral-keycloak-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: "keycloak"
+      POSTGRES_DB: keycloak
+    volumes:
+      - umbral_kcdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    container_name: umbral-keycloak
+    restart: unless-stopped
+    # `start-dev --import-realm` carga el realm UMBRAL al primer arranque
+    # desde /opt/keycloak/data/import (montado abajo). En siguientes arranques
+    # respeta lo que ya hay en la BD, así que cambios manuales en la consola
+    # no se sobrescriben.
+    command: ["start-dev", "--import-realm"]
+    environment:
+      # Admin de la consola de Keycloak (NO el admin de UMBRAL — ese vive en el realm).
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak
+      KC_HEALTH_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+    ports:
+      - "8090:8080"    # Admin console + endpoints OIDC: http://localhost:8090
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+    volumes:
+      - ./scripts/keycloak/umbral-realm.json:/opt/keycloak/data/import/umbral-realm.json:ro
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '\"status\": \"UP\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
 volumes:
   umbral_pgdata:
+  umbral_kcdata:

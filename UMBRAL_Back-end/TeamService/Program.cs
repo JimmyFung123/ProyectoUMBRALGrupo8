@@ -4,6 +4,7 @@ using TeamService.Domain.Teams;
 using TeamService.Infrastructure.Messaging.Consumers;
 using TeamService.Infrastructure.Persistence;
 using TeamService.Infrastructure.Persistence.Repositories;
+using UMBRAL.Auth;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -37,6 +38,9 @@ builder.Services.AddMassTransit(x =>
     });
 });
 
+// ── Keycloak JWT auth (HU-23) ─────────────────────────────────────────────────
+builder.Services.AddUmbralJwtAuth(builder.Configuration);
+
 // ── CORS ──────────────────────────────────────────────────────────────────────
 // Allows any LAN origin on Vite dev ports (5173/5174) so participants can connect
 // from phones on the same network.
@@ -64,6 +68,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 

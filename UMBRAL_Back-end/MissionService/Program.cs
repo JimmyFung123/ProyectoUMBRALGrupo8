@@ -1,5 +1,6 @@
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using UMBRAL.Auth;
 using UMBRAL_Back_end.Domain.Missions;
 using UMBRAL_Back_end.Infrastructure.Messaging.Consumers;
 using UMBRAL_Back_end.Infrastructure.Persistence;
@@ -39,6 +40,9 @@ builder.Services.AddMassTransit(x =>
     });
 });
 
+// Keycloak JWT auth (HU-23) — optional until [Authorize] is applied per-endpoint.
+builder.Services.AddUmbralJwtAuth(builder.Configuration);
+
 // CORS for the React dev server (Vite default port)
 builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend", policy =>
@@ -56,6 +60,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 

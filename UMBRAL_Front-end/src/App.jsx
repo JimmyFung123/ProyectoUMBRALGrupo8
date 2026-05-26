@@ -1,17 +1,24 @@
 import { useState } from 'react'
+import { useAuth } from './auth/AuthProvider'
 import { MissionList } from './components/Missions/MissionList'
 import { OperatorIdentityBar } from './components/OperatorIdentityBar'
 import { SessionDashboard } from './components/Sessions/SessionDashboard'
 import { SessionList } from './components/Sessions/SessionList'
+import { UsersList } from './components/Users/UsersList'
 
-const TABS = [
-  { key: 'missions', label: '🗺️ Misiones' },
-  { key: 'sessions', label: '🎮 Sesiones' },
+const BASE_TABS = [
+  { key: 'missions', label: '🗺️ Misiones', adminOnly: false },
+  { key: 'sessions', label: '🎮 Sesiones', adminOnly: false },
+  { key: 'users',    label: '👥 Personal', adminOnly: true  }, // HU-23
 ]
 
 function App() {
+  const { isAdmin } = useAuth()
   const [activeTab, setActiveTab] = useState('missions')
   const [selectedSessionId, setSelectedSessionId] = useState(null)
+
+  // Filtra las pestañas según el rol — los operadores no ven "Personal".
+  const visibleTabs = BASE_TABS.filter(t => !t.adminOnly || isAdmin)
 
   function handleTabChange(tab) {
     setActiveTab(tab)
@@ -21,7 +28,7 @@ function App() {
 
   return (
     <div style={{ textAlign: 'left' }}>
-      {/* ── HU-22: identidad del operador para el audit log ── */}
+      {/* ── HU-22/23: identidad del operador (ahora con datos del JWT) ── */}
       <OperatorIdentityBar />
 
       {/* ── Barra de pestañas ── */}
@@ -31,7 +38,7 @@ function App() {
         borderBottom: '2px solid #ddd',
         background: '#f9f9f9',
       }}>
-        {TABS.map(tab => (
+        {visibleTabs.map(tab => (
           <button
             key={tab.key}
             onClick={() => handleTabChange(tab.key)}
@@ -65,6 +72,7 @@ function App() {
             <SessionList onViewDetail={setSelectedSessionId} />
           )
       )}
+      {activeTab === 'users' && isAdmin && <UsersList />}
     </div>
   )
 }
