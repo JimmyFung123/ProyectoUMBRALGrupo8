@@ -2,6 +2,7 @@ namespace UMBRAL_Back_end.Tests.Application.Teams;
 
 using FluentAssertions;
 using Moq;
+using TeamService.Application.Rankings;
 using TeamService.Application.Teams.Commands.ForceAdvance;
 using TeamService.Domain.Teams;
 using Xunit;
@@ -9,10 +10,11 @@ using Xunit;
 public class ForceAdvanceTeamCommandHandlerTests
 {
     private readonly Mock<ITeamRepository> _repoMock = new();
+    private readonly Mock<IRankingProjector> _projectorMock = new();
     private readonly ForceAdvanceTeamCommandHandler _handler;
 
     public ForceAdvanceTeamCommandHandlerTests()
-        => _handler = new ForceAdvanceTeamCommandHandler(_repoMock.Object);
+        => _handler = new ForceAdvanceTeamCommandHandler(_repoMock.Object, _projectorMock.Object);
 
     [Fact]
     public async Task Handle_WhenTeamNotFound_ReturnsNotFoundError()
@@ -25,6 +27,7 @@ public class ForceAdvanceTeamCommandHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be(TeamErrors.NotFound);
         _repoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        _projectorMock.Verify(p => p.RebuildAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -40,12 +43,14 @@ public class ForceAdvanceTeamCommandHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be(TeamErrors.InvalidNextStage);
         _repoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        _projectorMock.Verify(p => p.RebuildAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
     public async Task Handle_ValidAdvance_AdvancesAndSaves()
     {
-        var team = Team.Create(Guid.NewGuid(), "Beta");
+        var sessionId = Guid.NewGuid();
+        var team = Team.Create(sessionId, "Beta");
         team.UpdateProgress(1, 2, 3);
         team.UpdateScore(100);
         _repoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
@@ -58,5 +63,10 @@ public class ForceAdvanceTeamCommandHandlerTests
         team.CluesReceivedCurrentStage.Should().Be(0);
         team.Score.Should().Be(100); // score unchanged
         _repoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+
+        // HU-24: CurrentStageOrder changed — projection must be rebuilt.
+        _projectorMock.Verify(
+            p => p.RebuildAsync(sessionId, It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 }

@@ -1,64 +1,53 @@
 namespace TeamService.Application.Teams.Queries.GetSessionRanking;
 
 using MediatR;
-using TeamService.Domain.Teams;
+using TeamService.Domain.Rankings;
 
 /// <summary>
-/// Builds the live ranking for a session (HU-21).
+/// Reads the live ranking for a session (HU-24).
 ///
-/// Sort contract (RB-08):
-///   1. Higher score first.
-///   2. On equal score, the team that completed its most recent stage earlier wins
-///      (lower <see cref="Team.LastStageCompletedAt"/>). Teams that haven't completed
-///      any stage yet are pushed to the bottom of the tie group.
-///   3. Final stable tie-breaker: alphabetical by team name.
+/// This is a pure CQRS read path: the handler hits the pre-calculated
+/// <c>RankingProjections</c> table — which is already sorted by
+/// <c>Position</c> and already carries the computed <c>Rank</c> — and maps
+/// the rows 1-to-1 onto <see cref="SessionRankingDto"/>.
 ///
-/// Rank uses dense ranking — tied teams share the same Rank, and the next distinct
-/// score gets Rank = i + 1.
+/// There is no JOIN, no sorting in C#, no rank arithmetic at SELECT time.
+/// The transactional <c>Teams</c> table is never touched on the read path:
+/// score updates, penalties, forced advances etc. cannot block this query
+/// even under heavy concurrent writes (the original reason CQRS was chosen).
+///
+/// The projection is maintained synchronously by <c>IRankingProjector</c>
+/// inside the write-side command handlers — see <c>RankingProjector</c>.
 /// </summary>
 public class GetSessionRankingQueryHandler
     : IRequestHandler<GetSessionRankingQuery, SessionRankingDto>
 {
-    private readonly ITeamRepository _teamRepository;
+    private readonly IRankingProjectionRepository _rankingRepository;
 
-    public GetSessionRankingQueryHandler(ITeamRepository teamRepository)
-        => _teamRepository = teamRepository;
+    public GetSessionRankingQueryHandler(IRankingProjectionRepository rankingRepository)
+        => _rankingRepository = rankingRepository;
 
     public async Task<SessionRankingDto> Handle(
         GetSessionRankingQuery request,
         CancellationToken cancellationToken)
     {
-        var teams = await _teamRepository.GetBySessionIdAsync(request.SessionId, cancellationToken);
+        var rows = await _rankingRepository.GetBySessionIdOrderedAsync(
+            request.SessionId, cancellationToken);
 
-        // Teams without a recorded resolution time should lose tie-breaks against teams
-        // that already completed a stage — push them to the end of the tie window.
-        var sorted = teams
-            .OrderByDescending(t => t.Score)
-            .ThenBy(t => t.LastStageCompletedAt ?? DateTime.MaxValue)
-            .ThenBy(t => t.Name, StringComparer.CurrentCultureIgnoreCase)
+        var teams = rows
+            .Select(r => new SessionRankingTeamDto(
+                TeamId: r.TeamId,
+                Name: r.TeamName,
+                Score: r.Score,
+                Rank: r.Rank,
+                CurrentStageOrder: r.CurrentStageOrder,
+                IsConnected: r.IsConnected,
+                LastStageCompletedAt: r.LastStageCompletedAt))
             .ToList();
-
-        var ranked = new List<SessionRankingTeamDto>(sorted.Count);
-        int rank = 1;
-
-        for (int i = 0; i < sorted.Count; i++)
-        {
-            if (i > 0 && sorted[i].Score < sorted[i - 1].Score)
-                rank = i + 1;
-
-            ranked.Add(new SessionRankingTeamDto(
-                TeamId: sorted[i].Id,
-                Name: sorted[i].Name,
-                Score: sorted[i].Score,
-                Rank: rank,
-                CurrentStageOrder: sorted[i].CurrentStageOrder,
-                IsConnected: sorted[i].IsConnected,
-                LastStageCompletedAt: sorted[i].LastStageCompletedAt));
-        }
 
         return new SessionRankingDto(
             SessionId: request.SessionId,
             GeneratedAt: DateTime.UtcNow,
-            Teams: ranked);
+            Teams: teams);
     }
 }

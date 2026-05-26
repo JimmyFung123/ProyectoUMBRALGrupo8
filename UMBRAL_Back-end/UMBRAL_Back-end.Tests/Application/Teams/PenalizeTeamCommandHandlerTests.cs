@@ -2,6 +2,7 @@ namespace UMBRAL_Back_end.Tests.Application.Teams;
 
 using FluentAssertions;
 using Moq;
+using TeamService.Application.Rankings;
 using TeamService.Application.Teams.Commands.PenalizeTeam;
 using TeamService.Domain.Teams;
 using Xunit;
@@ -9,10 +10,11 @@ using Xunit;
 public class PenalizeTeamCommandHandlerTests
 {
     private readonly Mock<ITeamRepository> _repoMock = new();
+    private readonly Mock<IRankingProjector> _projectorMock = new();
     private readonly PenalizeTeamCommandHandler _handler;
 
     public PenalizeTeamCommandHandlerTests()
-        => _handler = new PenalizeTeamCommandHandler(_repoMock.Object);
+        => _handler = new PenalizeTeamCommandHandler(_repoMock.Object, _projectorMock.Object);
 
     [Fact]
     public async Task Handle_WhenTeamNotFound_ReturnsNotFoundError()
@@ -25,6 +27,7 @@ public class PenalizeTeamCommandHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be(TeamErrors.NotFound);
         _repoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        _projectorMock.Verify(p => p.RebuildAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -39,6 +42,7 @@ public class PenalizeTeamCommandHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be(TeamErrors.PenaltyReasonRequired);
         _repoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        _projectorMock.Verify(p => p.RebuildAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -53,12 +57,14 @@ public class PenalizeTeamCommandHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be(TeamErrors.InvalidPenaltyPoints);
         _repoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        _projectorMock.Verify(p => p.RebuildAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
     public async Task Handle_ValidCommand_PenalizesAndSaves()
     {
-        var team = Team.Create(Guid.NewGuid(), "Gamma");
+        var sessionId = Guid.NewGuid();
+        var team = Team.Create(sessionId, "Gamma");
         team.UpdateScore(100);
         _repoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                  .ReturnsAsync(team);
@@ -69,5 +75,10 @@ public class PenalizeTeamCommandHandlerTests
         result.Value.Should().Be(75);
         team.Score.Should().Be(75);
         _repoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+
+        // HU-24: score went down, ranks may swap — projection must be rebuilt.
+        _projectorMock.Verify(
+            p => p.RebuildAsync(sessionId, It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 }
