@@ -9,13 +9,16 @@ public class CreateSessionCommandHandler : IRequestHandler<CreateSessionCommand,
 {
     private readonly ISessionRepository _sessionRepository;
     private readonly IMissionLookupRepository _missionLookupRepository;
+    private readonly ISessionEventRepository _eventRepository;
 
     public CreateSessionCommandHandler(
         ISessionRepository sessionRepository,
-        IMissionLookupRepository missionLookupRepository)
+        IMissionLookupRepository missionLookupRepository,
+        ISessionEventRepository eventRepository)
     {
         _sessionRepository = sessionRepository;
         _missionLookupRepository = missionLookupRepository;
+        _eventRepository = eventRepository;
     }
 
     public async Task<Result<Guid>> Handle(CreateSessionCommand request, CancellationToken cancellationToken)
@@ -42,6 +45,16 @@ public class CreateSessionCommandHandler : IRequestHandler<CreateSessionCommand,
         var session = sessionResult.Value;
         await _sessionRepository.AddAsync(session, cancellationToken);
         await _sessionRepository.SaveChangesAsync(cancellationToken);
+
+        // HU-26: command audit log entry — the first thing recorded for a session.
+        var auditEvent = SessionEvent.Create(
+            session.Id,
+            $"Se creó la sesión '{session.Name}'.",
+            actorName: request.OperatorName,
+            commandType: nameof(CreateSessionCommand),
+            outcome: SessionEvent.OutcomeSuccess);
+        await _eventRepository.AddAsync(auditEvent, cancellationToken);
+        await _eventRepository.SaveChangesAsync(cancellationToken);
 
         return Result.Success(session.Id);
     }

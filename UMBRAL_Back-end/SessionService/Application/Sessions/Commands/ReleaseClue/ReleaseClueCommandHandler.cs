@@ -51,7 +51,12 @@ public class ReleaseClueCommandHandler : IRequestHandler<ReleaseClueCommand, Res
             ? $"Pista #{cluesReceived} liberada al equipo '{teamName}': \"{request.ClueContent}\"."
             : $"Pista #{cluesReceived} liberada al equipo '{teamName}': zona geográfica (radio {request.ClueRadiusMeters ?? 0}m).";
 
-        var auditEvent = SessionEvent.Create(request.SessionId, auditMessage, actorName: request.OperatorName);
+        var auditEvent = SessionEvent.Create(
+            request.SessionId,
+            auditMessage,
+            actorName: request.OperatorName,
+            commandType: nameof(ReleaseClueCommand),
+            outcome: SessionEvent.OutcomeSuccess);
         await _eventRepository.AddAsync(auditEvent, cancellationToken);
         await _eventRepository.SaveChangesAsync(cancellationToken);
 

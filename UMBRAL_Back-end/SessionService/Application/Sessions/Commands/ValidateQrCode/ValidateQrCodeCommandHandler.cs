@@ -67,11 +67,13 @@ public class ValidateQrCodeCommandHandler : IRequestHandler<ValidateQrCodeComman
             if (team is null)
                 return Result.Failure<QrValidationResultDto>(SessionErrors.TeamNotFound);
 
-            // Audit failed scan attempt
+            // Audit failed scan attempt (HU-22 / HU-26)
             var failedEvent = SessionEvent.Create(
                 request.SessionId,
                 $"El equipo '{team.Name}' escaneó un QR incorrecto en la etapa {stage.Order}.",
-                actorName: $"Equipo {team.Name}");
+                actorName: $"Equipo {team.Name}",
+                commandType: nameof(ValidateQrCodeCommand),
+                outcome: SessionEvent.OutcomeFailure);
             await _eventRepository.AddAsync(failedEvent, cancellationToken);
             await _eventRepository.SaveChangesAsync(cancellationToken);
 
@@ -122,7 +124,9 @@ public class ValidateQrCodeCommandHandler : IRequestHandler<ValidateQrCodeComman
         var successEvent = SessionEvent.Create(
             request.SessionId,
             $"El equipo '{teamName}' resolvió la etapa {stage.Order} escaneando el código QR.",
-            actorName: $"Equipo {teamName}");
+            actorName: $"Equipo {teamName}",
+            commandType: nameof(ValidateQrCodeCommand),
+            outcome: SessionEvent.OutcomeSuccess);
         await _eventRepository.AddAsync(successEvent, cancellationToken);
         await _eventRepository.SaveChangesAsync(cancellationToken);
 

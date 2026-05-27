@@ -19,6 +19,7 @@ using SessionService.Application.Sessions.Queries.GetParticipantStage;
 using SessionService.Application.Sessions.Queries.GetReleasedClues;
 using SessionService.Application.Sessions.Queries.GetSessionByCode;
 using SessionService.Application.Sessions.Queries.GetSessionAudit;
+using SessionService.Application.Sessions.Queries.GetSessionCommandAudit;
 using SessionService.Application.Sessions.Queries.GetSessionDashboard;
 using SessionService.Application.Sessions.Queries.GetSessionDetail;
 using SessionService.Application.Sessions.Queries.GetSessionRanking;
@@ -101,6 +102,20 @@ public class SessionsController : ControllerBase
         return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
     }
 
+    /// <summary>
+    /// HU-26 — technical command audit log for a session.
+    /// Same underlying event store as <c>/audit</c> but the projection includes
+    /// the CQRS command type, outcome and millisecond-precise timestamp so the
+    /// admin/operator can reconstruct the exact sequence of commands that drove
+    /// the session to its current state.
+    /// </summary>
+    [HttpGet("{id:guid}/audit-log")]
+    public async Task<IActionResult> GetCommandAudit(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(new GetSessionCommandAuditQuery(id), cancellationToken);
+        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
+    }
+
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Cancel(Guid id, CancellationToken cancellationToken)
     {
@@ -123,7 +138,7 @@ public class SessionsController : ControllerBase
         CancellationToken cancellationToken)
     {
         var result = await _sender.Send(
-            new UpdateSessionCommand(id, request.Name, request.ScheduledAt),
+            new UpdateSessionCommand(id, request.Name, request.ScheduledAt, GetOperatorName()),
             cancellationToken);
 
         if (result.IsFailure)
@@ -142,7 +157,7 @@ public class SessionsController : ControllerBase
         CancellationToken cancellationToken)
     {
         var result = await _sender.Send(
-            new CreateSessionCommand(request.MissionId, request.Name, request.ScheduledAt),
+            new CreateSessionCommand(request.MissionId, request.Name, request.ScheduledAt, GetOperatorName()),
             cancellationToken);
 
         return result.IsSuccess

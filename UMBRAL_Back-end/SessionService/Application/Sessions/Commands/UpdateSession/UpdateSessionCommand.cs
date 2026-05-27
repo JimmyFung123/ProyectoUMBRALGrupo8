@@ -6,4 +6,5 @@ using SessionService.Domain.Common;
 public record UpdateSessionCommand(
     Guid SessionId,
     string Name,
-    DateTime? ScheduledAt) : IRequest<Result<bool>>;
+    DateTime? ScheduledAt,
+    string? OperatorName = null) : IRequest<Result<bool>>;

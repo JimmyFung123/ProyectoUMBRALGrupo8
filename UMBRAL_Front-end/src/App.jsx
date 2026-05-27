@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useAuth } from './auth/AuthProvider'
 import { MissionList } from './components/Missions/MissionList'
 import { OperatorIdentityBar } from './components/OperatorIdentityBar'
+import { SessionCommandAuditScreen } from './components/Sessions/SessionCommandAuditScreen'
 import { SessionDashboard } from './components/Sessions/SessionDashboard'
 import { SessionList } from './components/Sessions/SessionList'
 import { StatisticsDashboard } from './components/Statistics/StatisticsDashboard'
@@ -18,6 +19,10 @@ function App() {
   const { isAdmin } = useAuth()
   const [activeTab, setActiveTab] = useState('missions')
   const [selectedSessionId, setSelectedSessionId] = useState(null)
+  // HU-26: cuando es no-null, se renderiza la pantalla completa de auditoría
+  // técnica en lugar del dashboard. Vive en el mismo estado para mantener la
+  // misma sesión seleccionada al volver con "Volver al dashboard".
+  const [commandAuditSessionId, setCommandAuditSessionId] = useState(null)
 
   // Filtra las pestañas según el rol — los operadores no ven "Personal".
   const visibleTabs = BASE_TABS.filter(t => !t.adminOnly || isAdmin)
@@ -26,6 +31,7 @@ function App() {
     setActiveTab(tab)
     // Limpiar el detalle al cambiar de pestaña
     setSelectedSessionId(null)
+    setCommandAuditSessionId(null)
   }
 
   return (
@@ -63,16 +69,25 @@ function App() {
       {/* ── Contenido ── */}
       {activeTab === 'missions' && <MissionList />}
       {activeTab === 'sessions' && (
-        selectedSessionId
+        commandAuditSessionId
           ? (
-            <SessionDashboard
-              sessionId={selectedSessionId}
-              onBack={() => setSelectedSessionId(null)}
+            // HU-26: pantalla técnica completa, separada del dashboard.
+            <SessionCommandAuditScreen
+              sessionId={commandAuditSessionId}
+              onBack={() => setCommandAuditSessionId(null)}
             />
           )
-          : (
-            <SessionList onViewDetail={setSelectedSessionId} />
-          )
+          : selectedSessionId
+            ? (
+              <SessionDashboard
+                sessionId={selectedSessionId}
+                onBack={() => setSelectedSessionId(null)}
+                onOpenCommandAudit={() => setCommandAuditSessionId(selectedSessionId)}
+              />
+            )
+            : (
+              <SessionList onViewDetail={setSelectedSessionId} />
+            )
       )}
       {activeTab === 'statistics' && isAdmin && <StatisticsDashboard />}
       {activeTab === 'users' && isAdmin && <UsersList />}

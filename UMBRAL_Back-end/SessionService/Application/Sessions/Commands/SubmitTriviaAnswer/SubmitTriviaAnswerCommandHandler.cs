@@ -14,6 +14,7 @@ public class SubmitTriviaAnswerCommandHandler : IRequestHandler<SubmitTriviaAnsw
     private readonly ITeamServiceClient _teamClient;
     private readonly IStageServiceClient _stageClient;
     private readonly IStageCompletionRecordRepository _statsRepository;
+    private readonly ISessionEventRepository _eventRepository;
     private readonly IHubContext<SessionHub> _hub;
 
     public SubmitTriviaAnswerCommandHandler(
@@ -21,12 +22,14 @@ public class SubmitTriviaAnswerCommandHandler : IRequestHandler<SubmitTriviaAnsw
         ITeamServiceClient teamClient,
         IStageServiceClient stageClient,
         IStageCompletionRecordRepository statsRepository,
+        ISessionEventRepository eventRepository,
         IHubContext<SessionHub> hub)
     {
         _sessionRepository = sessionRepository;
         _teamClient = teamClient;
         _stageClient = stageClient;
         _statsRepository = statsRepository;
+        _eventRepository = eventRepository;
         _hub = hub;
     }
 
@@ -85,7 +88,22 @@ public class SubmitTriviaAnswerCommandHandler : IRequestHandler<SubmitTriviaAnsw
         await _statsRepository.AddAsync(record, cancellationToken);
         await _statsRepository.SaveChangesAsync(cancellationToken);
 
-        // 7. Broadcast dashboard refresh
+        // 7. HU-26: command audit log. Resolve team name for the actor field.
+        var teamInfo = await _teamClient.GetTeamByIdAsync(request.TeamId, cancellationToken);
+        var teamName = teamInfo?.Name ?? "Equipo";
+        var auditMessage = isCorrect
+            ? $"El equipo '{teamName}' respondió correctamente la etapa {stage.Order} y sumó {stage.BaseScore} pts. Nuevo puntaje: {outcome.NewScore}."
+            : $"El equipo '{teamName}' respondió incorrectamente la etapa {stage.Order}. Nuevo puntaje: {outcome.NewScore}.";
+        var auditEvent = SessionEvent.Create(
+            request.SessionId,
+            auditMessage,
+            actorName: $"Equipo {teamName}",
+            commandType: nameof(SubmitTriviaAnswerCommand),
+            outcome: isCorrect ? SessionEvent.OutcomeSuccess : SessionEvent.OutcomeFailure);
+        await _eventRepository.AddAsync(auditEvent, cancellationToken);
+        await _eventRepository.SaveChangesAsync(cancellationToken);
+
+        // 8. Broadcast dashboard refresh
         await _hub.Clients
             .Group(request.SessionId.ToString())
             .SendAsync("SessionStateChanged", cancellationToken);

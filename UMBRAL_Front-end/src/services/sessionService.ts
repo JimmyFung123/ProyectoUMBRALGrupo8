@@ -1,5 +1,5 @@
 import { http } from './http';
-import type { SessionAudit } from '../types/audit';
+import type { SessionAudit, SessionCommandAudit } from '../types/audit';
 import type { SessionRanking } from '../types/ranking';
 import type { CreateSessionPayload, Session, SessionDashboard, SessionDetail, SessionStatus } from '../types/session';
 
@@ -48,6 +48,15 @@ export const sessionService = {
   /** HU-22: full audit timeline for a session — chronological, every event recorded. */
   getAudit(id: string): Promise<SessionAudit> {
     return http.get<SessionAudit>(`${BASE_URL}/sessions/${id}/audit`);
+  },
+
+  /**
+   * HU-26: technical command audit log — every CQRS command executed against
+   * the session with millisecond-precise timestamps, command type and outcome.
+   * Used by the dedicated "Auditoría completa" screen.
+   */
+  getCommandAudit(id: string): Promise<SessionCommandAudit> {
+    return http.get<SessionCommandAudit>(`${BASE_URL}/sessions/${id}/audit-log`);
   },
 
   create(payload: CreateSessionPayload): Promise<string> {

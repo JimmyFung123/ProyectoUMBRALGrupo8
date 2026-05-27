@@ -80,11 +80,13 @@ public class ForceAdvanceTeamCommandHandler : IRequestHandler<ForceAdvanceTeamCo
         await _statsRepository.AddAsync(statsRecord, cancellationToken);
         await _statsRepository.SaveChangesAsync(cancellationToken);
 
-        // 6. Audit log
+        // 6. Audit log (HU-22 / HU-26)
         var auditEvent = SessionEvent.Create(
             request.SessionId,
             $"El operador forzó el avance del equipo '{team.Name}' de la etapa {team.CurrentStageOrder} a la etapa {nextOrder}.",
-            actorName: request.OperatorName);
+            actorName: request.OperatorName,
+            commandType: nameof(ForceAdvanceTeamCommand),
+            outcome: SessionEvent.OutcomeSuccess);
         await _eventRepository.AddAsync(auditEvent, cancellationToken);
         await _eventRepository.SaveChangesAsync(cancellationToken);
 

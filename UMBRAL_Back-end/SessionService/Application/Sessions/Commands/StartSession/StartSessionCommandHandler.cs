@@ -42,11 +42,13 @@ public class StartSessionCommandHandler : IRequestHandler<StartSessionCommand, R
 
         await _sessionRepository.SaveChangesAsync(cancellationToken);
 
-        // HU-22: audit log of the state change
+        // HU-22 / HU-26: audit log of the state change
         var auditEvent = SessionEvent.Create(
             request.SessionId,
             "La sesión fue iniciada.",
-            actorName: request.OperatorName);
+            actorName: request.OperatorName,
+            commandType: nameof(StartSessionCommand),
+            outcome: SessionEvent.OutcomeSuccess);
         await _eventRepository.AddAsync(auditEvent, cancellationToken);
         await _eventRepository.SaveChangesAsync(cancellationToken);
 

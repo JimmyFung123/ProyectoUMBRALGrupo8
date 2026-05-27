@@ -21,6 +21,14 @@ public class SessionEventConfiguration : IEntityTypeConfiguration<SessionEvent>
             .IsRequired()
             .HasMaxLength(100);
 
+        // HU-26: technical metadata for the command audit log. Nullable so the
+        // existing rows from HU-22 don't need backfill.
+        builder.Property(e => e.CommandType)
+            .HasMaxLength(80);
+
+        builder.Property(e => e.Outcome)
+            .HasMaxLength(20);
+
         // Composite index for efficient "recent events for session" queries
         builder.HasIndex(e => new { e.SessionId, e.OccurredAt });
     }

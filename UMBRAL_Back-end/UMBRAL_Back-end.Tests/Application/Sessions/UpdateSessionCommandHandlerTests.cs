@@ -9,11 +9,14 @@ using Xunit;
 public class UpdateSessionCommandHandlerTests
 {
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
+    private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
     private readonly UpdateSessionCommandHandler _handler;
 
     public UpdateSessionCommandHandlerTests()
     {
-        _handler = new UpdateSessionCommandHandler(_sessionRepoMock.Object);
+        _handler = new UpdateSessionCommandHandler(
+            _sessionRepoMock.Object,
+            _eventRepoMock.Object);
     }
 
     // ── Flujo feliz ───────────────────────────────────────────────────────────
@@ -54,6 +57,33 @@ public class UpdateSessionCommandHandlerTests
 
         result.IsSuccess.Should().BeTrue();
         session.ScheduledAt.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Handle_WhenValid_WritesAuditEventWithCommandTypeAndOperator()
+    {
+        // HU-26: editing a session must leave an immutable trail.
+        var sessionId = Guid.NewGuid();
+        var session = Session.Create(Guid.NewGuid(), "Nombre original").Value;
+
+        _sessionRepoMock
+            .Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(session);
+
+        SessionEvent? captured = null;
+        _eventRepoMock
+            .Setup(r => r.AddAsync(It.IsAny<SessionEvent>(), It.IsAny<CancellationToken>()))
+            .Callback<SessionEvent, CancellationToken>((e, _) => captured = e);
+
+        var result = await _handler.Handle(
+            new UpdateSessionCommand(sessionId, "Nombre actualizado", null, "Prof. Ortega"),
+            default);
+
+        result.IsSuccess.Should().BeTrue();
+        captured.Should().NotBeNull();
+        captured!.ActorName.Should().Be("Prof. Ortega");
+        captured.CommandType.Should().Be(nameof(UpdateSessionCommand));
+        captured.Outcome.Should().Be(SessionEvent.OutcomeSuccess);
     }
 
     // ── Sesión no encontrada ──────────────────────────────────────────────────

@@ -40,7 +40,9 @@ public class CancelSessionCommandHandler : IRequestHandler<CancelSessionCommand,
         var auditEvent = SessionEvent.Create(
             request.SessionId,
             "La sesión fue cancelada.",
-            actorName: request.OperatorName);
+            actorName: request.OperatorName,
+            commandType: nameof(CancelSessionCommand),
+            outcome: SessionEvent.OutcomeSuccess);
         await _eventRepository.AddAsync(auditEvent, cancellationToken);
         await _eventRepository.SaveChangesAsync(cancellationToken);
 

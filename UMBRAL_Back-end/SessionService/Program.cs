@@ -22,8 +22,13 @@ builder.Services.AddControllers()
 builder.Services.AddOpenApi();
 
 // ── Database (own isolated DB — Database-per-Service pattern) ─────────────────
-builder.Services.AddDbContext<SessionsDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+// HU-26: SessionEventImmutabilityInterceptor blocks any Modified/Deleted change
+// on SessionEvent rows so the command audit log stays append-only.
+builder.Services.AddSingleton<SessionEventImmutabilityInterceptor>();
+builder.Services.AddDbContext<SessionsDbContext>((sp, options) =>
+    options
+        .UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
+        .AddInterceptors(sp.GetRequiredService<SessionEventImmutabilityInterceptor>()));
 
 // ── MediatR ───────────────────────────────────────────────────────────────────
 builder.Services.AddMediatR(cfg =>

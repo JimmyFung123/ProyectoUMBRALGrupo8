@@ -16,6 +16,7 @@ public class SubmitTriviaAnswerCommandHandlerTests
     private readonly Mock<ITeamServiceClient> _teamClientMock = new();
     private readonly Mock<IStageServiceClient> _stageClientMock = new();
     private readonly Mock<IStageCompletionRecordRepository> _statsRepoMock = new();
+    private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
     private readonly Mock<IHubContext<SessionHub>> _hubMock = new();
     private readonly SubmitTriviaAnswerCommandHandler _handler;
 
@@ -31,6 +32,7 @@ public class SubmitTriviaAnswerCommandHandlerTests
             _teamClientMock.Object,
             _stageClientMock.Object,
             _statsRepoMock.Object,
+            _eventRepoMock.Object,
             _hubMock.Object);
     }
 
@@ -192,6 +194,85 @@ public class SubmitTriviaAnswerCommandHandlerTests
                     && rec.WasCorrect == false),
                 It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    // ── HU-26: command audit ─────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Handle_CorrectAnswer_WritesAuditEventWithTeamActorAndOutcomeSuccess()
+    {
+        var session = CreateSessionWithStatus(SessionStatus.InProgress);
+        var stageId = Guid.NewGuid();
+        var correctOptionId = Guid.NewGuid();
+        var teamId = Guid.NewGuid();
+
+        var correctOption = new TriviaOptionInfo(correctOptionId, "Correct", true);
+        var stageInfo = new StageWithOptionsInfo(stageId, "Stage 1", "Trivia", 1, 50, "Q?",
+            new[] { correctOption });
+
+        _sessionRepoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                        .ReturnsAsync(session);
+        _stageClientMock.Setup(s => s.GetStageWithOptionsAsync(stageId, It.IsAny<CancellationToken>()))
+                        .ReturnsAsync(stageInfo);
+        _stageClientMock.Setup(s => s.GetStagesByMissionAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                        .ReturnsAsync(new[] { new StageInfo(stageId, 1) });
+        _teamClientMock.Setup(t => t.AnswerTriviaAsync(teamId, true, 50, It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                       .ReturnsAsync(new StageTransitionResult(NewScore: 200, ElapsedSeconds: 10));
+        _teamClientMock.Setup(t => t.GetTeamByIdAsync(teamId, It.IsAny<CancellationToken>()))
+                       .ReturnsAsync(new TeamInfoItem(teamId, "Alfa", 1));
+
+        SessionEvent? captured = null;
+        _eventRepoMock
+            .Setup(r => r.AddAsync(It.IsAny<SessionEvent>(), It.IsAny<CancellationToken>()))
+            .Callback<SessionEvent, CancellationToken>((e, _) => captured = e);
+
+        var result = await _handler.Handle(
+            new SubmitTriviaAnswerCommand(Guid.NewGuid(), teamId, stageId, correctOptionId),
+            default);
+
+        result.IsSuccess.Should().BeTrue();
+        captured.Should().NotBeNull();
+        captured!.ActorName.Should().Be("Equipo Alfa");
+        captured.CommandType.Should().Be(nameof(SubmitTriviaAnswerCommand));
+        captured.Outcome.Should().Be(SessionEvent.OutcomeSuccess);
+    }
+
+    [Fact]
+    public async Task Handle_IncorrectAnswer_WritesAuditEventWithOutcomeFailure()
+    {
+        var session = CreateSessionWithStatus(SessionStatus.InProgress);
+        var stageId = Guid.NewGuid();
+        var wrongOptionId = Guid.NewGuid();
+        var teamId = Guid.NewGuid();
+
+        var wrongOption = new TriviaOptionInfo(wrongOptionId, "Wrong", false);
+        var stageInfo = new StageWithOptionsInfo(stageId, "Stage 1", "Trivia", 1, 50, "Q?",
+            new[] { wrongOption });
+
+        _sessionRepoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                        .ReturnsAsync(session);
+        _stageClientMock.Setup(s => s.GetStageWithOptionsAsync(stageId, It.IsAny<CancellationToken>()))
+                        .ReturnsAsync(stageInfo);
+        _stageClientMock.Setup(s => s.GetStagesByMissionAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                        .ReturnsAsync(new[] { new StageInfo(stageId, 1) });
+        _teamClientMock.Setup(t => t.AnswerTriviaAsync(teamId, false, 50, It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                       .ReturnsAsync(new StageTransitionResult(NewScore: 0, ElapsedSeconds: 12));
+        _teamClientMock.Setup(t => t.GetTeamByIdAsync(teamId, It.IsAny<CancellationToken>()))
+                       .ReturnsAsync(new TeamInfoItem(teamId, "Beta", 1));
+
+        SessionEvent? captured = null;
+        _eventRepoMock
+            .Setup(r => r.AddAsync(It.IsAny<SessionEvent>(), It.IsAny<CancellationToken>()))
+            .Callback<SessionEvent, CancellationToken>((e, _) => captured = e);
+
+        var result = await _handler.Handle(
+            new SubmitTriviaAnswerCommand(Guid.NewGuid(), teamId, stageId, wrongOptionId),
+            default);
+
+        result.IsSuccess.Should().BeTrue();
+        captured.Should().NotBeNull();
+        captured!.Outcome.Should().Be(SessionEvent.OutcomeFailure);
+        captured.ActorName.Should().Be("Equipo Beta");
     }
 
     // ── Helper ────────────────────────────────────────────────────────────────

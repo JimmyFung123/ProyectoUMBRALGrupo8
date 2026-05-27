@@ -6,4 +6,5 @@ using SessionService.Domain.Common;
 public record CreateSessionCommand(
     Guid MissionId,
     string Name,
-    DateTime? ScheduledAt) : IRequest<Result<Guid>>;
+    DateTime? ScheduledAt,
+    string? OperatorName = null) : IRequest<Result<Guid>>;

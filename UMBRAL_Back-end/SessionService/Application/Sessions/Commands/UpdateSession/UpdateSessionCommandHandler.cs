@@ -7,10 +7,14 @@ using SessionService.Domain.Sessions;
 public class UpdateSessionCommandHandler : IRequestHandler<UpdateSessionCommand, Result<bool>>
 {
     private readonly ISessionRepository _sessionRepository;
+    private readonly ISessionEventRepository _eventRepository;
 
-    public UpdateSessionCommandHandler(ISessionRepository sessionRepository)
+    public UpdateSessionCommandHandler(
+        ISessionRepository sessionRepository,
+        ISessionEventRepository eventRepository)
     {
         _sessionRepository = sessionRepository;
+        _eventRepository = eventRepository;
     }
 
     public async Task<Result<bool>> Handle(UpdateSessionCommand request, CancellationToken cancellationToken)
@@ -29,6 +33,17 @@ public class UpdateSessionCommandHandler : IRequestHandler<UpdateSessionCommand,
             return updateResult;
 
         await _sessionRepository.SaveChangesAsync(cancellationToken);
+
+        // HU-26: command audit log entry.
+        var auditEvent = SessionEvent.Create(
+            request.SessionId,
+            $"Se editaron los datos de la sesión (nombre: '{session.Name}').",
+            actorName: request.OperatorName,
+            commandType: nameof(UpdateSessionCommand),
+            outcome: SessionEvent.OutcomeSuccess);
+        await _eventRepository.AddAsync(auditEvent, cancellationToken);
+        await _eventRepository.SaveChangesAsync(cancellationToken);
+
         return Result.Success(true);
     }
 }

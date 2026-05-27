@@ -88,13 +88,17 @@ public class ClueAutoReleaseService
                 "Auto-released clue {ClueNumber}/{Total} to team {TeamId} in session {SessionId}",
                 clueNumber, clues.Count, team.Id, session.Id);
 
-            // HU-14 criterion 2 + HU-22: record on the audit timeline as "Sistema".
+            // HU-14 criterion 2 + HU-22 / HU-26: record on the audit timeline as "Sistema".
             // SessionEvent.Create defaults actorName to "Sistema" when omitted.
             var auditMessage = nextClue.Content is not null
                 ? $"Pista #{clueNumber} liberada automáticamente al equipo '{team.Name}': \"{nextClue.Content}\"."
                 : $"Pista #{clueNumber} liberada automáticamente al equipo '{team.Name}': zona geográfica (radio {nextClue.RadiusMeters ?? 0}m).";
             await _eventRepository.AddAsync(
-                SessionEvent.Create(session.Id, auditMessage),
+                SessionEvent.Create(
+                    session.Id,
+                    auditMessage,
+                    commandType: "AutoReleaseClue",
+                    outcome: SessionEvent.OutcomeSuccess),
                 ct);
             await _eventRepository.SaveChangesAsync(ct);
 

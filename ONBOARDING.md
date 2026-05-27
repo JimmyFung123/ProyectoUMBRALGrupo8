@@ -369,6 +369,7 @@ hubMock.Setup(h => h.Clients).Returns(clientsMock.Object);
 | HU-21 | Consultar ranking de la sesión (lectura optimizada + SignalR) | SessionService, TeamService, Front Operador, Front Participante |
 | HU-22 | Consultar historial de auditoría de sesión | SessionService, Front Operador |
 | HU-23 | Gestión integral de personal operativo (KeyCloak) | Infra (Docker), UMBRAL.Auth, UserService (5096), Front Operador |
+| HU-26 | Auditoría y trazabilidad de acciones (log técnico de comandos CQRS + CSV) | SessionService (interceptor de inmutabilidad + endpoint `/audit-log`), Front Operador (pantalla `SessionCommandAuditScreen`) |
 
 ---
 

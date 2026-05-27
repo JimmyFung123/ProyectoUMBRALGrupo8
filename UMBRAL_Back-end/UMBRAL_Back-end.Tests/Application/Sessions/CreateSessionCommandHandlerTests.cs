@@ -11,13 +11,15 @@ public class CreateSessionCommandHandlerTests
 {
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
     private readonly Mock<IMissionLookupRepository> _missionLookupMock = new();
+    private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
     private readonly CreateSessionCommandHandler _handler;
 
     public CreateSessionCommandHandlerTests()
     {
         _handler = new CreateSessionCommandHandler(
             _sessionRepoMock.Object,
-            _missionLookupMock.Object);
+            _missionLookupMock.Object,
+            _eventRepoMock.Object);
     }
 
     [Fact]
@@ -85,6 +87,37 @@ public class CreateSessionCommandHandlerTests
         result.Value.Should().NotBe(Guid.Empty);
         _sessionRepoMock.Verify(r => r.AddAsync(It.IsAny<Session>(), It.IsAny<CancellationToken>()), Times.Once);
         _sessionRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_WhenValid_WritesAuditEventWithCommandTypeAndOperator()
+    {
+        // HU-26: the very first row of a session's audit log must capture the
+        // creation event with the technical command type and the operator that
+        // triggered it.
+        var missionId = Guid.NewGuid();
+        var activeMission = MissionLookup.Create(missionId, "Misión activa", "Active");
+
+        _missionLookupMock
+            .Setup(r => r.GetByIdAsync(missionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(activeMission);
+
+        SessionEvent? captured = null;
+        _eventRepoMock
+            .Setup(r => r.AddAsync(It.IsAny<SessionEvent>(), It.IsAny<CancellationToken>()))
+            .Callback<SessionEvent, CancellationToken>((e, _) => captured = e);
+
+        var result = await _handler.Handle(
+            new CreateSessionCommand(missionId, "Ronda 1", null, "Prof. Ortega"),
+            default);
+
+        result.IsSuccess.Should().BeTrue();
+        captured.Should().NotBeNull();
+        captured!.ActorName.Should().Be("Prof. Ortega");
+        captured.CommandType.Should().Be(nameof(CreateSessionCommand));
+        captured.Outcome.Should().Be(SessionEvent.OutcomeSuccess);
+        captured.Description.Should().Contain("Ronda 1");
+        _eventRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

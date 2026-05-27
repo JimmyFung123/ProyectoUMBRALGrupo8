@@ -17,6 +17,8 @@ import { TeamProgressPanel } from './TeamProgressPanel';
 interface Props {
   sessionId: string;
   onBack: () => void;
+  /** HU-26 — navega a la pantalla de auditoría técnica completa. */
+  onOpenCommandAudit?: () => void;
 }
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
@@ -106,7 +108,7 @@ function EventRow({ event }: { event: SessionEventDto }) {
 
 // ── SessionDashboard ──────────────────────────────────────────────────────────
 
-export function SessionDashboard({ sessionId, onBack }: Props) {
+export function SessionDashboard({ sessionId, onBack, onOpenCommandAudit }: Props) {
   const [data, setData] = useState<SessionDashboardData | null>(null);
   const [teams, setTeams] = useState<TeamProgressDto[]>([]);
   const [stages, setStages] = useState<Stage[]>([]);
@@ -301,9 +303,29 @@ export function SessionDashboard({ sessionId, onBack }: Props) {
 
       {/* ── Historial completo de auditoría (HU-22) ──────────────── */}
       <section style={{ border: '1px solid #ddd', borderRadius: 8, padding: '1rem' }}>
-        <h2 style={{ margin: '0 0 0.75rem', fontSize: '1rem', color: '#444' }}>
-          📜 Historial de auditoría
-        </h2>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem' }}>
+          <h2 style={{ margin: 0, fontSize: '1rem', color: '#444' }}>
+            📜 Historial de auditoría
+          </h2>
+          {onOpenCommandAudit && (
+            <button
+              onClick={onOpenCommandAudit}
+              style={{
+                cursor: 'pointer',
+                padding: '0.4rem 0.85rem',
+                border: '1px solid #4338ca',
+                borderRadius: 4,
+                background: '#fff',
+                color: '#4338ca',
+                fontWeight: 600,
+                fontSize: '0.82rem',
+              }}
+              title="Abre la vista técnica con comandos CQRS, timestamps con milisegundos y exportación CSV (HU-26)"
+            >
+              🔍 Auditoría completa (HU-26)
+            </button>
+          )}
+        </div>
         <p style={{ margin: '0 0 0.75rem', fontSize: '0.82rem', color: '#777' }}>
           Línea de tiempo completa con quién, qué y cuándo. Útil para revisar
           reclamos o auditar la operación.
