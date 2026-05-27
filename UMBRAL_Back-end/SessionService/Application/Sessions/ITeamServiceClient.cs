@@ -22,14 +22,20 @@ public interface ITeamServiceClient
     /// <summary>Applies a penalty to a team, subtracting the given points. Returns the new score, or int.MinValue on error.</summary>
     Task<int> PenalizeTeamAsync(Guid teamId, int points, string reason, CancellationToken cancellationToken);
 
-    /// <summary>Forces a team to advance to the given next stage, earning 0 points.</summary>
-    Task<bool> ForceAdvanceTeamAsync(Guid teamId, int nextStageOrder, CancellationToken cancellationToken);
+    /// <summary>
+    /// Forces a team to advance to the given next stage, earning 0 points.
+    /// Returns <c>null</c> on error. Otherwise carries the seconds the team
+    /// spent on the skipped stage — used by HU-25 to record the analytics row.
+    /// </summary>
+    Task<StageTransitionResult?> ForceAdvanceTeamAsync(Guid teamId, int nextStageOrder, CancellationToken cancellationToken);
 
     /// <summary>
     /// Records a trivia answer: adjusts the team's score and advances to nextStageOrder.
-    /// Returns the new score, or int.MinValue on error.
+    /// Returns <c>null</c> on error. Otherwise carries the new score AND the
+    /// seconds elapsed since the team entered the stage just answered — the
+    /// timing data feeds the HU-25 analytics dashboard.
     /// </summary>
-    Task<int> AnswerTriviaAsync(Guid teamId, bool isCorrect, int scoreChange, int nextStageOrder, CancellationToken cancellationToken);
+    Task<StageTransitionResult?> AnswerTriviaAsync(Guid teamId, bool isCorrect, int scoreChange, int nextStageOrder, CancellationToken cancellationToken);
 
     /// <summary>Returns basic info for a single team by ID.</summary>
     Task<TeamInfoItem?> GetTeamByIdAsync(Guid teamId, CancellationToken cancellationToken);
@@ -68,3 +74,11 @@ public record TeamInfoItem(
     Guid Id,
     string Name,
     int CurrentStageOrder);
+
+/// <summary>
+/// Outcome of a TeamService stage-advance call (HU-25). The score field
+/// carries the post-mutation score; <c>ElapsedSeconds</c> is the time the
+/// team spent on the stage being abandoned — required by SessionService to
+/// write the analytics fact row.
+/// </summary>
+public record StageTransitionResult(int NewScore, int ElapsedSeconds);

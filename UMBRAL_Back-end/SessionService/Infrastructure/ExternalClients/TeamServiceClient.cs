@@ -103,31 +103,38 @@ public class TeamServiceClient : ITeamServiceClient
         catch { return int.MinValue; }
     }
 
-    public async Task<bool> ForceAdvanceTeamAsync(Guid teamId, int nextStageOrder, CancellationToken cancellationToken)
+    public async Task<StageTransitionResult?> ForceAdvanceTeamAsync(Guid teamId, int nextStageOrder, CancellationToken cancellationToken)
     {
         try
         {
             var payload = JsonSerializer.Serialize(new { nextStageOrder });
             var content = new StringContent(payload, System.Text.Encoding.UTF8, "application/json");
             var response = await _http.PostAsync($"api/teams/{teamId}/force-advance", content, cancellationToken);
-            return response.IsSuccessStatusCode;
+            if (!response.IsSuccessStatusCode) return null;
+            var json = await response.Content.ReadAsStringAsync(cancellationToken);
+            using var doc = JsonDocument.Parse(json);
+            return new StageTransitionResult(
+                NewScore: doc.RootElement.GetProperty("newScore").GetInt32(),
+                ElapsedSeconds: doc.RootElement.GetProperty("elapsedSeconds").GetInt32());
         }
-        catch { return false; }
+        catch { return null; }
     }
 
-    public async Task<int> AnswerTriviaAsync(Guid teamId, bool isCorrect, int scoreChange, int nextStageOrder, CancellationToken cancellationToken)
+    public async Task<StageTransitionResult?> AnswerTriviaAsync(Guid teamId, bool isCorrect, int scoreChange, int nextStageOrder, CancellationToken cancellationToken)
     {
         try
         {
             var payload = JsonSerializer.Serialize(new { isCorrect, scoreChange, nextStageOrder });
             var content = new StringContent(payload, System.Text.Encoding.UTF8, "application/json");
             var response = await _http.PostAsync($"api/teams/{teamId}/answer-trivia", content, cancellationToken);
-            if (!response.IsSuccessStatusCode) return int.MinValue;
+            if (!response.IsSuccessStatusCode) return null;
             var json = await response.Content.ReadAsStringAsync(cancellationToken);
             using var doc = JsonDocument.Parse(json);
-            return doc.RootElement.GetProperty("newScore").GetInt32();
+            return new StageTransitionResult(
+                NewScore: doc.RootElement.GetProperty("newScore").GetInt32(),
+                ElapsedSeconds: doc.RootElement.GetProperty("elapsedSeconds").GetInt32());
         }
-        catch { return int.MinValue; }
+        catch { return null; }
     }
 
     public async Task<TeamInfoItem?> GetTeamByIdAsync(Guid teamId, CancellationToken cancellationToken)

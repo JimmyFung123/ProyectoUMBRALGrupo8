@@ -5,7 +5,7 @@ using TeamService.Application.Rankings;
 using TeamService.Domain.Common;
 using TeamService.Domain.Teams;
 
-public class AnswerTriviaCommandHandler : IRequestHandler<AnswerTriviaCommand, Result<int>>
+public class AnswerTriviaCommandHandler : IRequestHandler<AnswerTriviaCommand, Result<StageTransitionOutcome>>
 {
     private readonly ITeamRepository _repo;
     private readonly IRankingProjector _rankingProjector;
@@ -16,11 +16,11 @@ public class AnswerTriviaCommandHandler : IRequestHandler<AnswerTriviaCommand, R
         _rankingProjector = rankingProjector;
     }
 
-    public async Task<Result<int>> Handle(AnswerTriviaCommand request, CancellationToken cancellationToken)
+    public async Task<Result<StageTransitionOutcome>> Handle(AnswerTriviaCommand request, CancellationToken cancellationToken)
     {
         var team = await _repo.GetByIdAsync(request.TeamId, cancellationToken);
         if (team is null)
-            return Result.Failure<int>(TeamErrors.NotFound);
+            return Result.Failure<StageTransitionOutcome>(TeamErrors.NotFound);
 
         var result = team.AnswerTrivia(request.IsCorrect, request.ScoreChange, request.NextStageOrder);
 

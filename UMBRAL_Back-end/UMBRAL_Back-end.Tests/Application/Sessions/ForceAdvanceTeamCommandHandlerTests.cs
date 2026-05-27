@@ -6,6 +6,7 @@ using Moq;
 using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Commands.ForceAdvanceTeam;
 using SessionService.Domain.Sessions;
+using SessionService.Domain.Statistics;
 using SessionService.Infrastructure.Hubs;
 using Xunit;
 
@@ -15,6 +16,7 @@ public class ForceAdvanceTeamCommandHandlerTests
     private readonly Mock<ITeamServiceClient> _teamClientMock = new();
     private readonly Mock<IStageServiceClient> _stageClientMock = new();
     private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
+    private readonly Mock<IStageCompletionRecordRepository> _statsRepoMock = new();
     private readonly Mock<IHubContext<SessionHub>> _hubMock = new();
     private readonly ForceAdvanceTeamCommandHandler _handler;
 
@@ -30,6 +32,7 @@ public class ForceAdvanceTeamCommandHandlerTests
             _teamClientMock.Object,
             _stageClientMock.Object,
             _eventRepoMock.Object,
+            _statsRepoMock.Object,
             _hubMock.Object);
     }
 
@@ -128,7 +131,7 @@ public class ForceAdvanceTeamCommandHandlerTests
         _stageClientMock.Setup(s => s.GetStagesByMissionAsync(session.MissionId, It.IsAny<CancellationToken>()))
                         .ReturnsAsync([new StageInfo(Guid.NewGuid(), 1), new StageInfo(Guid.NewGuid(), 2), new StageInfo(Guid.NewGuid(), 3)]);
         _teamClientMock.Setup(t => t.ForceAdvanceTeamAsync(teamId, 2, It.IsAny<CancellationToken>()))
-                       .ReturnsAsync(true);
+                       .ReturnsAsync(new StageTransitionResult(NewScore: 0, ElapsedSeconds: 120));
 
         var result = await _handler.Handle(new ForceAdvanceTeamCommand(session.Id, teamId), default);
 
@@ -137,5 +140,34 @@ public class ForceAdvanceTeamCommandHandlerTests
         _eventRepoMock.Verify(e => e.AddAsync(It.IsAny<SessionEvent>(), It.IsAny<CancellationToken>()), Times.Once);
         _eventRepoMock.Verify(e => e.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         _hubMock.Verify(h => h.Clients.Group(session.Id.ToString()), Times.Once);
+
+        // HU-25: a force-advance row must be persisted with WasCorrect=null
+        // and WasForceAdvance=true. The stage clock returned 120s.
+        _statsRepoMock.Verify(
+            r => r.AddAsync(
+                It.Is<StageCompletionRecord>(rec =>
+                    rec.WasForceAdvance == true
+                    && rec.WasCorrect == null
+                    && rec.ElapsedSeconds == 120
+                    && rec.StageOrder == 1), // the stage being abandoned
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    // ── Error paths: no analytics row is written ──────────────────────────────
+
+    [Fact]
+    public async Task Handle_WhenSessionNotInProgress_DoesNotRecordAnalyticsRow()
+    {
+        var session = CreateSessionWithStatus(SessionStatus.Paused);
+        _sessionRepoMock.Setup(r => r.GetByIdAsync(session.Id, It.IsAny<CancellationToken>()))
+                        .ReturnsAsync(session);
+
+        var result = await _handler.Handle(new ForceAdvanceTeamCommand(session.Id, Guid.NewGuid()), default);
+
+        result.IsFailure.Should().BeTrue();
+        _statsRepoMock.Verify(
+            r => r.AddAsync(It.IsAny<StageCompletionRecord>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 }

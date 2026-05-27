@@ -47,6 +47,13 @@ public class Team
     /// </summary>
     public DateTime? LastStageCompletedAt { get; private set; }
 
+    /// <summary>
+    /// When the team entered its <see cref="CurrentStageOrder"/>. Used by HU-25 to
+    /// compute per-stage elapsed time for the historical analytics dashboard.
+    /// Null while the team is in the waiting room (CurrentStageOrder = 0).
+    /// </summary>
+    public DateTime? CurrentStageStartedAt { get; private set; }
+
     private Team() { }
 
     public static Team Create(Guid sessionId, string name)
@@ -86,7 +93,9 @@ public class Team
     {
         if (stageOrder != CurrentStageOrder)
         {
-            ClueTimerResetAt = DateTime.UtcNow;
+            var now = DateTime.UtcNow;
+            ClueTimerResetAt = now;
+            CurrentStageStartedAt = now;
             LastClueWasAutomatic = false;
             CluesReceivedCurrentStage = 0;
         }
@@ -117,33 +126,57 @@ public class Team
     /// Forces the team to advance to the specified next stage.
     /// Score is NOT modified (team earns 0 points for the skipped stage).
     /// Resets clue tracking for the new stage.
+    /// Returns the seconds the team spent on the stage being abandoned — used by
+    /// HU-25 to record the analytics fact row. Zero if the team never started a stage.
     /// </summary>
-    public Result<bool> ForceAdvance(int nextStageOrder)
+    public Result<StageTransitionOutcome> ForceAdvance(int nextStageOrder)
     {
         if (nextStageOrder <= CurrentStageOrder)
-            return Result.Failure<bool>(TeamErrors.InvalidNextStage);
+            return Result.Failure<StageTransitionOutcome>(TeamErrors.InvalidNextStage);
+
+        var now = DateTime.UtcNow;
+        var elapsedSeconds = ComputeStageElapsedSeconds(now);
 
         CurrentStageOrder = nextStageOrder;
         CluesReceivedCurrentStage = 0;
-        ClueTimerResetAt = DateTime.UtcNow;
+        ClueTimerResetAt = now;
+        CurrentStageStartedAt = now;
         LastClueWasAutomatic = false;
-        return Result.Success(true);
+        return Result.Success(new StageTransitionOutcome(Score, elapsedSeconds));
     }
 
     /// <summary>
     /// Updates the team's score and advances to the next stage after answering a trivia question.
     /// Score increases on correct answer, decreases on incorrect. Resets clue tracking.
+    /// Returns the seconds the team spent on the stage being abandoned — used by
+    /// HU-25 to record the analytics fact row.
     /// </summary>
-    public Result<int> AnswerTrivia(bool isCorrect, int scoreChange, int nextStageOrder)
+    public Result<StageTransitionOutcome> AnswerTrivia(bool isCorrect, int scoreChange, int nextStageOrder)
     {
+        var now = DateTime.UtcNow;
+        var elapsedSeconds = ComputeStageElapsedSeconds(now);
+
         Score += isCorrect ? scoreChange : -scoreChange;
         CurrentStageOrder = nextStageOrder;
         CluesReceivedCurrentStage = 0;
-        ClueTimerResetAt = DateTime.UtcNow;
+        ClueTimerResetAt = now;
+        CurrentStageStartedAt = now;
         LastClueWasAutomatic = false;
         if (isCorrect)
-            LastStageCompletedAt = DateTime.UtcNow;
-        return Result.Success(Score);
+            LastStageCompletedAt = now;
+        return Result.Success(new StageTransitionOutcome(Score, elapsedSeconds));
+    }
+
+    /// <summary>
+    /// Seconds the team spent on its current stage before transitioning. Returns 0
+    /// when the team had no recorded stage start time (e.g. waiting room, or pre-HU-25
+    /// rows whose nullable column was never populated).
+    /// </summary>
+    private int ComputeStageElapsedSeconds(DateTime now)
+    {
+        if (!CurrentStageStartedAt.HasValue) return 0;
+        var diff = now - CurrentStageStartedAt.Value;
+        return diff.TotalSeconds <= 0 ? 0 : (int)Math.Round(diff.TotalSeconds);
     }
 
     /// <summary>

@@ -2,9 +2,10 @@ namespace TeamService.Application.Teams.Commands.AnswerTrivia;
 
 using MediatR;
 using TeamService.Domain.Common;
+using TeamService.Domain.Teams;
 
 public record AnswerTriviaCommand(
     Guid TeamId,
     bool IsCorrect,
     int ScoreChange,
-    int NextStageOrder) : IRequest<Result<int>>;
+    int NextStageOrder) : IRequest<Result<StageTransitionOutcome>>;

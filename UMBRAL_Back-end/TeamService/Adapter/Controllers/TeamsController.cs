@@ -120,6 +120,8 @@ public class TeamsController : ControllerBase
 
     /// <summary>
     /// Forces a team to advance to the specified next stage, earning 0 points for the skipped stage.
+    /// HU-25: response carries <c>elapsedSeconds</c> so SessionService can record the
+    /// analytics fact row.
     /// </summary>
     [HttpPost("{id:guid}/force-advance")]
     public async Task<IActionResult> ForceAdvance(
@@ -134,12 +136,18 @@ public class TeamsController : ControllerBase
                 ? NotFound(result.Error)
                 : BadRequest(result.Error);
         }
-        return Ok(result.Value);
+        return Ok(new
+        {
+            newScore = result.Value.NewScore,
+            elapsedSeconds = result.Value.ElapsedSeconds,
+        });
     }
 
     /// <summary>
     /// Records a trivia answer for a team: adjusts score and advances to the next stage.
     /// Called by SessionService only — never called directly by participants.
+    /// HU-25: response carries <c>elapsedSeconds</c> so SessionService can record
+    /// the analytics fact row for the stage just completed.
     /// </summary>
     [HttpPost("{id:guid}/answer-trivia")]
     public async Task<IActionResult> AnswerTrivia(
@@ -158,7 +166,11 @@ public class TeamsController : ControllerBase
                 : BadRequest(result.Error);
         }
 
-        return Ok(new { newScore = result.Value });
+        return Ok(new
+        {
+            newScore = result.Value.NewScore,
+            elapsedSeconds = result.Value.ElapsedSeconds,
+        });
     }
 }
 

@@ -5,7 +5,7 @@ using TeamService.Application.Rankings;
 using TeamService.Domain.Common;
 using TeamService.Domain.Teams;
 
-public class ForceAdvanceTeamCommandHandler : IRequestHandler<ForceAdvanceTeamCommand, Result<bool>>
+public class ForceAdvanceTeamCommandHandler : IRequestHandler<ForceAdvanceTeamCommand, Result<StageTransitionOutcome>>
 {
     private readonly ITeamRepository _repo;
     private readonly IRankingProjector _rankingProjector;
@@ -16,10 +16,10 @@ public class ForceAdvanceTeamCommandHandler : IRequestHandler<ForceAdvanceTeamCo
         _rankingProjector = rankingProjector;
     }
 
-    public async Task<Result<bool>> Handle(ForceAdvanceTeamCommand request, CancellationToken cancellationToken)
+    public async Task<Result<StageTransitionOutcome>> Handle(ForceAdvanceTeamCommand request, CancellationToken cancellationToken)
     {
         var team = await _repo.GetByIdAsync(request.TeamId, cancellationToken);
-        if (team is null) return Result.Failure<bool>(TeamErrors.NotFound);
+        if (team is null) return Result.Failure<StageTransitionOutcome>(TeamErrors.NotFound);
 
         var result = team.ForceAdvance(request.NextStageOrder);
         if (result.IsFailure) return result;
@@ -28,6 +28,6 @@ public class ForceAdvanceTeamCommandHandler : IRequestHandler<ForceAdvanceTeamCo
         await _rankingProjector.RebuildAsync(team.SessionId, cancellationToken);
 
         await _repo.SaveChangesAsync(cancellationToken);
-        return Result.Success(true);
+        return result;
     }
 }

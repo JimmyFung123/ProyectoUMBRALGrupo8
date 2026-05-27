@@ -1,8 +1,10 @@
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using SessionService.Application.Sessions;
+using SessionService.Application.Statistics;
 using SessionService.Domain.MissionLookup;
 using SessionService.Domain.Sessions;
+using SessionService.Domain.Statistics;
 using SessionService.Infrastructure.BackgroundServices;
 using SessionService.Infrastructure.ExternalClients;
 using SessionService.Infrastructure.Hubs;
@@ -31,6 +33,13 @@ builder.Services.AddMediatR(cfg =>
 builder.Services.AddScoped<ISessionRepository, SessionRepository>();
 builder.Services.AddScoped<ISessionEventRepository, SessionEventRepository>();
 builder.Services.AddScoped<IMissionLookupRepository, MissionLookupRepository>();
+
+// ── HU-25: analytics fact table + dashboard read model ──────────────────────
+// Write side is hit by gameplay handlers (one INSERT per stage transition).
+// Read side is hit only by the admin dashboard query and never blocks the
+// write path (separate index, AsNoTracking, no JOINs against Sessions/Teams).
+builder.Services.AddScoped<IStageCompletionRecordRepository, StageCompletionRecordRepository>();
+builder.Services.AddScoped<IStatisticsReadRepository, StatisticsReadRepository>();
 
 // ── MassTransit + RabbitMQ (consumer side) ───────────────────────────────────
 builder.Services.AddMassTransit(x =>
@@ -73,7 +82,16 @@ builder.Services.AddScoped<ClueAutoReleaseService>();
 builder.Services.AddHostedService<ClueAutoReleaseWorker>();
 
 // ── SignalR ───────────────────────────────────────────────────────────────────
-builder.Services.AddSignalR();
+// Tighter ping schedule than the default (15 s keep-alive / 30 s client timeout)
+// so the participant front shows the "Reconectando…" badge within ~6 s of a
+// network drop instead of feeling frozen for half a minute. The 3 s / 6 s ratio
+// is the smallest pair SignalR recommends (timeout >= 2 * keep-alive) that
+// still tolerates WiFi/4G jitter spikes without triggering false reconnects.
+builder.Services.AddSignalR(options =>
+{
+    options.KeepAliveInterval = TimeSpan.FromSeconds(3);
+    options.ClientTimeoutInterval = TimeSpan.FromSeconds(6);
+});
 
 // ── Keycloak JWT auth (HU-23) ─────────────────────────────────────────────────
 // Optional: endpoints stay public unless decorated with [Authorize]. When a

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.SignalR;
 using Moq;
 using SessionService.Application.Sessions.Commands.FinalizeSession;
 using SessionService.Domain.Sessions;
+using SessionService.Domain.Statistics;
 using SessionService.Infrastructure.Hubs;
 using Xunit;
 
@@ -12,6 +13,7 @@ public class FinalizeSessionCommandHandlerTests
 {
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
     private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
+    private readonly Mock<IStageCompletionRecordRepository> _statsRepoMock = new();
     private readonly Mock<IHubContext<SessionHub>> _hubMock = new();
     private readonly FinalizeSessionCommandHandler _handler;
 
@@ -25,6 +27,7 @@ public class FinalizeSessionCommandHandlerTests
         _handler = new FinalizeSessionCommandHandler(
             _sessionRepoMock.Object,
             _eventRepoMock.Object,
+            _statsRepoMock.Object,
             _hubMock.Object);
     }
 
@@ -65,6 +68,11 @@ public class FinalizeSessionCommandHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be(SessionErrors.CannotFinalizeSession);
         _sessionRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+
+        // HU-25: when finalize fails, the analytics rows MUST stay invisible.
+        _statsRepoMock.Verify(
+            r => r.MarkSessionIncludedAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     // ── Happy path: finalize from InProgress ──────────────────────────────────
@@ -85,6 +93,11 @@ public class FinalizeSessionCommandHandlerTests
         session.Status.Should().Be(SessionStatus.Completed);
         _sessionRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         _hubMock.Verify(h => h.Clients.Group(sessionId.ToString()), Times.Once);
+
+        // HU-25: every record of this session must be promoted to dashboard visibility.
+        _statsRepoMock.Verify(
+            r => r.MarkSessionIncludedAsync(sessionId, It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     // ── Happy path: finalize from Paused ──────────────────────────────────────

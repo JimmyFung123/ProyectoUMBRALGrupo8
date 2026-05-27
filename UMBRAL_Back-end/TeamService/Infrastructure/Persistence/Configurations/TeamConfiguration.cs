@@ -19,6 +19,7 @@ public class TeamConfiguration : IEntityTypeConfiguration<Team>
         builder.Property(t => t.ClueTimerResetAt).IsRequired(false);
         builder.Property(t => t.LastClueWasAutomatic).IsRequired();
         builder.Property(t => t.LastStageCompletedAt).IsRequired(false);
+        builder.Property(t => t.CurrentStageStartedAt).IsRequired(false);
         builder.HasIndex(t => t.SessionId);
         builder.Property(t => t.InviteCode).IsRequired().HasMaxLength(10);
         builder.Property(t => t.MemberCount).IsRequired();

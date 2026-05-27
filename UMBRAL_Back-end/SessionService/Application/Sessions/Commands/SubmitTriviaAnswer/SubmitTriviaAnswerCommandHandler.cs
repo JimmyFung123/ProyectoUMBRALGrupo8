@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.SignalR;
 using SessionService.Application.Sessions;
 using SessionService.Domain.Common;
 using SessionService.Domain.Sessions;
+using SessionService.Domain.Statistics;
 using SessionService.Infrastructure.Hubs;
 
 public class SubmitTriviaAnswerCommandHandler : IRequestHandler<SubmitTriviaAnswerCommand, Result<TriviaAnswerResultDto>>
@@ -12,17 +13,20 @@ public class SubmitTriviaAnswerCommandHandler : IRequestHandler<SubmitTriviaAnsw
     private readonly ISessionRepository _sessionRepository;
     private readonly ITeamServiceClient _teamClient;
     private readonly IStageServiceClient _stageClient;
+    private readonly IStageCompletionRecordRepository _statsRepository;
     private readonly IHubContext<SessionHub> _hub;
 
     public SubmitTriviaAnswerCommandHandler(
         ISessionRepository sessionRepository,
         ITeamServiceClient teamClient,
         IStageServiceClient stageClient,
+        IStageCompletionRecordRepository statsRepository,
         IHubContext<SessionHub> hub)
     {
         _sessionRepository = sessionRepository;
         _teamClient = teamClient;
         _stageClient = stageClient;
+        _statsRepository = statsRepository;
         _hub = hub;
     }
 
@@ -62,17 +66,30 @@ public class SubmitTriviaAnswerCommandHandler : IRequestHandler<SubmitTriviaAnsw
             : sortedStages[currentStageIndex + 1].Order;
 
         // 5. Record the answer in TeamService (updates score + advances stage)
-        var newScore = await _teamClient.AnswerTriviaAsync(
+        var outcome = await _teamClient.AnswerTriviaAsync(
             request.TeamId, isCorrect, stage.BaseScore, nextStageOrder, cancellationToken);
 
-        if (newScore == int.MinValue)
+        if (outcome is null)
             return Result.Failure<TriviaAnswerResultDto>(SessionErrors.CannotAnswerTrivia);
 
-        // 6. Broadcast dashboard refresh
+        // 6. HU-25: append the analytics fact row. IncludedInStatistics stays
+        // false until the session is finalized — admin dashboard ignores
+        // in-flight games.
+        var record = StageCompletionRecord.ForTriviaAnswer(
+            sessionId: request.SessionId,
+            missionId: session.MissionId,
+            teamId: request.TeamId,
+            stageOrder: stage.Order,
+            elapsedSeconds: outcome.ElapsedSeconds,
+            wasCorrect: isCorrect);
+        await _statsRepository.AddAsync(record, cancellationToken);
+        await _statsRepository.SaveChangesAsync(cancellationToken);
+
+        // 7. Broadcast dashboard refresh
         await _hub.Clients
             .Group(request.SessionId.ToString())
             .SendAsync("SessionStateChanged", cancellationToken);
 
-        return Result.Success(new TriviaAnswerResultDto(isCorrect, newScore, nextStageOrder, isLastStage));
+        return Result.Success(new TriviaAnswerResultDto(isCorrect, outcome.NewScore, nextStageOrder, isLastStage));
     }
 }

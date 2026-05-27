@@ -4,21 +4,25 @@ using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using SessionService.Domain.Common;
 using SessionService.Domain.Sessions;
+using SessionService.Domain.Statistics;
 using SessionService.Infrastructure.Hubs;
 
 public class FinalizeSessionCommandHandler : IRequestHandler<FinalizeSessionCommand, Result<bool>>
 {
     private readonly ISessionRepository _sessionRepository;
     private readonly ISessionEventRepository _eventRepository;
+    private readonly IStageCompletionRecordRepository _statsRepository;
     private readonly IHubContext<SessionHub> _hub;
 
     public FinalizeSessionCommandHandler(
         ISessionRepository sessionRepository,
         ISessionEventRepository eventRepository,
+        IStageCompletionRecordRepository statsRepository,
         IHubContext<SessionHub> hub)
     {
         _sessionRepository = sessionRepository;
         _eventRepository = eventRepository;
+        _statsRepository = statsRepository;
         _hub = hub;
     }
 
@@ -33,6 +37,11 @@ public class FinalizeSessionCommandHandler : IRequestHandler<FinalizeSessionComm
             return result;
 
         await _sessionRepository.SaveChangesAsync(cancellationToken);
+
+        // HU-25: promote every stage-completion record of this session so it
+        // shows up on the admin dashboard. Single SQL UPDATE — irrelevant
+        // load even for sessions with hundreds of stage transitions.
+        await _statsRepository.MarkSessionIncludedAsync(request.SessionId, cancellationToken);
 
         // HU-22: audit log (irreversible state — last entry on the timeline)
         var auditEvent = SessionEvent.Create(

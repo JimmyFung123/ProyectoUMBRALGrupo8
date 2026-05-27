@@ -3,6 +3,13 @@ import * as signalR from '@microsoft/signalr';
 const SIGNALR_URL =
   import.meta.env.VITE_SESSION_SIGNALR_URL ?? 'http://localhost:5092/hubs/session';
 
+// Match the SessionService AddSignalR() config (KeepAlive 3 s / ClientTimeout 6 s)
+// so disconnects surface in the UI within ~6 s, instead of waiting the 30 s
+// SignalR default. The 3 s / 6 s ratio is the smallest SignalR-safe pair
+// (timeout >= 2 * keep-alive) that still tolerates WiFi/4G jitter spikes.
+const SERVER_TIMEOUT_MS = 6_000;
+const KEEP_ALIVE_MS = 3_000;
+
 /**
  * Hub events the operator dashboard cares about. Any of them being received
  * counts as "something changed, please refresh".
@@ -56,6 +63,10 @@ export function connectToSessionHub({ sessionId, onRefresh, onStateChange }: Con
     .withAutomaticReconnect()
     .configureLogging(signalR.LogLevel.Warning)
     .build();
+
+  // Aggressive ping schedule — see SERVER_TIMEOUT_MS comment above.
+  connection.serverTimeoutInMilliseconds = SERVER_TIMEOUT_MS;
+  connection.keepAliveIntervalInMilliseconds = KEEP_ALIVE_MS;
 
   for (const event of REFRESH_EVENTS) {
     connection.on(event, () => onRefresh());

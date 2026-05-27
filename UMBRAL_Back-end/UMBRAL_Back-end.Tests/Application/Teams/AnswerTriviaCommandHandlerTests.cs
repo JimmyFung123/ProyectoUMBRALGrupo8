@@ -44,7 +44,7 @@ public class AnswerTriviaCommandHandlerTests
             new AnswerTriviaCommand(team.Id, IsCorrect: true, ScoreChange: 50, NextStageOrder: 2), default);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Should().Be(150);
+        result.Value.NewScore.Should().Be(150);
         team.Score.Should().Be(150);
         _repoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
 
@@ -67,7 +67,7 @@ public class AnswerTriviaCommandHandlerTests
             new AnswerTriviaCommand(team.Id, IsCorrect: false, ScoreChange: 50, NextStageOrder: 2), default);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Should().Be(50);
+        result.Value.NewScore.Should().Be(50);
         team.Score.Should().Be(50);
         _repoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
 

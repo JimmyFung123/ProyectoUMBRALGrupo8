@@ -4,12 +4,14 @@ import { MissionList } from './components/Missions/MissionList'
 import { OperatorIdentityBar } from './components/OperatorIdentityBar'
 import { SessionDashboard } from './components/Sessions/SessionDashboard'
 import { SessionList } from './components/Sessions/SessionList'
+import { StatisticsDashboard } from './components/Statistics/StatisticsDashboard'
 import { UsersList } from './components/Users/UsersList'
 
 const BASE_TABS = [
-  { key: 'missions', label: '🗺️ Misiones', adminOnly: false },
-  { key: 'sessions', label: '🎮 Sesiones', adminOnly: false },
-  { key: 'users',    label: '👥 Personal', adminOnly: true  }, // HU-23
+  { key: 'missions',   label: '🗺️ Misiones',     adminOnly: false },
+  { key: 'sessions',   label: '🎮 Sesiones',     adminOnly: false },
+  { key: 'statistics', label: '📊 Estadísticas', adminOnly: true  }, // HU-25
+  { key: 'users',      label: '👥 Personal',     adminOnly: true  }, // HU-23
 ]
 
 function App() {
@@ -72,6 +74,7 @@ function App() {
             <SessionList onViewDetail={setSelectedSessionId} />
           )
       )}
+      {activeTab === 'statistics' && isAdmin && <StatisticsDashboard />}
       {activeTab === 'users' && isAdmin && <UsersList />}
     </div>
   )

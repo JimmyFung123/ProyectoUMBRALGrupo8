@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.SignalR;
 using SessionService.Application.Sessions;
 using SessionService.Domain.Common;
 using SessionService.Domain.Sessions;
+using SessionService.Domain.Statistics;
 using SessionService.Infrastructure.Hubs;
 
 public class ForceAdvanceTeamCommandHandler : IRequestHandler<ForceAdvanceTeamCommand, Result<bool>>
@@ -13,6 +14,7 @@ public class ForceAdvanceTeamCommandHandler : IRequestHandler<ForceAdvanceTeamCo
     private readonly ITeamServiceClient _teamClient;
     private readonly IStageServiceClient _stageClient;
     private readonly ISessionEventRepository _eventRepository;
+    private readonly IStageCompletionRecordRepository _statsRepository;
     private readonly IHubContext<SessionHub> _hub;
 
     public ForceAdvanceTeamCommandHandler(
@@ -20,12 +22,14 @@ public class ForceAdvanceTeamCommandHandler : IRequestHandler<ForceAdvanceTeamCo
         ITeamServiceClient teamClient,
         IStageServiceClient stageClient,
         ISessionEventRepository eventRepository,
+        IStageCompletionRecordRepository statsRepository,
         IHubContext<SessionHub> hub)
     {
         _sessionRepository = sessionRepository;
         _teamClient = teamClient;
         _stageClient = stageClient;
         _eventRepository = eventRepository;
+        _statsRepository = statsRepository;
         _hub = hub;
     }
 
@@ -55,12 +59,28 @@ public class ForceAdvanceTeamCommandHandler : IRequestHandler<ForceAdvanceTeamCo
         if (nextOrder > maxOrder)
             return Result.Failure<bool>(SessionErrors.TeamAlreadyOnLastStage);
 
+        // Capture the type of the stage being skipped — needed for the analytics row.
+        var abandonedStage = stages.FirstOrDefault(s => s.Order == team.CurrentStageOrder);
+        var abandonedStageType = abandonedStage?.Type ?? "Trivia";
+
         // 4. Force the advance in TeamService
-        var advanced = await _teamClient.ForceAdvanceTeamAsync(request.TeamId, nextOrder, cancellationToken);
-        if (!advanced)
+        var outcome = await _teamClient.ForceAdvanceTeamAsync(request.TeamId, nextOrder, cancellationToken);
+        if (outcome is null)
             return Result.Failure<bool>(SessionErrors.CannotForceAdvance);
 
-        // 5. Audit log
+        // 5. HU-25: append the analytics fact row. WasCorrect is null because
+        // no answer was actually given — the operator overrode the flow.
+        var statsRecord = StageCompletionRecord.ForForceAdvance(
+            sessionId: request.SessionId,
+            missionId: session.MissionId,
+            teamId: request.TeamId,
+            stageOrder: team.CurrentStageOrder,
+            stageType: abandonedStageType,
+            elapsedSeconds: outcome.ElapsedSeconds);
+        await _statsRepository.AddAsync(statsRecord, cancellationToken);
+        await _statsRepository.SaveChangesAsync(cancellationToken);
+
+        // 6. Audit log
         var auditEvent = SessionEvent.Create(
             request.SessionId,
             $"El operador forzó el avance del equipo '{team.Name}' de la etapa {team.CurrentStageOrder} a la etapa {nextOrder}.",
@@ -68,7 +88,7 @@ public class ForceAdvanceTeamCommandHandler : IRequestHandler<ForceAdvanceTeamCo
         await _eventRepository.AddAsync(auditEvent, cancellationToken);
         await _eventRepository.SaveChangesAsync(cancellationToken);
 
-        // 6. Broadcast to refresh dashboard
+        // 7. Broadcast to refresh dashboard
         await _hub.Clients
             .Group(request.SessionId.ToString())
             .SendAsync("SessionStateChanged", cancellationToken);

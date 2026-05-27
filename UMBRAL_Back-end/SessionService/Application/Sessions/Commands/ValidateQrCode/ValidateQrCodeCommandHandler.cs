@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.SignalR;
 using SessionService.Application.Sessions;
 using SessionService.Domain.Common;
 using SessionService.Domain.Sessions;
+using SessionService.Domain.Statistics;
 using SessionService.Infrastructure.Hubs;
 
 public class ValidateQrCodeCommandHandler : IRequestHandler<ValidateQrCodeCommand, Result<QrValidationResultDto>>
@@ -13,6 +14,7 @@ public class ValidateQrCodeCommandHandler : IRequestHandler<ValidateQrCodeComman
     private readonly ITeamServiceClient _teamClient;
     private readonly IStageServiceClient _stageClient;
     private readonly ISessionEventRepository _eventRepository;
+    private readonly IStageCompletionRecordRepository _statsRepository;
     private readonly IHubContext<SessionHub> _hub;
 
     public ValidateQrCodeCommandHandler(
@@ -20,12 +22,14 @@ public class ValidateQrCodeCommandHandler : IRequestHandler<ValidateQrCodeComman
         ITeamServiceClient teamClient,
         IStageServiceClient stageClient,
         ISessionEventRepository eventRepository,
+        IStageCompletionRecordRepository statsRepository,
         IHubContext<SessionHub> hub)
     {
         _sessionRepository = sessionRepository;
         _teamClient = teamClient;
         _stageClient = stageClient;
         _eventRepository = eventRepository;
+        _statsRepository = statsRepository;
         _hub = hub;
     }
 
@@ -95,13 +99,24 @@ public class ValidateQrCodeCommandHandler : IRequestHandler<ValidateQrCodeComman
             : sortedStages[currentStageIndex + 1].Order;
 
         // 6. Record the success in TeamService (reuses AnswerTriviaAsync: adds points + advances stage)
-        var newScore = await _teamClient.AnswerTriviaAsync(
+        var outcome = await _teamClient.AnswerTriviaAsync(
             request.TeamId, isCorrect: true, stage.BaseScore, nextStageOrder, cancellationToken);
 
-        if (newScore == int.MinValue)
+        if (outcome is null)
             return Result.Failure<QrValidationResultDto>(SessionErrors.CannotValidateQr);
 
-        // 7. Audit successful scan
+        // 7. HU-25: append the analytics fact row for the treasure hunt stage.
+        var statsRecord = StageCompletionRecord.ForTreasureHuntScan(
+            sessionId: request.SessionId,
+            missionId: session.MissionId,
+            teamId: request.TeamId,
+            stageOrder: stage.Order,
+            elapsedSeconds: outcome.ElapsedSeconds,
+            wasCorrect: true);
+        await _statsRepository.AddAsync(statsRecord, cancellationToken);
+        await _statsRepository.SaveChangesAsync(cancellationToken);
+
+        // 8. Audit successful scan
         var teamInfo = await _teamClient.GetTeamByIdAsync(request.TeamId, cancellationToken);
         var teamName = teamInfo?.Name ?? "Equipo";
         var successEvent = SessionEvent.Create(
@@ -111,14 +126,14 @@ public class ValidateQrCodeCommandHandler : IRequestHandler<ValidateQrCodeComman
         await _eventRepository.AddAsync(successEvent, cancellationToken);
         await _eventRepository.SaveChangesAsync(cancellationToken);
 
-        // 8. Broadcast dashboard refresh
+        // 9. Broadcast dashboard refresh
         await _hub.Clients
             .Group(request.SessionId.ToString())
             .SendAsync("SessionStateChanged", cancellationToken);
 
         return Result.Success(new QrValidationResultDto(
             IsCorrect: true,
-            NewScore: newScore,
+            NewScore: outcome.NewScore,
             NextStageOrder: nextStageOrder,
             IsLastStage: isLastStage));
     }

@@ -6,6 +6,7 @@ using Moq;
 using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Commands.SubmitTriviaAnswer;
 using SessionService.Domain.Sessions;
+using SessionService.Domain.Statistics;
 using SessionService.Infrastructure.Hubs;
 using Xunit;
 
@@ -14,6 +15,7 @@ public class SubmitTriviaAnswerCommandHandlerTests
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
     private readonly Mock<ITeamServiceClient> _teamClientMock = new();
     private readonly Mock<IStageServiceClient> _stageClientMock = new();
+    private readonly Mock<IStageCompletionRecordRepository> _statsRepoMock = new();
     private readonly Mock<IHubContext<SessionHub>> _hubMock = new();
     private readonly SubmitTriviaAnswerCommandHandler _handler;
 
@@ -28,6 +30,7 @@ public class SubmitTriviaAnswerCommandHandlerTests
             _sessionRepoMock.Object,
             _teamClientMock.Object,
             _stageClientMock.Object,
+            _statsRepoMock.Object,
             _hubMock.Object);
     }
 
@@ -63,6 +66,11 @@ public class SubmitTriviaAnswerCommandHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be(SessionErrors.NotInProgress);
         _stageClientMock.Verify(s => s.GetStageWithOptionsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+
+        // HU-25: no record is appended when the trivia attempt is rejected.
+        _statsRepoMock.Verify(
+            r => r.AddAsync(It.IsAny<StageCompletionRecord>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     // ── Option not found in stage ─────────────────────────────────────────────
@@ -115,7 +123,7 @@ public class SubmitTriviaAnswerCommandHandlerTests
         _stageClientMock.Setup(s => s.GetStagesByMissionAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                         .ReturnsAsync(new[] { stage1Ref, stage2Ref });
         _teamClientMock.Setup(t => t.AnswerTriviaAsync(It.IsAny<Guid>(), true, 50, 2, It.IsAny<CancellationToken>()))
-                       .ReturnsAsync(150);
+                       .ReturnsAsync(new StageTransitionResult(NewScore: 150, ElapsedSeconds: 42));
 
         var result = await _handler.Handle(
             new SubmitTriviaAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), stageId, correctOptionId),
@@ -127,6 +135,18 @@ public class SubmitTriviaAnswerCommandHandlerTests
         _teamClientMock.Verify(t => t.AnswerTriviaAsync(
             It.IsAny<Guid>(), true, 50, 2, It.IsAny<CancellationToken>()), Times.Once);
         _hubMock.Verify(h => h.Clients.Group(It.IsAny<string>()), Times.Once);
+
+        // HU-25: a Trivia/WasCorrect=true record must be appended to the fact table.
+        _statsRepoMock.Verify(
+            r => r.AddAsync(
+                It.Is<StageCompletionRecord>(rec =>
+                    rec.StageType == "Trivia"
+                    && rec.WasCorrect == true
+                    && rec.WasForceAdvance == false
+                    && rec.ElapsedSeconds == 42
+                    && rec.IncludedInStatistics == false), // promoted on finalize
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     // ── Incorrect answer ──────────────────────────────────────────────────────
@@ -152,7 +172,7 @@ public class SubmitTriviaAnswerCommandHandlerTests
         _stageClientMock.Setup(s => s.GetStagesByMissionAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                         .ReturnsAsync(new[] { stage1Ref, stage2Ref });
         _teamClientMock.Setup(t => t.AnswerTriviaAsync(It.IsAny<Guid>(), false, 50, It.IsAny<int>(), It.IsAny<CancellationToken>()))
-                       .ReturnsAsync(50);
+                       .ReturnsAsync(new StageTransitionResult(NewScore: 50, ElapsedSeconds: 13));
 
         var result = await _handler.Handle(
             new SubmitTriviaAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), stageId, wrongOptionId),
@@ -162,6 +182,16 @@ public class SubmitTriviaAnswerCommandHandlerTests
         result.Value.IsCorrect.Should().BeFalse();
         _teamClientMock.Verify(t => t.AnswerTriviaAsync(
             It.IsAny<Guid>(), false, 50, It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Once);
+
+        // HU-25: an incorrect-answer record still gets recorded — it's the
+        // input for the effectiveness percentage.
+        _statsRepoMock.Verify(
+            r => r.AddAsync(
+                It.Is<StageCompletionRecord>(rec =>
+                    rec.StageType == "Trivia"
+                    && rec.WasCorrect == false),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     // ── Helper ────────────────────────────────────────────────────────────────

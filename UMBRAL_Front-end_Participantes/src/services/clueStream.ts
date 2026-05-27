@@ -13,6 +13,14 @@ import { getReleasedClues } from './sessionService';
 // to manual reconnection via the polling effect.
 const RECONNECT_DELAYS_MS = [0, 2_000, 4_000, 8_000, 16_000, 30_000];
 
+// Tighter timeouts than the SignalR default (30 s) so the "Reconectando…"
+// badge fires within ~6 s of a network drop. The server-side AddSignalR()
+// uses matching numbers (KeepAlive 3 s / ClientTimeout 6 s) so both sides
+// agree on what "dead" means. The 3 s / 6 s ratio tolerates WiFi/4G jitter
+// spikes without triggering false reconnects on weak networks.
+const SERVER_TIMEOUT_MS = 6_000;
+const KEEP_ALIVE_MS = 3_000;
+
 // Hub URL — defaults to the relative path so the Vite proxy / tunnel works.
 const HUB_URL = (import.meta.env.VITE_SESSION_HUB_URL as string | undefined) ?? '/hubs/session';
 
@@ -84,6 +92,12 @@ export function useClueStream({
       .withAutomaticReconnect(RECONNECT_DELAYS_MS)
       .configureLogging(LogLevel.Warning)
       .build();
+
+    // Apply the aggressive ping schedule. These are properties on the built
+    // connection object — the builder API has no fluent equivalent in the
+    // version of @microsoft/signalr we use.
+    connection.serverTimeoutInMilliseconds = SERVER_TIMEOUT_MS;
+    connection.keepAliveIntervalInMilliseconds = KEEP_ALIVE_MS;
 
     connectionRef.current = connection;
 

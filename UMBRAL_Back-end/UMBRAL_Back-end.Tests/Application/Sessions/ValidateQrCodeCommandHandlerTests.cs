@@ -6,6 +6,7 @@ using Moq;
 using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Commands.ValidateQrCode;
 using SessionService.Domain.Sessions;
+using SessionService.Domain.Statistics;
 using SessionService.Infrastructure.Hubs;
 using Xunit;
 
@@ -15,6 +16,7 @@ public class ValidateQrCodeCommandHandlerTests
     private readonly Mock<ITeamServiceClient> _teamClientMock = new();
     private readonly Mock<IStageServiceClient> _stageClientMock = new();
     private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
+    private readonly Mock<IStageCompletionRecordRepository> _statsRepoMock = new();
     private readonly Mock<IHubContext<SessionHub>> _hubMock = new();
     private readonly ValidateQrCodeCommandHandler _handler;
 
@@ -30,6 +32,7 @@ public class ValidateQrCodeCommandHandlerTests
             _teamClientMock.Object,
             _stageClientMock.Object,
             _eventRepoMock.Object,
+            _statsRepoMock.Object,
             _hubMock.Object);
     }
 
@@ -146,6 +149,11 @@ public class ValidateQrCodeCommandHandlerTests
         _eventRepoMock.Verify(
             r => r.AddAsync(It.IsAny<SessionEvent>(), It.IsAny<CancellationToken>()),
             Times.Once);
+
+        // HU-25: a wrong QR scan does NOT complete the stage — no analytics row.
+        _statsRepoMock.Verify(
+            r => r.AddAsync(It.IsAny<StageCompletionRecord>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     // ── Correct QR: advances team + adds points + broadcasts ──────────────────
@@ -170,7 +178,7 @@ public class ValidateQrCodeCommandHandlerTests
                             new StageInfo(Guid.NewGuid(), 2),
                         });
         _teamClientMock.Setup(t => t.AnswerTriviaAsync(teamId, true, 75, 2, It.IsAny<CancellationToken>()))
-                       .ReturnsAsync(175);
+                       .ReturnsAsync(new StageTransitionResult(NewScore: 175, ElapsedSeconds: 90));
         _teamClientMock.Setup(t => t.GetTeamByIdAsync(teamId, It.IsAny<CancellationToken>()))
                        .ReturnsAsync(new TeamInfoItem(teamId, "Alfa", CurrentStageOrder: 1));
 
@@ -190,6 +198,17 @@ public class ValidateQrCodeCommandHandlerTests
         _hubMock.Verify(h => h.Clients.Group(It.IsAny<string>()), Times.Once);
         _eventRepoMock.Verify(
             r => r.AddAsync(It.IsAny<SessionEvent>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+
+        // HU-25: a TreasureHunt/WasCorrect=true record must be appended.
+        _statsRepoMock.Verify(
+            r => r.AddAsync(
+                It.Is<StageCompletionRecord>(rec =>
+                    rec.StageType == "TreasureHunt"
+                    && rec.WasCorrect == true
+                    && rec.WasForceAdvance == false
+                    && rec.ElapsedSeconds == 90),
+                It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -216,7 +235,7 @@ public class ValidateQrCodeCommandHandlerTests
                             new StageInfo(stageId, 3),
                         });
         _teamClientMock.Setup(t => t.AnswerTriviaAsync(teamId, true, 100, 4, It.IsAny<CancellationToken>()))
-                       .ReturnsAsync(300);
+                       .ReturnsAsync(new StageTransitionResult(NewScore: 300, ElapsedSeconds: 200));
         _teamClientMock.Setup(t => t.GetTeamByIdAsync(teamId, It.IsAny<CancellationToken>()))
                        .ReturnsAsync(new TeamInfoItem(teamId, "Beta", CurrentStageOrder: 3));
 
@@ -247,7 +266,7 @@ public class ValidateQrCodeCommandHandlerTests
         _stageClientMock.Setup(s => s.GetStagesByMissionAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                         .ReturnsAsync(new[] { new StageInfo(stageId, 1) });
         _teamClientMock.Setup(t => t.AnswerTriviaAsync(teamId, true, 50, 2, It.IsAny<CancellationToken>()))
-                       .ReturnsAsync(50);
+                       .ReturnsAsync(new StageTransitionResult(NewScore: 50, ElapsedSeconds: 30));
         _teamClientMock.Setup(t => t.GetTeamByIdAsync(teamId, It.IsAny<CancellationToken>()))
                        .ReturnsAsync(new TeamInfoItem(teamId, "Alfa", CurrentStageOrder: 1));
 

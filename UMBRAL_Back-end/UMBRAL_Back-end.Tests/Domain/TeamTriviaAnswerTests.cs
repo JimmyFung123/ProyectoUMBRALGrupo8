@@ -15,7 +15,7 @@ public class TeamTriviaAnswerTests
         var result = team.AnswerTrivia(isCorrect: true, scoreChange: 50, nextStageOrder: 2);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Should().Be(150);
+        result.Value.NewScore.Should().Be(150);
         team.Score.Should().Be(150);
     }
 
@@ -28,7 +28,7 @@ public class TeamTriviaAnswerTests
         var result = team.AnswerTrivia(isCorrect: false, scoreChange: 50, nextStageOrder: 2);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Should().Be(50);
+        result.Value.NewScore.Should().Be(50);
         team.Score.Should().Be(50);
     }
 
@@ -41,7 +41,7 @@ public class TeamTriviaAnswerTests
         var result = team.AnswerTrivia(isCorrect: false, scoreChange: 50, nextStageOrder: 2);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Should().Be(-40);
+        result.Value.NewScore.Should().Be(-40);
         team.Score.Should().Be(-40);
     }
 
