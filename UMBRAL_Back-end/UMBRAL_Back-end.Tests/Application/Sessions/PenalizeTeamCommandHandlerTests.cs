@@ -102,7 +102,9 @@ public class PenalizeTeamCommandHandlerSessionTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be(80);
-        _hubMock.Verify(h => h.Clients.Group(cmd.SessionId.ToString()), Times.Once);
+        // HU-28: handler ahora emite dos eventos (SessionStateChanged para el
+        // dashboard del operador y TeamPenalized para los participantes).
+        _hubMock.Verify(h => h.Clients.Group(cmd.SessionId.ToString()), Times.Exactly(2));
     }
 
     // ── TeamService failure ────────────────────────────────────────────────────

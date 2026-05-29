@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from './auth/AuthProvider'
 import { MissionList } from './components/Missions/MissionList'
 import { OperatorIdentityBar } from './components/OperatorIdentityBar'
@@ -10,25 +10,45 @@ import { SyncHealthDashboard } from './components/SyncHealth/SyncHealthDashboard
 import { Tabs } from './components/ui'
 import { UsersList } from './components/Users/UsersList'
 
+// Separación funcional por rol (acordada con el equipo):
+// - Administrador: Misiones · Estadísticas · Sincronización · Personal.
+// - Operador: Sesiones únicamente.
+// Las pestañas se filtran con `adminOnly` / `operatorOnly`; si ambas son
+// false la pestaña queda visible para los dos roles (no se usa hoy, pero
+// dejamos la puerta abierta por si en el futuro hay vistas compartidas).
 const BASE_TABS = [
-  { key: 'missions',   label: 'Misiones',       icon: '🗺️', adminOnly: false },
-  { key: 'sessions',   label: 'Sesiones',       icon: '🎮', adminOnly: false },
-  { key: 'statistics', label: 'Estadísticas',   icon: '📊', adminOnly: true  }, // HU-25
-  { key: 'sync',       label: 'Sincronización', icon: '🔄', adminOnly: true  }, // HU-27
-  { key: 'users',      label: 'Personal',       icon: '👥', adminOnly: true  }, // HU-23
+  { key: 'missions',   label: 'Misiones',       icon: '🗺️', adminOnly: true,  operatorOnly: false },
+  { key: 'sessions',   label: 'Sesiones',       icon: '🎮', adminOnly: false, operatorOnly: true  },
+  { key: 'statistics', label: 'Estadísticas',   icon: '📊', adminOnly: true,  operatorOnly: false }, // HU-25
+  { key: 'sync',       label: 'Sincronización', icon: '🔄', adminOnly: true,  operatorOnly: false }, // HU-27
+  { key: 'users',      label: 'Personal',       icon: '👥', adminOnly: true,  operatorOnly: false }, // HU-23
 ]
 
 function App() {
   const { isAdmin } = useAuth()
-  const [activeTab, setActiveTab] = useState('missions')
+
+  // Calcula la lista visible según el rol y elige la pestaña inicial coherente
+  // con esa lista. Si el rol cambia (ej. tras un refresh con token nuevo) y la
+  // pestaña activa ya no aplica, el efecto la reajusta automáticamente.
+  const visibleTabs = BASE_TABS.filter(t =>
+    isAdmin ? t.adminOnly : t.operatorOnly,
+  )
+  const defaultTab = visibleTabs[0]?.key ?? 'missions'
+
+  const [activeTab, setActiveTab] = useState(defaultTab)
   const [selectedSessionId, setSelectedSessionId] = useState(null)
   // HU-26: cuando es no-null, se renderiza la pantalla completa de auditoría
   // técnica en lugar del dashboard. Vive en el mismo estado para mantener la
   // misma sesión seleccionada al volver con "Volver al dashboard".
   const [commandAuditSessionId, setCommandAuditSessionId] = useState(null)
 
-  // Filtra las pestañas según el rol — los operadores no ven "Personal".
-  const visibleTabs = BASE_TABS.filter(t => !t.adminOnly || isAdmin)
+  useEffect(() => {
+    if (!visibleTabs.some(t => t.key === activeTab)) {
+      setActiveTab(defaultTab)
+      setSelectedSessionId(null)
+      setCommandAuditSessionId(null)
+    }
+  }, [activeTab, defaultTab, visibleTabs])
 
   function handleTabChange(tab) {
     setActiveTab(tab)
@@ -48,8 +68,8 @@ function App() {
       />
 
       <main className="max-w-7xl mx-auto px-4 md:px-6 py-6">
-        {activeTab === 'missions' && <MissionList />}
-        {activeTab === 'sessions' && (
+        {activeTab === 'missions' && isAdmin && <MissionList />}
+        {activeTab === 'sessions' && !isAdmin && (
           commandAuditSessionId
             ? (
               <SessionCommandAuditScreen

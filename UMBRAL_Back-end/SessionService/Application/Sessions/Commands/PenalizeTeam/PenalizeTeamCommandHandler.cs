@@ -56,9 +56,31 @@ public class PenalizeTeamCommandHandler : IRequestHandler<PenalizeTeamCommand, R
         await _eventRepository.AddAsync(auditEvent, cancellationToken);
         await _eventRepository.SaveChangesAsync(cancellationToken);
 
+        // Operator dashboard refresh (audit timeline, ranking, etc.)
         await _hub.Clients
             .Group(request.SessionId.ToString())
             .SendAsync("SessionStateChanged", cancellationToken);
+
+        // HU-28: themed notification for the penalized team. Broadcast to the
+        // whole session group; the front filters by TeamId so only the
+        // affected participants alza the toast + vibration.
+        await _hub.Clients
+            .Group(request.SessionId.ToString())
+            .SendAsync(
+                "TeamPenalized",
+                new
+                {
+                    SessionId  = request.SessionId,
+                    TeamId     = request.TeamId,
+                    TeamName   = teamName,
+                    Points     = request.Points,
+                    Reason     = request.Reason,
+                    NewScore   = newScore,
+                    ActorName  = string.IsNullOrWhiteSpace(request.OperatorName)
+                        ? SessionEvent.SystemActor
+                        : request.OperatorName!.Trim(),
+                },
+                cancellationToken);
 
         return Result.Success(newScore);
     }

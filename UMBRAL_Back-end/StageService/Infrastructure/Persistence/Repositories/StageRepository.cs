@@ -30,4 +30,25 @@ public class StageRepository : IStageRepository
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => await _context.SaveChangesAsync(cancellationToken);
+
+    public async Task RemoveOptionsAsync(Guid stageId, CancellationToken cancellationToken = default)
+    {
+        // Bulk delete vía EF Core 7+. Borra las TriviaOptions directamente en
+        // SQL sin pasar por el change tracker, evitando el problema del
+        // orphan-removal que producía un 500 al editar una etapa con
+        // opciones existentes (Stage.Options.Clear() no marcaba los items
+        // tracked para DELETE cuando ya habían quedado en estado Detached
+        // dentro del mismo SaveChanges).
+        await _context.TriviaOptions
+            .Where(o => o.StageId == stageId)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        // Quita las referencias locales que pudieran estar tracked, para que
+        // el siguiente SaveChanges no intente re-insertarlas.
+        foreach (var entry in _context.ChangeTracker.Entries<TriviaOption>().ToList())
+        {
+            if (entry.Entity.StageId == stageId)
+                entry.State = EntityState.Detached;
+        }
+    }
 }

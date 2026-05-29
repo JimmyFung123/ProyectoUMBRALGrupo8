@@ -16,7 +16,7 @@ import { AnimatePresence, motion } from 'framer-motion';
  * stays purely visual.
  */
 
-export type ToastVariant = 'clue' | 'rank' | 'stage' | 'wrong' | 'message';
+export type ToastVariant = 'clue' | 'rank' | 'stage' | 'wrong' | 'message' | 'penalty';
 
 export interface Toast {
   id: string;
@@ -38,6 +38,7 @@ const STYLE: Record<ToastVariant, { icon: string; accent: string; bg: string }> 
   stage:   { icon: '✅', accent: '#34d399', bg: '#064e3b' },
   wrong:   { icon: '❌', accent: '#fb7185', bg: '#7f1d1d' },
   message: { icon: '📩', accent: '#a78bfa', bg: '#3b0764' },
+  penalty: { icon: '🚨', accent: '#f97316', bg: '#7c2d12' },
 };
 
 export function NotificationStack({ toasts, onDismiss }: Props) {

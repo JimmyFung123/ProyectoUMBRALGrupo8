@@ -1,6 +1,15 @@
 import { useState } from 'react';
 import { userService } from '../../services/userService';
 import type { UserRole } from '../../types/user';
+import {
+  Alert,
+  Button,
+  FormField,
+  Modal,
+  Select,
+  Stack,
+  TextInput,
+} from '../ui';
 
 interface Props {
   onClose: () => void;
@@ -9,11 +18,17 @@ interface Props {
 
 interface BackendError { code?: string; message?: string }
 
+const MIN_PASSWORD_LENGTH = 8;
+
 /**
  * HU-23 Criterio 1: registra un nuevo administrador u operador.
- * Las validaciones del backend (email único, formato) se reflejan en el banner
- * rojo. La regla del email duplicado devuelve 409 → mensaje específico del ERS:
- * "Este correo ya está en uso."
+ *
+ * Fix del bug reportado por el equipo: antes el botón "Crear usuario"
+ * permanecía deshabilitado en silencio cuando la contraseña tenía < 8
+ * caracteres, sin pista clara para el usuario. Ahora el botón siempre
+ * intenta enviar y, si la validación local falla, muestra un mensaje
+ * específico arriba del formulario. La regla del backend (email único,
+ * 409 → "Este correo ya está en uso") se sigue respetando.
  */
 export function CreateUserModal({ onClose, onCreated }: Props) {
   const [email, setEmail] = useState('');
@@ -24,24 +39,33 @@ export function CreateUserModal({ onClose, onCreated }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isValid =
-    email.trim().length > 0 &&
-    firstName.trim().length > 0 &&
-    lastName.trim().length > 0 &&
-    temporaryPassword.length >= 8;
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!isValid || submitting) return;
+    if (submitting) return;
+
+    // Validación local con mensajes específicos en vez de deshabilitar el
+    // botón en silencio. Mucho más fácil de entender para el operador.
+    const trimmedEmail = email.trim();
+    const trimmedFirst = firstName.trim();
+    const trimmedLast = lastName.trim();
+
+    if (!trimmedEmail || !trimmedFirst || !trimmedLast || !temporaryPassword) {
+      setError('Todos los campos son obligatorios.');
+      return;
+    }
+    if (temporaryPassword.length < MIN_PASSWORD_LENGTH) {
+      setError(`La contraseña temporal debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`);
+      return;
+    }
 
     setSubmitting(true);
     setError(null);
 
     try {
       await userService.create({
-        email: email.trim().toLowerCase(),
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
+        email: trimmedEmail.toLowerCase(),
+        firstName: trimmedFirst,
+        lastName: trimmedLast,
         temporaryPassword,
         role,
       });
@@ -54,144 +78,86 @@ export function CreateUserModal({ onClose, onCreated }: Props) {
   }
 
   return (
-    <div style={styles.overlay}>
-      <form onSubmit={handleSubmit} style={styles.modal}>
-        <header style={styles.header}>
-          <h3 style={{ margin: 0, fontSize: '1.1rem' }}>➕ Nuevo usuario</h3>
-          <button type="button" onClick={onClose} style={styles.closeBtn} aria-label="Cerrar">✕</button>
-        </header>
-
-        <label style={styles.field}>
-          <span style={styles.label}>Correo electrónico *</span>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="usuario@umbral.local"
-            autoFocus
-            required
-            style={styles.input}
-          />
-        </label>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-          <label style={styles.field}>
-            <span style={styles.label}>Nombre *</span>
-            <input
-              type="text"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              required
-              style={styles.input}
-            />
-          </label>
-          <label style={styles.field}>
-            <span style={styles.label}>Apellido *</span>
-            <input
-              type="text"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              required
-              style={styles.input}
-            />
-          </label>
-        </div>
-
-        <label style={styles.field}>
-          <span style={styles.label}>Contraseña temporal (mínimo 8 caracteres) *</span>
-          <input
-            type="text"
-            value={temporaryPassword}
-            onChange={(e) => setTemporaryPassword(e.target.value)}
-            placeholder="ej. Umbral2026!"
-            required
-            minLength={8}
-            style={{ ...styles.input, fontFamily: 'monospace' }}
-          />
-          <span style={styles.hint}>
-            El usuario podrá usarla directamente. Para forzar cambio al primer login,
-            ajustá el realm JSON.
-          </span>
-        </label>
-
-        <label style={styles.field}>
-          <span style={styles.label}>Rol *</span>
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value as UserRole)}
-            style={styles.input}
-          >
-            <option value="Operator">Operador — gestiona sesiones en vivo</option>
-            <option value="Admin">Administrador — todo lo anterior + gestión de personal y misiones</option>
-          </select>
-        </label>
-
-        {error && (
-          <div style={styles.errorBanner}>⚠ {error}</div>
-        )}
-
-        <footer style={styles.footer}>
-          <button type="button" onClick={onClose} disabled={submitting} style={styles.cancelBtn}>
+    <Modal
+      open
+      onClose={submitting ? () => undefined : onClose}
+      title="➕ Nuevo usuario"
+      description="Se creará una cuenta en Keycloak. El usuario podrá ingresar con el correo y la contraseña temporal."
+      size="md"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={submitting}>
             Cancelar
-          </button>
-          <button
-            type="submit"
-            disabled={!isValid || submitting}
-            style={{
-              ...styles.submitBtn,
-              opacity: !isValid || submitting ? 0.5 : 1,
-              cursor: !isValid || submitting ? 'not-allowed' : 'pointer',
-            }}
-          >
+          </Button>
+          <Button type="submit" form="create-user-form" disabled={submitting}>
             {submitting ? 'Creando…' : 'Crear usuario'}
-          </button>
-        </footer>
+          </Button>
+        </>
+      }
+    >
+      <form id="create-user-form" onSubmit={handleSubmit}>
+        <Stack gap={3}>
+          {error && <Alert tone="danger" onDismiss={() => setError(null)}>{error}</Alert>}
+
+          <FormField label="Correo electrónico" htmlFor="create-email" required>
+            <TextInput
+              id="create-email"
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="usuario@umbral.local"
+              autoFocus
+              required
+            />
+          </FormField>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <FormField label="Nombre" htmlFor="create-first" required>
+              <TextInput
+                id="create-first"
+                value={firstName}
+                onChange={e => setFirstName(e.target.value)}
+                required
+              />
+            </FormField>
+            <FormField label="Apellido" htmlFor="create-last" required>
+              <TextInput
+                id="create-last"
+                value={lastName}
+                onChange={e => setLastName(e.target.value)}
+                required
+              />
+            </FormField>
+          </div>
+
+          <FormField
+            label="Contraseña temporal"
+            htmlFor="create-pwd"
+            required
+            hint={`Mínimo ${MIN_PASSWORD_LENGTH} caracteres. El usuario podrá ingresar directamente con esta clave.`}
+          >
+            <TextInput
+              id="create-pwd"
+              type="text"
+              value={temporaryPassword}
+              onChange={e => setTemporaryPassword(e.target.value)}
+              placeholder="ej. Umbral2026!"
+              className="font-mono"
+            />
+          </FormField>
+
+          <FormField label="Rol" htmlFor="create-role" required>
+            <Select
+              id="create-role"
+              value={role}
+              onChange={e => setRole(e.target.value as UserRole)}
+            >
+              <option value="Operator">Operador — gestiona sesiones en vivo</option>
+              <option value="Admin">Administrador — misiones, estadísticas, sincronización y personal</option>
+            </Select>
+          </FormField>
+        </Stack>
       </form>
-    </div>
+    </Modal>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  overlay: {
-    position: 'fixed', inset: 0,
-    background: 'rgba(0,0,0,0.45)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    zIndex: 1000,
-  },
-  modal: {
-    background: '#fff', borderRadius: 8, padding: '1.5rem',
-    minWidth: 420, maxWidth: 560, width: '90%',
-    boxShadow: '0 4px 24px rgba(0,0,0,0.2)',
-    display: 'flex', flexDirection: 'column', gap: '0.75rem',
-  },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  closeBtn: { background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#666' },
-  field: { display: 'flex', flexDirection: 'column', gap: '0.3rem' },
-  label: { fontSize: '0.85rem', fontWeight: 600, color: '#374151' },
-  input: {
-    padding: '0.5rem 0.7rem', fontSize: '0.9rem',
-    border: '1px solid #ccc', borderRadius: 4,
-    boxSizing: 'border-box',
-  },
-  hint: { fontSize: '0.72rem', color: '#999' },
-  errorBanner: {
-    background: '#fee2e2', border: '1px solid #fca5a5',
-    color: '#7f1d1d', padding: '0.6rem 0.9rem',
-    borderRadius: 6, fontSize: '0.85rem',
-  },
-  footer: {
-    display: 'flex', gap: '0.5rem', justifyContent: 'flex-end',
-    marginTop: '0.25rem',
-  },
-  cancelBtn: {
-    padding: '0.5rem 1rem', cursor: 'pointer',
-    borderRadius: 4, border: '1px solid #ccc',
-    background: '#fff', fontSize: '0.88rem',
-  },
-  submitBtn: {
-    padding: '0.5rem 1rem',
-    borderRadius: 4, border: 'none',
-    background: '#6366f1', color: '#fff',
-    fontWeight: 600, fontSize: '0.88rem',
-  },
-};

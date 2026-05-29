@@ -41,6 +41,16 @@ export interface OperatorMessagePayload {
   deliveredAt: string;
 }
 
+export interface TeamPenalizedPayload {
+  sessionId: string;
+  teamId: string;
+  teamName: string;
+  points: number;
+  reason: string;
+  newScore: number;
+  actorName: string;
+}
+
 export interface UseGameEventsOptions {
   sessionId: string;
   teamId: string;
@@ -48,6 +58,8 @@ export interface UseGameEventsOptions {
   onStageCompleted?: (payload: StageCompletedPayload) => void;
   /** Called when the operator broadcasts a live message to all participants. */
   onOperatorMessage?: (payload: OperatorMessagePayload) => void;
+  /** Called when the operator applied a penalty to THIS team (filtered by teamId). */
+  onTeamPenalized?: (payload: TeamPenalizedPayload) => void;
 }
 
 /**
@@ -63,12 +75,15 @@ export function useGameEvents({
   teamId,
   onStageCompleted,
   onOperatorMessage,
+  onTeamPenalized,
 }: UseGameEventsOptions) {
   // Refs so callbacks can change without re-spinning the connection.
   const stageCompletedRef = useRef(onStageCompleted);
   const operatorMessageRef = useRef(onOperatorMessage);
+  const teamPenalizedRef = useRef(onTeamPenalized);
   stageCompletedRef.current = onStageCompleted;
   operatorMessageRef.current = onOperatorMessage;
+  teamPenalizedRef.current = onTeamPenalized;
 
   useEffect(() => {
     let cancelled = false;
@@ -90,6 +105,14 @@ export function useGameEvents({
 
     connection.on('OperatorMessage', (payload: OperatorMessagePayload) => {
       operatorMessageRef.current?.(payload);
+    });
+
+    connection.on('TeamPenalized', (payload: TeamPenalizedPayload) => {
+      // Broadcast goes to the whole session group — only this team's
+      // participants should see the toast, the rest just see the ranking
+      // change through the regular SessionStateChanged refresh.
+      if (payload.teamId !== teamId) return;
+      teamPenalizedRef.current?.(payload);
     });
 
     connection.onreconnected(() => {

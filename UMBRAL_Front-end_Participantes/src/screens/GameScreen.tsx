@@ -102,6 +102,16 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
       });
       vibrate('message');
     },
+    onTeamPenalized: payload => {
+      // Visible y persistente: el equipo merece leer el motivo completo.
+      pushToast({
+        variant: 'penalty',
+        title: `🚨 Penalización: -${payload.points} pts`,
+        body: `${payload.reason} · Nuevo puntaje: ${payload.newScore}`,
+        durationMs: 8000,
+      });
+      vibrate('error');
+    },
   });
 
   function toggleHaptics() {
@@ -176,7 +186,14 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
   // Blocking overlay shared by every branch (Trivia, TreasureHunt, Waiting,
   // result, Completed). Declared up here so JSX in every branch can reference
   // it without tripping over TS's no-use-before-declaration rule.
-  const blockingOverlay = blockingStatus && (
+  //
+  // Fix del bug "Ver ranking final no abre": el SessionStatusOverlay vive en
+  // zIndex 3000 y el RankingScreen en zIndex 2000, así que al pulsar "Ver
+  // ranking" el ranking se renderizaba debajo del overlay y parecía que el
+  // botón no hacía nada. Mientras el ranking esté visible escondemos el
+  // overlay bloqueante; cuando el usuario lo cierre, el overlay vuelve a
+  // mostrarse automáticamente porque `blockingStatus` sigue siendo "Completed".
+  const blockingOverlay = blockingStatus && !showRanking && (
     <SessionStatusOverlay
       status={blockingStatus}
       onLeaveSession={blockingStatus === 'Paused' ? undefined : onLeaveSession}

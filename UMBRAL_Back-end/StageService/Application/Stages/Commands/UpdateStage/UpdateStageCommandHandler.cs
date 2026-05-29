@@ -31,7 +31,15 @@ public class UpdateStageCommandHandler : IRequestHandler<UpdateStageCommand, Res
             request.AutoReleaseTimeMinutes, request.AutoReleaseMaxAttempts);
 
         if (stage.Type == StageType.Trivia && request.Options is not null)
+        {
+            // Fix del 500 al editar una trivia: borramos las opciones viejas
+            // directamente en SQL (ExecuteDelete) y luego dejamos que el
+            // dominio adjunte las nuevas. Esto evita el caso en que EF Core
+            // no consigue ejecutar el orphan-removal sobre items tracked y
+            // termina lanzando una violación de FK al hacer SaveChanges.
+            await _stageRepository.RemoveOptionsAsync(stage.Id, cancellationToken);
             stage.ReplaceOptions(request.Options.Select(o => (o.Text, o.IsCorrect)));
+        }
 
         await _stageRepository.SaveChangesAsync(cancellationToken);
         return Result.Success(true);
