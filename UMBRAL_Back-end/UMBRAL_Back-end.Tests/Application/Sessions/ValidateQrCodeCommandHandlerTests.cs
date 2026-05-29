@@ -195,7 +195,8 @@ public class ValidateQrCodeCommandHandlerTests
         _teamClientMock.Verify(
             t => t.AnswerTriviaAsync(teamId, true, 75, 2, It.IsAny<CancellationToken>()),
             Times.Once);
-        _hubMock.Verify(h => h.Clients.Group(It.IsAny<string>()), Times.Once);
+        // HU-28: handler now fans out two events (SessionStateChanged + StageCompleted).
+        _hubMock.Verify(h => h.Clients.Group(It.IsAny<string>()), Times.Exactly(2));
         _eventRepoMock.Verify(
             r => r.AddAsync(It.IsAny<SessionEvent>(), It.IsAny<CancellationToken>()),
             Times.Once);

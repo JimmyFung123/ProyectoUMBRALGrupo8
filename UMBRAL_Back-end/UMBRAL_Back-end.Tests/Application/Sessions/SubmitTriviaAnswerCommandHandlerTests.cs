@@ -136,7 +136,9 @@ public class SubmitTriviaAnswerCommandHandlerTests
         result.Value.NewScore.Should().Be(150);
         _teamClientMock.Verify(t => t.AnswerTriviaAsync(
             It.IsAny<Guid>(), true, 50, 2, It.IsAny<CancellationToken>()), Times.Once);
-        _hubMock.Verify(h => h.Clients.Group(It.IsAny<string>()), Times.Once);
+        // HU-28: handler now fans out two events (SessionStateChanged for the
+        // operator dashboard, StageCompleted for participant feedback).
+        _hubMock.Verify(h => h.Clients.Group(It.IsAny<string>()), Times.Exactly(2));
 
         // HU-25: a Trivia/WasCorrect=true record must be appended to the fact table.
         _statsRepoMock.Verify(

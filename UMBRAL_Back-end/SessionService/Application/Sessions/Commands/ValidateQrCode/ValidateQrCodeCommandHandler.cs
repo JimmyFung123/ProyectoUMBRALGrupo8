@@ -130,10 +130,30 @@ public class ValidateQrCodeCommandHandler : IRequestHandler<ValidateQrCodeComman
         await _eventRepository.AddAsync(successEvent, cancellationToken);
         await _eventRepository.SaveChangesAsync(cancellationToken);
 
-        // 9. Broadcast dashboard refresh
+        // 9. Broadcast dashboard refresh (operators) + HU-28 StageCompleted
+        //    (participants). Same payload shape as the trivia path so the
+        //    front can hand both to a single notification handler.
         await _hub.Clients
             .Group(request.SessionId.ToString())
             .SendAsync("SessionStateChanged", cancellationToken);
+
+        await _hub.Clients
+            .Group(request.SessionId.ToString())
+            .SendAsync(
+                "StageCompleted",
+                new
+                {
+                    SessionId       = request.SessionId,
+                    TeamId          = request.TeamId,
+                    StageOrder      = stage.Order,
+                    StageType       = "TreasureHunt",
+                    WasCorrect      = true,
+                    PointsEarned    = stage.BaseScore,
+                    NewScore        = outcome.NewScore,
+                    NextStageOrder  = nextStageOrder,
+                    IsLastStage     = isLastStage,
+                },
+                cancellationToken);
 
         return Result.Success(new QrValidationResultDto(
             IsCorrect: true,

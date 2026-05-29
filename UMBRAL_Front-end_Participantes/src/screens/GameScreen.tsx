@@ -2,10 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import type { ParticipantStage, QrValidationResult, SessionInfo, TriviaAnswerResult } from '../types';
 import { getParticipantStage, submitTriviaAnswer, validateQrCode } from '../services/sessionService';
 import { useClueStream } from '../services/clueStream';
+import { useGameEvents } from '../services/gameEvents';
+import { vibrate, isHapticsEnabled, setHapticsEnabled } from '../services/vibrate';
 import { TriviaScreen } from './TriviaScreen';
 import { TreasureHuntScreen } from './TreasureHuntScreen';
 import { RankingScreen } from './RankingScreen';
 import { SessionStatusOverlay, type BlockingSessionStatus } from './SessionStatusOverlay';
+import { NotificationStack, useToastStack } from './NotificationStack';
+import { Confetti } from './Confetti';
 
 type TeamProp = { teamId: string; isLeader: boolean };
 
@@ -38,11 +42,74 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
   const [blockingStatus, setBlockingStatus] = useState<BlockingSessionStatus | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // HU-28: toast stack — declared before useClueStream/useGameEvents so the
+  // event callbacks can call pushToast without forward references.
+  const { toasts, push: pushToast, dismiss: dismissToast } = useToastStack();
+
   // Real-time clue stream (HU-20): SignalR + API resync after reconnect.
   const { clues, status: clueStatus, resetClues } = useClueStream({
     sessionId: session.id,
     teamId: team.teamId,
+    onClue: (clue, isAutomatic) => {
+      // HU-28: themed toast + haptic on every clue arrival.
+      pushToast({
+        variant: 'clue',
+        title: isAutomatic ? '💡 Pista automática' : '💡 Nueva pista',
+        body: clue.content
+          ?? (clue.radiusMeters != null
+            ? `Zona geográfica actualizada (radio ${clue.radiusMeters}m)`
+            : 'Pista enviada por el operador'),
+      });
+      vibrate('tap');
+    },
   });
+  const [hapticsOn, setHapticsOn] = useState(isHapticsEnabled());
+  const [celebrate, setCelebrate] = useState(false);
+
+  useGameEvents({
+    sessionId: session.id,
+    teamId: team.teamId,
+    onStageCompleted: payload => {
+      if (payload.wasCorrect) {
+        pushToast({
+          variant: 'stage',
+          title: '✅ ¡Etapa superada!',
+          body: payload.pointsEarned > 0
+            ? `+${payload.pointsEarned} pts · Nuevo puntaje ${payload.newScore}`
+            : `Nuevo puntaje ${payload.newScore}`,
+        });
+        vibrate('success');
+        if (payload.isLastStage) {
+          setCelebrate(true);
+          window.setTimeout(() => setCelebrate(false), 6000);
+          vibrate('celebrate');
+        }
+      } else {
+        pushToast({
+          variant: 'wrong',
+          title: '❌ Respuesta incorrecta',
+          body: 'Sigue intentando — el equipo permanece en esta etapa.',
+        });
+        vibrate('error');
+      }
+    },
+    onOperatorMessage: msg => {
+      pushToast({
+        variant: 'message',
+        title: `📩 Mensaje del operador`,
+        body: msg.message,
+        durationMs: 7000,
+      });
+      vibrate('message');
+    },
+  });
+
+  function toggleHaptics() {
+    const next = !hapticsOn;
+    setHapticsOn(next);
+    setHapticsEnabled(next);
+    if (next) vibrate('tap'); // confirm with a tiny buzz
+  }
 
   // Poll for stage updates (handles operator force-advance, session pause, etc.)
   useEffect(() => {
@@ -117,6 +184,15 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
     />
   );
 
+  // HU-28: notification + confetti + haptics toggle. Single bundle so every
+  // branch only has to drop `{liveLayer}` once.
+  const liveLayer = (
+    <>
+      <NotificationStack toasts={toasts} onDismiss={dismissToast} />
+      {celebrate && <Confetti durationSeconds={6} />}
+    </>
+  );
+
   // Completed: team has gone past the last stage
   if (stage.type === 'Completed' || (stage.isLastStage && answerState.phase === 'result' && answerState.result.nextStageOrder > stage.order)) {
     return (
@@ -141,6 +217,7 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
         </div>
         {rankingOverlay}
         {blockingOverlay}
+        {liveLayer}
       </>
     );
   }
@@ -165,6 +242,7 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
         </div>
         {rankingOverlay}
         {blockingOverlay}
+        {liveLayer}
       </>
     );
   }
@@ -188,6 +266,7 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
         </div>
         {rankingOverlay}
         {blockingOverlay}
+        {liveLayer}
       </>
     );
   }
@@ -201,6 +280,26 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
       title="Ver ranking"
     >
       🏆
+    </button>
+  );
+
+  // HU-28: discreet haptics toggle so participants who don't want vibration
+  // (or are testing on desktop) can silence it. Pinned to the bottom-left so
+  // it doesn't fight the ranking FAB on the right.
+  const hapticsFab = (
+    <button
+      onClick={toggleHaptics}
+      style={{
+        ...styles.rankingFab,
+        right: 'auto',
+        left: '1rem',
+        background: hapticsOn ? '#1e293b' : '#475569',
+        fontSize: '1.2rem',
+      }}
+      aria-label={hapticsOn ? 'Silenciar vibración' : 'Activar vibración'}
+      title={hapticsOn ? 'Vibración activa — toca para silenciar' : 'Vibración silenciada — toca para activar'}
+    >
+      {hapticsOn ? '📳' : '🔕'}
     </button>
   );
 
@@ -243,8 +342,10 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
         />
         {exitFab}
         {rankingFab}
+        {hapticsFab}
         {rankingOverlay}
         {blockingOverlay}
+        {liveLayer}
       </>
     );
   }
@@ -270,8 +371,10 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
       />
       {exitFab}
       {rankingFab}
+      {hapticsFab}
       {rankingOverlay}
       {blockingOverlay}
+      {liveLayer}
     </>
   );
 }

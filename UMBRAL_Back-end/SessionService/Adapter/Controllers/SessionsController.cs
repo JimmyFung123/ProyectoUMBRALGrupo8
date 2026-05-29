@@ -3,6 +3,7 @@ namespace SessionService.Adapter.Controllers;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SessionService.Application.Sessions.Commands.BroadcastOperatorMessage;
 using SessionService.Application.Sessions.Commands.CancelSession;
 using SessionService.Application.Sessions.Commands.CreateSession;
 using SessionService.Application.Sessions.Commands.FinalizeSession;
@@ -209,6 +210,29 @@ public class SessionsController : ControllerBase
         return Ok(result.Value);
     }
 
+    /// <summary>
+    /// HU-28 — pushes a short text message from the operator to every
+    /// participant connected to the session. The action is audited.
+    /// </summary>
+    [HttpPost("{id:guid}/broadcast-message")]
+    public async Task<IActionResult> BroadcastOperatorMessage(
+        Guid id,
+        [FromBody] BroadcastOperatorMessageRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _sender.Send(
+            new BroadcastOperatorMessageCommand(id, request.Message, GetOperatorName()),
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return result.Error.Code == SessionErrors.NotFound.Code
+                ? NotFound(result.Error)
+                : BadRequest(result.Error);
+        }
+        return Ok(result.Value);
+    }
+
     [HttpPost("{id:guid}/teams/{teamId:guid}/release-clue")]
     public async Task<IActionResult> ReleaseClue(
         Guid id,
@@ -387,3 +411,4 @@ public record ReleaseClueRequest(
 public record PenalizeTeamRequest(int Points, string Reason);
 public record SubmitTriviaAnswerRequest(Guid StageId, Guid OptionId);
 public record ValidateQrRequest(Guid StageId, string ScannedCode);
+public record BroadcastOperatorMessageRequest(string Message);

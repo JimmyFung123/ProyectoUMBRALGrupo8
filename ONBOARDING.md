@@ -371,6 +371,7 @@ hubMock.Setup(h => h.Clients).Returns(clientsMock.Object);
 | HU-23 | Gestión integral de personal operativo (KeyCloak) | Infra (Docker), UMBRAL.Auth, UserService (5096), Front Operador |
 | HU-26 | Auditoría y trazabilidad de acciones (log técnico de comandos CQRS + CSV) | SessionService (interceptor de inmutabilidad + endpoint `/audit-log`), Front Operador (pantalla `SessionCommandAuditScreen`) |
 | HU-27 | Monitoreo de sincronización entre modelos de escritura y lectura | SessionService (aggregador `/api/sync-health` + reproject local), MissionService/StageService/ClueService/TeamService (endpoints `/api/internal/sync-health` + reproject por servicio), Front Operador (tab admin "🔄 Sincronización") |
+| HU-28 | Feedback inmersivo e interactivo en vivo (toasts animados, vibración, confetti, mensaje del operador) | SessionService (eventos SignalR `StageCompleted` y `OperatorMessage`, comando `BroadcastOperatorMessage`), Front Operador (botón "Enviar mensaje" en `SessionControls` + `BroadcastMessageButton`), Front Participante (framer-motion + `NotificationStack` + `useGameEvents` + `vibrate`/`Confetti`) |
 
 ---
 

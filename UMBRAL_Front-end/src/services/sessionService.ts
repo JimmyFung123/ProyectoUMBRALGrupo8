@@ -108,4 +108,16 @@ export const sessionService = {
       `${BASE_URL}/sessions/${sessionId}/teams/${teamId}/force-advance`,
     );
   },
+
+  /** HU-28 — push a live message from the operator to all participants. */
+  broadcastMessage(sessionId: string, message: string): Promise<{
+    sessionId: string;
+    message: string;
+    deliveredAt: string;
+  }> {
+    return http.post(
+      `${BASE_URL}/sessions/${sessionId}/broadcast-message`,
+      { message },
+    );
+  },
 };

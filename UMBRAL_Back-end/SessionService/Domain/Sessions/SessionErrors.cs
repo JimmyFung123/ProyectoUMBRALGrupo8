@@ -27,4 +27,7 @@ public static class SessionErrors
     public static readonly Error StageIsNotTreasureHunt  = new("Session.StageIsNotTreasureHunt",  "QR validation only applies to Treasure Hunt stages.");
     public static readonly Error StageMissingQrCode      = new("Session.StageMissingQrCode",      "The stage does not have a QR code configured.");
     public static readonly Error CannotValidateQr        = new("Session.CannotValidateQr",        "Failed to record the QR validation. Please try again.");
+    public static readonly Error CannotBroadcastMessage  = new("Session.CannotBroadcastMessage",  "Messages can only be broadcast to participants while the session is in progress or paused.");
+    public static readonly Error EmptyBroadcastMessage   = new("Session.EmptyBroadcastMessage",   "Broadcast message cannot be empty.");
+    public static readonly Error BroadcastMessageTooLong = new("Session.BroadcastMessageTooLong", "Broadcast message must be 240 characters or fewer.");
 }

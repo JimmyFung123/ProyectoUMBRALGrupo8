@@ -103,10 +103,31 @@ public class SubmitTriviaAnswerCommandHandler : IRequestHandler<SubmitTriviaAnsw
         await _eventRepository.AddAsync(auditEvent, cancellationToken);
         await _eventRepository.SaveChangesAsync(cancellationToken);
 
-        // 8. Broadcast dashboard refresh
+        // 8. Broadcast dashboard refresh (operators) + HU-28 StageCompleted
+        //    (participants). The dedicated event carries enough data for the
+        //    immersive toast/animation to fire without waiting for the next
+        //    polling tick.
         await _hub.Clients
             .Group(request.SessionId.ToString())
             .SendAsync("SessionStateChanged", cancellationToken);
+
+        await _hub.Clients
+            .Group(request.SessionId.ToString())
+            .SendAsync(
+                "StageCompleted",
+                new
+                {
+                    SessionId       = request.SessionId,
+                    TeamId          = request.TeamId,
+                    StageOrder      = stage.Order,
+                    StageType       = "Trivia",
+                    WasCorrect      = isCorrect,
+                    PointsEarned    = isCorrect ? stage.BaseScore : 0,
+                    NewScore        = outcome.NewScore,
+                    NextStageOrder  = nextStageOrder,
+                    IsLastStage     = isLastStage,
+                },
+                cancellationToken);
 
         return Result.Success(new TriviaAnswerResultDto(isCorrect, outcome.NewScore, nextStageOrder, isLastStage));
     }
