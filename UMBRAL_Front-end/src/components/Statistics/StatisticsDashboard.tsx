@@ -7,6 +7,17 @@ import type {
   StageEffectivenessStat,
   StageTimeStat,
 } from '../../types/statistics';
+import {
+  Alert,
+  Card,
+  CardHeader,
+  EmptyState,
+  FormField,
+  PageHeader,
+  Select,
+  Spinner,
+  Stack,
+} from '../ui';
 
 /**
  * HU-25 — admin statistics dashboard.
@@ -15,24 +26,7 @@ import type {
  * built with pure CSS — no chart library needed, the design stays light.
  * The mission filter is loaded once and the dashboard is fetched again
  * whenever the user changes it.
- *
- * The empty state (zero finalized sessions matching the filter) is shown
- * explicitly so an admin doesn't confuse "nothing recorded yet" with a
- * broken endpoint.
  */
-
-const COLORS = {
-  bg: '#f8fafc',
-  cardBg: '#ffffff',
-  border: '#e2e8f0',
-  text: '#1e293b',
-  muted: '#64748b',
-  primary: '#6366f1',
-  success: '#16a34a',
-  warning: '#d97706',
-  danger: '#dc2626',
-};
-
 export function StatisticsDashboard() {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [missionFilter, setMissionFilter] = useState<string>(''); // '' = todas
@@ -40,36 +34,20 @@ export function StatisticsDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Cargar misiones para el dropdown (una sola vez).
   useEffect(() => {
-    missionService
-      .getAll()
-      .then(setMissions)
-      .catch(() => {
-        // No bloqueamos el dashboard si fallan las misiones — el filtro
-        // simplemente no se podrá usar.
-      });
+    missionService.getAll().then(setMissions).catch(() => { /* dropdown stays empty */ });
   }, []);
 
-  // Cargar estadísticas cuando cambia el filtro.
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
     statisticsService
       .getDashboard(missionFilter || null)
-      .then(result => {
-        if (!cancelled) setData(result);
-      })
-      .catch(err => {
-        if (!cancelled) setError(err?.message ?? 'No se pudo cargar el dashboard.');
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+      .then(result => { if (!cancelled) setData(result); })
+      .catch(err => { if (!cancelled) setError(err?.message ?? 'No se pudo cargar el dashboard.'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [missionFilter]);
 
   const hasData = useMemo(() => {
@@ -77,113 +55,60 @@ export function StatisticsDashboard() {
     return data.averageTimePerStage.length > 0 || data.effectivenessPerStage.length > 0;
   }, [data]);
 
-  return (
-    <div style={{ padding: '1.5rem', background: COLORS.bg, minHeight: '80vh' }}>
-      <header style={{ marginBottom: '1.5rem' }}>
-        <h1 style={{ margin: 0, color: COLORS.text, fontSize: '1.5rem' }}>
-          📊 Dashboard estadístico
-        </h1>
-        <p style={{ margin: '0.25rem 0 0', color: COLORS.muted, fontSize: '0.875rem' }}>
-          Métricas históricas de sesiones finalizadas. Las sesiones activas o
-          pausadas no entran en estas cifras hasta que cierran oficialmente.
-        </p>
-      </header>
+  const generated = data?.generatedAt
+    ? new Date(data.generatedAt).toLocaleString('es-VE', { dateStyle: 'short', timeStyle: 'medium' })
+    : null;
 
-      <FilterBar
-        missions={missions}
-        value={missionFilter}
-        onChange={setMissionFilter}
-        generatedAt={data?.generatedAt}
+  return (
+    <div>
+      <PageHeader
+        eyebrow="Analítica"
+        title="📊 Dashboard estadístico"
+        description="Métricas históricas de sesiones finalizadas. Las sesiones activas o pausadas no entran en estas cifras hasta que cierran oficialmente."
       />
 
-      {loading && <PlaceholderCard text="Cargando estadísticas..." />}
+      <Card className="mb-4">
+        <div className="flex items-end gap-3 flex-wrap">
+          <div className="min-w-[260px]">
+            <FormField label="Misión" htmlFor="stats-mission">
+              <Select
+                id="stats-mission"
+                value={missionFilter}
+                onChange={e => setMissionFilter(e.target.value)}
+              >
+                <option value="">— Todas las misiones —</option>
+                {missions.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </Select>
+            </FormField>
+          </div>
+          {generated && (
+            <span className="ml-auto text-xs text-ink-muted">Actualizado el {generated}</span>
+          )}
+        </div>
+      </Card>
 
-      {error && (
-        <PlaceholderCard
-          text={`Error al cargar el dashboard: ${error}`}
-          tone="danger"
-        />
-      )}
+      {loading && <Card><Spinner label="Cargando estadísticas…" /></Card>}
+      {error && <Alert tone="danger">{`Error al cargar el dashboard: ${error}`}</Alert>}
 
       {!loading && !error && !hasData && (
-        <PlaceholderCard
-          text={
-            missionFilter
-              ? 'No hay sesiones finalizadas para esta misión todavía.'
-              : 'Aún no se han finalizado sesiones — el dashboard se llenará a medida que las partidas se cierren.'
-          }
-        />
+        <Card>
+          <EmptyState
+            icon="📊"
+            title={missionFilter ? 'Sin datos para esta misión' : 'Aún no hay sesiones finalizadas'}
+            description={
+              missionFilter
+                ? 'No hay sesiones finalizadas para esta misión todavía.'
+                : 'El dashboard se llenará a medida que las partidas se cierren.'
+            }
+          />
+        </Card>
       )}
 
       {!loading && !error && hasData && data && (
-        <div style={{ display: 'grid', gap: '1.5rem', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))' }}>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           <TimePerStageCard rows={data.averageTimePerStage} />
           <EffectivenessPerStageCard rows={data.effectivenessPerStage} />
         </div>
-      )}
-    </div>
-  );
-}
-
-// ── FilterBar ────────────────────────────────────────────────────────────────
-
-function FilterBar({
-  missions,
-  value,
-  onChange,
-  generatedAt,
-}: {
-  missions: Mission[];
-  value: string;
-  onChange: (id: string) => void;
-  generatedAt?: string;
-}) {
-  const generated = generatedAt
-    ? new Date(generatedAt).toLocaleString('es-VE', {
-        dateStyle: 'short',
-        timeStyle: 'medium',
-      })
-    : null;
-  return (
-    <div
-      style={{
-        background: COLORS.cardBg,
-        border: `1px solid ${COLORS.border}`,
-        borderRadius: 8,
-        padding: '0.75rem 1rem',
-        marginBottom: '1rem',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '1rem',
-        flexWrap: 'wrap',
-      }}
-    >
-      <label style={{ fontSize: '0.875rem', color: COLORS.text, fontWeight: 600 }}>
-        Misión:&nbsp;
-        <select
-          value={value}
-          onChange={e => onChange(e.target.value)}
-          style={{
-            padding: '0.35rem 0.5rem',
-            border: `1px solid ${COLORS.border}`,
-            borderRadius: 4,
-            background: '#fff',
-            fontSize: '0.875rem',
-          }}
-        >
-          <option value="">— Todas las misiones —</option>
-          {missions.map(m => (
-            <option key={m.id} value={m.id}>
-              {m.name}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      {generated && (
-        <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: COLORS.muted }}>
-          Actualizado el {generated}
-        </span>
       )}
     </div>
   );
@@ -193,43 +118,26 @@ function FilterBar({
 
 function TimePerStageCard({ rows }: { rows: StageTimeStat[] }) {
   const maxSeconds = Math.max(...rows.map(r => r.averageSeconds), 1);
-
   return (
-    <section style={cardStyle}>
-      <h2 style={cardTitleStyle}>⏱ Tiempo promedio por etapa</h2>
-      <p style={cardSubtitleStyle}>
-        Segundos que tomó a los equipos completar cada etapa, promediados sobre
-        todas las sesiones finalizadas. Avances forzados no entran.
-      </p>
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '0.5rem' }}>
-        <thead>
-          <tr>
-            <th style={thStyle}>Etapa</th>
-            <th style={thStyle}>Promedio</th>
-            <th style={thStyle}>Muestra</th>
-            <th style={{ ...thStyle, width: '50%' }}>Distribución</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(row => (
-            <tr key={row.stageOrder}>
-              <td style={tdStyle}>#{row.stageOrder}</td>
-              <td style={{ ...tdStyle, fontVariantNumeric: 'tabular-nums' }}>
-                {formatDuration(row.averageSeconds)}
-              </td>
-              <td style={{ ...tdStyle, color: COLORS.muted }}>{row.sampleSize}</td>
-              <td style={tdStyle}>
-                <Bar
-                  ratio={row.averageSeconds / maxSeconds}
-                  color={COLORS.primary}
-                  label={`${Math.round(row.averageSeconds)}s`}
-                />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </section>
+    <Card>
+      <CardHeader
+        title="⏱ Tiempo promedio por etapa"
+        description="Segundos que tomó a los equipos completar cada etapa, promediados sobre todas las sesiones finalizadas. Avances forzados no entran."
+      />
+      <Stack gap={2} className="pt-1">
+        {rows.map(row => (
+          <RowMetric
+            key={row.stageOrder}
+            label={`Etapa #${row.stageOrder}`}
+            value={formatDuration(row.averageSeconds)}
+            sub={`Muestra: ${row.sampleSize}`}
+            barRatio={row.averageSeconds / maxSeconds}
+            barColor="#6366f1"
+            barLabel={`${Math.round(row.averageSeconds)}s`}
+          />
+        ))}
+      </Stack>
+    </Card>
   );
 }
 
@@ -238,120 +146,87 @@ function TimePerStageCard({ rows }: { rows: StageTimeStat[] }) {
 function EffectivenessPerStageCard({ rows }: { rows: StageEffectivenessStat[] }) {
   if (rows.length === 0) {
     return (
-      <section style={cardStyle}>
-        <h2 style={cardTitleStyle}>🎯 Efectividad de respuestas</h2>
-        <p style={cardSubtitleStyle}>
-          No hay etapas de trivia finalizadas todavía — la efectividad se calcula
-          únicamente para preguntas de opción múltiple.
-        </p>
-      </section>
+      <Card>
+        <CardHeader
+          title="🎯 Efectividad de respuestas"
+          description="No hay etapas de trivia finalizadas todavía — la efectividad se calcula únicamente para preguntas de opción múltiple."
+        />
+      </Card>
     );
   }
-
   return (
-    <section style={cardStyle}>
-      <h2 style={cardTitleStyle}>🎯 Efectividad de respuestas</h2>
-      <p style={cardSubtitleStyle}>
-        Porcentaje de respuestas correctas por etapa de trivia. La Búsqueda del
-        Tesoro no aparece aquí porque el escaneo de QR no tiene "respuesta
-        incorrecta" — el equipo simplemente sigue intentando.
-      </p>
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '0.5rem' }}>
-        <thead>
-          <tr>
-            <th style={thStyle}>Etapa</th>
-            <th style={thStyle}>% Acierto</th>
-            <th style={thStyle}>Correctas</th>
-            <th style={thStyle}>Total</th>
-            <th style={{ ...thStyle, width: '40%' }}>Distribución</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(row => {
-            const color = effectivenessColor(row.correctPercentage);
-            return (
-              <tr key={row.stageOrder}>
-                <td style={tdStyle}>#{row.stageOrder}</td>
-                <td style={{ ...tdStyle, color, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-                  {row.correctPercentage.toFixed(2)}%
-                </td>
-                <td style={tdStyle}>{row.correctCount}</td>
-                <td style={{ ...tdStyle, color: COLORS.muted }}>{row.totalAnswers}</td>
-                <td style={tdStyle}>
-                  <Bar
-                    ratio={row.correctPercentage / 100}
-                    color={color}
-                    label={`${row.correctPercentage.toFixed(0)}%`}
-                  />
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </section>
+    <Card>
+      <CardHeader
+        title="🎯 Efectividad de respuestas"
+        description="Porcentaje de respuestas correctas por etapa de trivia. La Búsqueda del Tesoro no aparece aquí porque el escaneo de QR no tiene 'respuesta incorrecta' — el equipo simplemente sigue intentando."
+      />
+      <Stack gap={2} className="pt-1">
+        {rows.map(row => {
+          const color = effectivenessColor(row.correctPercentage);
+          return (
+            <RowMetric
+              key={row.stageOrder}
+              label={`Etapa #${row.stageOrder}`}
+              value={`${row.correctPercentage.toFixed(2)}%`}
+              valueColor={color}
+              sub={`${row.correctCount} de ${row.totalAnswers}`}
+              barRatio={row.correctPercentage / 100}
+              barColor={color}
+              barLabel={`${row.correctPercentage.toFixed(0)}%`}
+            />
+          );
+        })}
+      </Stack>
+    </Card>
   );
 }
 
 // ── Building blocks ──────────────────────────────────────────────────────────
 
+interface RowMetricProps {
+  label: string;
+  value: string;
+  valueColor?: string;
+  sub?: string;
+  barRatio: number;
+  barColor: string;
+  barLabel: string;
+}
+
+function RowMetric({ label, value, valueColor, sub, barRatio, barColor, barLabel }: RowMetricProps) {
+  return (
+    <div className="grid grid-cols-[160px_1fr] gap-3 items-center">
+      <div className="min-w-0">
+        <div className="text-sm font-semibold text-ink truncate">{label}</div>
+        {sub && <div className="text-xs text-ink-muted">{sub}</div>}
+      </div>
+      <div className="flex items-center gap-3">
+        <Bar ratio={barRatio} color={barColor} label={barLabel} />
+        <span
+          className="text-sm font-semibold tabular-nums shrink-0"
+          style={valueColor ? { color: valueColor } : undefined}
+        >
+          {value}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function Bar({ ratio, color, label }: { ratio: number; color: string; label: string }) {
   const widthPct = Math.max(0, Math.min(1, ratio)) * 100;
   return (
-    <div
-      style={{
-        position: 'relative',
-        background: '#f1f5f9',
-        height: 18,
-        borderRadius: 4,
-        overflow: 'hidden',
-      }}
-    >
+    <div className="relative flex-1 bg-slate-100 h-5 rounded overflow-hidden min-w-[100px]">
       <div
-        style={{
-          width: `${widthPct}%`,
-          background: color,
-          height: '100%',
-          transition: 'width 200ms ease',
-        }}
+        style={{ width: `${widthPct}%`, background: color }}
+        className="h-full transition-all duration-200"
       />
-      <span
-        style={{
-          position: 'absolute',
-          inset: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '0.7rem',
-          color: '#fff',
-          fontWeight: 600,
-          textShadow: '0 0 2px rgba(0,0,0,0.4)',
-        }}
-      >
+      <span className="absolute inset-0 flex items-center justify-center text-[0.7rem] font-semibold text-white drop-shadow-sm">
         {label}
       </span>
     </div>
   );
 }
-
-function PlaceholderCard({ text, tone = 'muted' }: { text: string; tone?: 'muted' | 'danger' }) {
-  return (
-    <div
-      style={{
-        background: COLORS.cardBg,
-        border: `1px solid ${tone === 'danger' ? COLORS.danger : COLORS.border}`,
-        borderRadius: 8,
-        padding: '2rem',
-        textAlign: 'center',
-        color: tone === 'danger' ? COLORS.danger : COLORS.muted,
-      }}
-    >
-      {text}
-    </div>
-  );
-}
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatDuration(seconds: number): string {
   if (seconds < 60) return `${Math.round(seconds)} s`;
@@ -361,44 +236,7 @@ function formatDuration(seconds: number): string {
 }
 
 function effectivenessColor(percentage: number): string {
-  if (percentage >= 75) return COLORS.success;
-  if (percentage >= 50) return COLORS.warning;
-  return COLORS.danger;
+  if (percentage >= 75) return '#16a34a'; // success-600
+  if (percentage >= 50) return '#d97706'; // warning-600
+  return '#dc2626'; // danger-600
 }
-
-// ── Styles shared by both cards ──────────────────────────────────────────────
-
-const cardStyle: React.CSSProperties = {
-  background: COLORS.cardBg,
-  border: `1px solid ${COLORS.border}`,
-  borderRadius: 8,
-  padding: '1.25rem',
-};
-
-const cardTitleStyle: React.CSSProperties = {
-  margin: '0 0 0.25rem',
-  color: COLORS.text,
-  fontSize: '1.1rem',
-};
-
-const cardSubtitleStyle: React.CSSProperties = {
-  margin: '0 0 0.75rem',
-  color: COLORS.muted,
-  fontSize: '0.8rem',
-};
-
-const thStyle: React.CSSProperties = {
-  textAlign: 'left',
-  fontSize: '0.75rem',
-  color: COLORS.muted,
-  textTransform: 'uppercase',
-  letterSpacing: '0.04em',
-  borderBottom: `1px solid ${COLORS.border}`,
-  padding: '0.4rem 0.5rem',
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: '0.5rem',
-  borderBottom: `1px solid ${COLORS.border}`,
-  fontSize: '0.875rem',
-};

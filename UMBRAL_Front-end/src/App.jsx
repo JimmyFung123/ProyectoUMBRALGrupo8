@@ -7,14 +7,15 @@ import { SessionDashboard } from './components/Sessions/SessionDashboard'
 import { SessionList } from './components/Sessions/SessionList'
 import { StatisticsDashboard } from './components/Statistics/StatisticsDashboard'
 import { SyncHealthDashboard } from './components/SyncHealth/SyncHealthDashboard'
+import { Tabs } from './components/ui'
 import { UsersList } from './components/Users/UsersList'
 
 const BASE_TABS = [
-  { key: 'missions',   label: '🗺️ Misiones',     adminOnly: false },
-  { key: 'sessions',   label: '🎮 Sesiones',     adminOnly: false },
-  { key: 'statistics', label: '📊 Estadísticas', adminOnly: true  }, // HU-25
-  { key: 'sync',       label: '🔄 Sincronización', adminOnly: true }, // HU-27
-  { key: 'users',      label: '👥 Personal',     adminOnly: true  }, // HU-23
+  { key: 'missions',   label: 'Misiones',       icon: '🗺️', adminOnly: false },
+  { key: 'sessions',   label: 'Sesiones',       icon: '🎮', adminOnly: false },
+  { key: 'statistics', label: 'Estadísticas',   icon: '📊', adminOnly: true  }, // HU-25
+  { key: 'sync',       label: 'Sincronización', icon: '🔄', adminOnly: true  }, // HU-27
+  { key: 'users',      label: 'Personal',       icon: '👥', adminOnly: true  }, // HU-23
 ]
 
 function App() {
@@ -37,63 +38,41 @@ function App() {
   }
 
   return (
-    <div style={{ textAlign: 'left' }}>
-      {/* ── HU-22/23: identidad del operador (ahora con datos del JWT) ── */}
+    <div className="min-h-screen bg-surface-base text-ink">
       <OperatorIdentityBar />
 
-      {/* ── Barra de pestañas ── */}
-      <nav style={{
-        display: 'flex', gap: '0.25rem',
-        padding: '0.5rem 1rem',
-        borderBottom: '2px solid #ddd',
-        background: '#f9f9f9',
-      }}>
-        {visibleTabs.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => handleTabChange(tab.key)}
-            style={{
-              padding: '0.4rem 1rem',
-              border: '1px solid #ccc',
-              borderRadius: '4px 4px 0 0',
-              background: activeTab === tab.key ? '#fff' : '#eee',
-              fontWeight: activeTab === tab.key ? 'bold' : 'normal',
-              cursor: 'pointer',
-              borderBottom: activeTab === tab.key ? '2px solid #fff' : '1px solid #ccc',
-              marginBottom: '-2px',
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </nav>
+      <Tabs
+        tabs={visibleTabs}
+        active={activeTab}
+        onChange={handleTabChange}
+      />
 
-      {/* ── Contenido ── */}
-      {activeTab === 'missions' && <MissionList />}
-      {activeTab === 'sessions' && (
-        commandAuditSessionId
-          ? (
-            // HU-26: pantalla técnica completa, separada del dashboard.
-            <SessionCommandAuditScreen
-              sessionId={commandAuditSessionId}
-              onBack={() => setCommandAuditSessionId(null)}
-            />
-          )
-          : selectedSessionId
+      <main className="max-w-7xl mx-auto px-4 md:px-6 py-6">
+        {activeTab === 'missions' && <MissionList />}
+        {activeTab === 'sessions' && (
+          commandAuditSessionId
             ? (
-              <SessionDashboard
-                sessionId={selectedSessionId}
-                onBack={() => setSelectedSessionId(null)}
-                onOpenCommandAudit={() => setCommandAuditSessionId(selectedSessionId)}
+              <SessionCommandAuditScreen
+                sessionId={commandAuditSessionId}
+                onBack={() => setCommandAuditSessionId(null)}
               />
             )
-            : (
-              <SessionList onViewDetail={setSelectedSessionId} />
-            )
-      )}
-      {activeTab === 'statistics' && isAdmin && <StatisticsDashboard />}
-      {activeTab === 'sync' && isAdmin && <SyncHealthDashboard />}
-      {activeTab === 'users' && isAdmin && <UsersList />}
+            : selectedSessionId
+              ? (
+                <SessionDashboard
+                  sessionId={selectedSessionId}
+                  onBack={() => setSelectedSessionId(null)}
+                  onOpenCommandAudit={() => setCommandAuditSessionId(selectedSessionId)}
+                />
+              )
+              : (
+                <SessionList onViewDetail={setSelectedSessionId} />
+              )
+        )}
+        {activeTab === 'statistics' && isAdmin && <StatisticsDashboard />}
+        {activeTab === 'sync' && isAdmin && <SyncHealthDashboard />}
+        {activeTab === 'users' && isAdmin && <UsersList />}
+      </main>
     </div>
   )
 }

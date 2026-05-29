@@ -3,6 +3,17 @@ import { sessionService } from '../../services/sessionService';
 import type { Stage } from '../../types/stage';
 import type { Clue } from '../../types/clue';
 import type { TeamProgressDto } from '../../types/team';
+import {
+  Alert,
+  Badge,
+  Button,
+  EmptyState,
+  FormField,
+  Modal,
+  Stack,
+  Textarea,
+  TextInput,
+} from '../ui';
 
 interface Props {
   teams: TeamProgressDto[];
@@ -16,23 +27,19 @@ interface Props {
   onClueReleased: () => void;
 }
 
-const RANK_COLORS: Record<number, string> = {
-  1: '#f9a825',
-  2: '#90a4ae',
-  3: '#a1887f',
+const RANK_COLOR: Record<number, string> = {
+  1: '#f59e0b',
+  2: '#94a3b8',
+  3: '#b45309',
 };
 
 function RankBadge({ rank }: { rank: number }) {
   const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : null;
   return (
-    <span style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: '0.25rem',
-      fontWeight: 'bold',
-      color: RANK_COLORS[rank] ?? '#555',
-      minWidth: 28,
-    }}>
+    <span
+      className="font-bold inline-block min-w-[28px]"
+      style={{ color: RANK_COLOR[rank] ?? '#475569' }}
+    >
       {medal ?? `#${rank}`}
     </span>
   );
@@ -42,19 +49,11 @@ function ConnectionDot({ connected }: { connected: boolean }) {
   return (
     <span
       title={connected ? 'Conectado' : 'Desconectado'}
-      style={{
-        display: 'inline-block',
-        width: 10,
-        height: 10,
-        borderRadius: '50%',
-        background: connected ? '#27ae60' : '#bdc3c7',
-        marginRight: '0.4rem',
-      }}
+      className="inline-block w-2.5 h-2.5 rounded-full mr-2 align-middle"
+      style={{ background: connected ? '#16a34a' : '#cbd5e1' }}
     />
   );
 }
-
-// ── TeamProgressPanel ─────────────────────────────────────────────────────────
 
 export function TeamProgressPanel({
   teams,
@@ -78,18 +77,17 @@ export function TeamProgressPanel({
 
   if (teams.length === 0) {
     return (
-      <p style={{ color: '#999', fontSize: '0.9rem', margin: 0 }}>
-        Aún no hay equipos inscritos en esta sesión.
-      </p>
+      <EmptyState
+        icon="👥"
+        title="Aún no hay equipos inscritos"
+        description="Los equipos aparecerán aquí cuando los participantes ingresen el código de acceso."
+      />
     );
   }
 
-  /** Finds the stage object for a team based on its CurrentStageOrder. */
   function stageForTeam(team: TeamProgressDto): Stage | undefined {
     return stages.find(s => s.order === team.currentStageOrder);
   }
-
-  /** Clue array for the team's current stage, sorted by order. */
   function cluesForTeam(team: TeamProgressDto): Clue[] {
     const stage = stageForTeam(team);
     if (!stage) return [];
@@ -98,12 +96,11 @@ export function TeamProgressPanel({
 
   async function handleReleaseClue(team: TeamProgressDto) {
     const clues = cluesForTeam(team);
-    const nextClue = clues[team.cluesReceivedCurrentStage]; // 0-based index
+    const nextClue = clues[team.cluesReceivedCurrentStage];
     if (!nextClue) return;
 
     setReleasing(team.id);
     setReleaseError(null);
-
     try {
       await sessionService.releaseClue(sessionId, team.id, clues.length, {
         clueContent: nextClue.content,
@@ -111,8 +108,7 @@ export function TeamProgressPanel({
         clueLongitude: nextClue.longitude,
         clueRadiusMeters: nextClue.radiusMeters,
       });
-      const summary = nextClue.content
-        ?? `Zona geográfica (radio ${nextClue.radiusMeters ?? '?'}m)`;
+      const summary = nextClue.content ?? `Zona geográfica (radio ${nextClue.radiusMeters ?? '?'}m)`;
       setLastReleased({ teamName: team.name, content: summary });
       onClueReleased();
     } catch {
@@ -124,15 +120,14 @@ export function TeamProgressPanel({
 
   async function handleForceAdvance(team: TeamProgressDto) {
     const confirmed = window.confirm(
-      `¿Forzar avance de "${team.name}" a la siguiente etapa?\n\nEl equipo recibirá 0 puntos por la etapa actual.`
+      `¿Forzar avance de "${team.name}" a la siguiente etapa?\n\nEl equipo recibirá 0 puntos por la etapa actual.`,
     );
     if (!confirmed) return;
-
     setAdvancing(team.id);
     setAdvanceError(null);
     try {
       await sessionService.forceAdvanceTeam(sessionId, team.id);
-      onClueReleased(); // reloads ranking and events
+      onClueReleased();
     } catch {
       setAdvanceError(`No se pudo forzar el avance de ${team.name}`);
     } finally {
@@ -150,7 +145,7 @@ export function TeamProgressPanel({
       setPenaltyTarget(null);
       setPenaltyPoints(1);
       setPenaltyReason('');
-      onClueReleased(); // reloads ranking
+      onClueReleased();
     } catch {
       setPenaltyError('No se pudo aplicar la penalización. Verifique los datos.');
     } finally {
@@ -158,91 +153,35 @@ export function TeamProgressPanel({
     }
   }
 
-  const canReleaseClues = sessionStatus === 'InProgress';
+  const canAct = sessionStatus === 'InProgress';
 
   return (
     <div>
-      {/* ── Toast: last released clue ──────────────────────────────── */}
-      {lastReleased && (
-        <div style={{
-          marginBottom: '0.75rem',
-          padding: '0.6rem 0.9rem',
-          background: '#d4edda',
-          border: '1px solid #c3e6cb',
-          borderRadius: 6,
-          fontSize: '0.85rem',
-          color: '#155724',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}>
-          <span>
+      <Stack gap={2} className="mb-3">
+        {lastReleased && (
+          <Alert tone="success" onDismiss={() => setLastReleased(null)}>
             💡 Pista enviada a <strong>{lastReleased.teamName}</strong>: «{lastReleased.content}»
-          </span>
-          <button
-            onClick={() => setLastReleased(null)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', color: '#155724' }}
-          >
-            ✕
-          </button>
-        </div>
-      )}
+          </Alert>
+        )}
+        {penaltySuccess && (
+          <Alert tone="danger" onDismiss={() => setPenaltySuccess(null)}>
+            🚨 Penalización aplicada a <strong>{penaltySuccess.teamName}</strong>: -{penaltySuccess.points} pts
+          </Alert>
+        )}
+        {releaseError && <Alert tone="danger">{releaseError}</Alert>}
+        {advanceError && <Alert tone="warning">{advanceError}</Alert>}
+      </Stack>
 
-      {penaltySuccess && (
-        <div style={{
-          marginBottom: '0.75rem',
-          padding: '0.6rem 0.9rem',
-          background: '#f8d7da',
-          border: '1px solid #f5c6cb',
-          borderRadius: 6,
-          fontSize: '0.85rem',
-          color: '#721c24',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}>
-          <span>🚨 Penalización aplicada a <strong>{penaltySuccess.teamName}</strong>: -{penaltySuccess.points} pts</span>
-          <button onClick={() => setPenaltySuccess(null)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', color: '#721c24' }}>✕</button>
-        </div>
-      )}
-
-      {releaseError && (
-        <div style={{
-          marginBottom: '0.75rem',
-          padding: '0.5rem 0.9rem',
-          background: '#f8d7da',
-          borderRadius: 6,
-          fontSize: '0.85rem',
-          color: '#721c24',
-        }}>
-          {releaseError}
-        </div>
-      )}
-
-      {advanceError && (
-        <div style={{
-          marginBottom: '0.75rem',
-          padding: '0.5rem 0.9rem',
-          background: '#fff3cd',
-          borderRadius: 6,
-          fontSize: '0.85rem',
-          color: '#856404',
-        }}>
-          {advanceError}
-        </div>
-      )}
-
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-          <thead>
-            <tr style={{ background: '#f5f5f5', textAlign: 'left' }}>
-              <th style={thStyle}>Pos.</th>
-              <th style={thStyle}>Equipo</th>
-              <th style={{ ...thStyle, textAlign: 'center' }}>Etapa</th>
-              <th style={{ ...thStyle, textAlign: 'center' }}>Pistas</th>
-              <th style={{ ...thStyle, textAlign: 'right' }}>Puntos</th>
-              <th style={{ ...thStyle, textAlign: 'center' }}>Acciones</th>
+      <div className="overflow-x-auto rounded border border-slate-200">
+        <table className="w-full text-sm">
+          <thead className="bg-surface-subtle">
+            <tr>
+              <Th>Pos.</Th>
+              <Th>Equipo</Th>
+              <Th align="center">Etapa</Th>
+              <Th align="center">Pistas</Th>
+              <Th align="right">Puntos</Th>
+              <Th align="center">Acciones</Th>
             </tr>
           </thead>
           <tbody>
@@ -255,8 +194,8 @@ export function TeamProgressPanel({
               const isReleasing = releasing === team.id;
               const isAdvancing = advancing === team.id;
 
-              const buttonDisabled = isReleasing || !canReleaseClues || exhausted || noStage;
-              const buttonTitle = !canReleaseClues
+              const releaseDisabled = isReleasing || !canAct || exhausted || noStage;
+              const releaseTitle = !canAct
                 ? 'Solo se pueden liberar pistas con la sesión en progreso'
                 : noStage
                   ? 'El equipo no está en ninguna etapa con pistas configuradas'
@@ -267,107 +206,76 @@ export function TeamProgressPanel({
               return (
                 <tr
                   key={team.id}
-                  style={{
-                    borderBottom: '1px solid #eee',
-                    background: team.rank === 1 ? '#fffde7' : undefined,
-                  }}
+                  className={`border-t border-slate-100 ${team.rank === 1 ? 'bg-warning-50/40' : ''}`}
                 >
-                  <td style={tdStyle}>
-                    <RankBadge rank={team.rank} />
-                  </td>
-                  <td style={tdStyle}>
+                  <Td><RankBadge rank={team.rank} /></Td>
+                  <Td>
                     <ConnectionDot connected={team.isConnected} />
-                    <strong>{team.name}</strong>
+                    <strong className="text-ink">{team.name}</strong>
                     {team.lastClueWasAutomatic && (
-                      <span title="La última pista fue liberada automáticamente por el sistema"
-                        style={{ marginLeft: '0.3rem', fontSize: '0.75rem', color: '#6f42c1' }}>
+                      <span
+                        title="La última pista fue liberada automáticamente por el sistema"
+                        className="ml-2 text-xs text-brand-700 font-semibold"
+                      >
                         ⚡ Auto
                       </span>
                     )}
-                  </td>
-                  <td style={{ ...tdStyle, textAlign: 'center' }}>
+                  </Td>
+                  <Td align="center">
                     {team.currentStageOrder === 0
-                      ? <span style={{ color: '#aaa' }}>—</span>
-                      : `Etapa ${team.currentStageOrder}`}
-                  </td>
-                  <td style={{ ...tdStyle, textAlign: 'center' }}>
-                    {noStage
-                      ? <span style={{ color: '#aaa' }}>—</span>
-                      : (
-                        <span style={{
-                          fontSize: '0.8rem',
-                          color: exhausted ? '#6c757d' : '#2c3e50',
-                          fontWeight: exhausted ? 'normal' : 'bold',
-                        }}>
-                          {received}/{totalClues}
-                          {exhausted && <span style={{ marginLeft: 4, color: '#6c757d' }}>✓</span>}
-                        </span>
-                      )}
-                  </td>
-                  <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 'bold', color: '#2c3e50' }}>
-                    {team.score.toLocaleString('es-VE')}
-                  </td>
-                  <td style={{ ...tdStyle, textAlign: 'center' }}>
-                    <button
-                      onClick={() => handleReleaseClue(team)}
-                      disabled={buttonDisabled}
-                      title={buttonTitle}
-                      style={{
-                        padding: '0.2rem 0.6rem',
-                        fontSize: '0.8rem',
-                        cursor: buttonDisabled ? 'not-allowed' : 'pointer',
-                        opacity: buttonDisabled ? 0.45 : 1,
-                        background: exhausted ? '#e9ecef' : '#fff3cd',
-                        border: '1px solid #ffc107',
-                        borderRadius: 4,
-                      }}
-                    >
-                      {isReleasing ? '…' : exhausted ? '✓ Agotadas' : '💡 Liberar pista'}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setPenaltyTarget(team);
-                        setPenaltyPoints(1);
-                        setPenaltyReason('');
-                        setPenaltyError(null);
-                      }}
-                      disabled={!canReleaseClues}
-                      title={!canReleaseClues ? 'Solo se puede penalizar con la sesión en progreso' : `Aplicar penalización a ${team.name}`}
-                      style={{
-                        marginLeft: '0.4rem',
-                        padding: '0.2rem 0.6rem',
-                        fontSize: '0.8rem',
-                        cursor: !canReleaseClues ? 'not-allowed' : 'pointer',
-                        opacity: !canReleaseClues ? 0.45 : 1,
-                        background: '#f8d7da',
-                        border: '1px solid #f5c6cb',
-                        borderRadius: 4,
-                      }}
-                    >
-                      🚨 Penalizar
-                    </button>
-                    <button
-                      onClick={() => handleForceAdvance(team)}
-                      disabled={isAdvancing || !canReleaseClues}
-                      title={
-                        !canReleaseClues
-                          ? 'Solo se puede forzar el avance con la sesión en progreso'
-                          : `Forzar avance de ${team.name} a la siguiente etapa (0 puntos)`
-                      }
-                      style={{
-                        marginLeft: '0.4rem',
-                        padding: '0.2rem 0.6rem',
-                        fontSize: '0.8rem',
-                        cursor: isAdvancing || !canReleaseClues ? 'not-allowed' : 'pointer',
-                        opacity: isAdvancing || !canReleaseClues ? 0.45 : 1,
-                        background: '#fff3cd',
-                        border: '1px solid #ffc107',
-                        borderRadius: 4,
-                      }}
-                    >
-                      {isAdvancing ? '…' : '⏭ Forzar'}
-                    </button>
-                  </td>
+                      ? <span className="text-ink-subtle">—</span>
+                      : <span className="text-ink-soft">Etapa {team.currentStageOrder}</span>}
+                  </Td>
+                  <Td align="center">
+                    {noStage ? (
+                      <span className="text-ink-subtle">—</span>
+                    ) : (
+                      <Badge tone={exhausted ? 'neutral' : 'brand'}>
+                        {received}/{totalClues}{exhausted ? ' ✓' : ''}
+                      </Badge>
+                    )}
+                  </Td>
+                  <Td align="right">
+                    <span className="font-bold tabular-nums text-ink">
+                      {team.score.toLocaleString('es-VE')}
+                    </span>
+                  </Td>
+                  <Td align="center">
+                    <div className="flex items-center gap-1 justify-center flex-wrap">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleReleaseClue(team)}
+                        disabled={releaseDisabled}
+                        title={releaseTitle}
+                      >
+                        {isReleasing ? '…' : exhausted ? '✓ Agotadas' : '💡 Liberar pista'}
+                      </Button>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => {
+                          setPenaltyTarget(team);
+                          setPenaltyPoints(1);
+                          setPenaltyReason('');
+                          setPenaltyError(null);
+                        }}
+                        disabled={!canAct}
+                        title={!canAct ? 'Solo se puede penalizar con la sesión en progreso' : `Aplicar penalización a ${team.name}`}
+                      >
+                        🚨 Penalizar
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleForceAdvance(team)}
+                        disabled={isAdvancing || !canAct}
+                        title={!canAct ? 'Solo se puede forzar el avance con la sesión en progreso' : `Forzar avance de ${team.name} a la siguiente etapa (0 puntos)`}
+                      >
+                        {isAdvancing ? '…' : '⏭ Forzar'}
+                      </Button>
+                    </div>
+                  </Td>
                 </tr>
               );
             })}
@@ -375,98 +283,66 @@ export function TeamProgressPanel({
         </table>
       </div>
 
-      {penaltyTarget && (
-        <div style={{
-          position: 'fixed', inset: 0,
-          background: 'rgba(0,0,0,0.45)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 1000,
-        }}>
-          <div style={{
-            background: '#fff', borderRadius: 8, padding: '1.5rem',
-            minWidth: 360, maxWidth: 480, width: '90%',
-            boxShadow: '0 4px 24px rgba(0,0,0,0.2)',
-          }}>
-            <h3 style={{ margin: '0 0 1rem', fontSize: '1rem' }}>
-              🚨 Penalizar equipo: <strong>{penaltyTarget.name}</strong>
-            </h3>
-
-            <label style={{ display: 'block', marginBottom: '0.75rem' }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#555' }}>
-                Puntos a restar <span style={{ color: '#c0392b' }}>*</span>
-              </span>
-              <input
-                type="number"
-                min={1}
-                value={penaltyPoints}
-                onChange={e => setPenaltyPoints(Math.max(1, Number(e.target.value)))}
-                style={{
-                  display: 'block', width: '100%', marginTop: '0.3rem',
-                  padding: '0.4rem 0.6rem', border: '1px solid #ccc', borderRadius: 4,
-                  fontSize: '0.9rem', boxSizing: 'border-box',
-                }}
-              />
-            </label>
-
-            <label style={{ display: 'block', marginBottom: '0.75rem' }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#555' }}>
-                Motivo <span style={{ color: '#c0392b' }}>*</span>
-              </span>
-              <textarea
-                rows={3}
-                placeholder="Describe el motivo de la penalización…"
-                value={penaltyReason}
-                onChange={e => setPenaltyReason(e.target.value)}
-                style={{
-                  display: 'block', width: '100%', marginTop: '0.3rem',
-                  padding: '0.4rem 0.6rem', border: '1px solid #ccc', borderRadius: 4,
-                  fontSize: '0.9rem', resize: 'vertical', boxSizing: 'border-box',
-                }}
-              />
-            </label>
-
-            {penaltyError && (
-              <p style={{ margin: '0 0 0.75rem', color: '#c0392b', fontSize: '0.85rem' }}>{penaltyError}</p>
-            )}
-
-            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => { setPenaltyTarget(null); setPenaltyError(null); }}
-                disabled={penaltyLoading}
-                style={{ padding: '0.4rem 0.9rem', cursor: 'pointer', borderRadius: 4, border: '1px solid #ccc' }}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handlePenalize}
-                disabled={penaltyLoading || !penaltyReason.trim() || penaltyPoints < 1}
-                style={{
-                  padding: '0.4rem 0.9rem', cursor: penaltyLoading || !penaltyReason.trim() ? 'not-allowed' : 'pointer',
-                  borderRadius: 4, border: '1px solid #c0392b',
-                  background: penaltyLoading || !penaltyReason.trim() ? '#f8d7da' : '#c0392b',
-                  color: '#fff', fontWeight: 600,
-                  opacity: penaltyLoading || !penaltyReason.trim() ? 0.6 : 1,
-                }}
-              >
-                {penaltyLoading ? 'Aplicando…' : 'Aplicar penalización'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        open={!!penaltyTarget}
+        onClose={() => { setPenaltyTarget(null); setPenaltyError(null); }}
+        title={`🚨 Penalizar equipo: ${penaltyTarget?.name ?? ''}`}
+        description="La sanción restará puntos al equipo y quedará registrada en la auditoría con el motivo que indiques."
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => { setPenaltyTarget(null); setPenaltyError(null); }}
+              disabled={penaltyLoading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="danger"
+              onClick={handlePenalize}
+              disabled={penaltyLoading || !penaltyReason.trim() || penaltyPoints < 1}
+            >
+              {penaltyLoading ? 'Aplicando…' : 'Aplicar penalización'}
+            </Button>
+          </>
+        }
+      >
+        <Stack gap={3}>
+          <FormField label="Puntos a restar" htmlFor="penalty-points" required>
+            <TextInput
+              id="penalty-points"
+              type="number"
+              min={1}
+              value={penaltyPoints}
+              onChange={e => setPenaltyPoints(Math.max(1, Number(e.target.value)))}
+            />
+          </FormField>
+          <FormField label="Motivo" htmlFor="penalty-reason" required>
+            <Textarea
+              id="penalty-reason"
+              rows={3}
+              placeholder="Describe el motivo de la penalización…"
+              value={penaltyReason}
+              onChange={e => setPenaltyReason(e.target.value)}
+            />
+          </FormField>
+          {penaltyError && <Alert tone="danger">{penaltyError}</Alert>}
+        </Stack>
+      </Modal>
     </div>
   );
 }
 
-const thStyle: React.CSSProperties = {
-  padding: '0.5rem 0.75rem',
-  fontWeight: '600',
-  fontSize: '0.8rem',
-  color: '#555',
-  borderBottom: '2px solid #ddd',
-};
+function Th({ children, align = 'left' }: { children: React.ReactNode; align?: 'left' | 'center' | 'right' }) {
+  return (
+    <th className={`px-3 py-2 text-xs font-semibold uppercase tracking-wider text-ink-muted text-${align}`}>
+      {children}
+    </th>
+  );
+}
 
-const tdStyle: React.CSSProperties = {
-  padding: '0.6rem 0.75rem',
-  verticalAlign: 'middle',
-};
+function Td({ children, align = 'left' }: { children: React.ReactNode; align?: 'left' | 'center' | 'right' }) {
+  return (
+    <td className={`px-3 py-2.5 align-middle text-${align}`}>{children}</td>
+  );
+}

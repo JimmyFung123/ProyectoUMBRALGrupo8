@@ -13,6 +13,16 @@ import { SessionAuditTimeline } from './SessionAuditTimeline';
 import { SessionControls } from './SessionControls';
 import { SessionRankingPanel } from './SessionRankingPanel';
 import { TeamProgressPanel } from './TeamProgressPanel';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  Spinner,
+  Stack,
+  type BadgeTone,
+} from '../ui';
 
 interface Props {
   sessionId: string;
@@ -21,35 +31,25 @@ interface Props {
   onOpenCommandAudit?: () => void;
 }
 
-const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  Pending:    { bg: '#fff3cd', text: '#856404' },
-  InProgress: { bg: '#cce5ff', text: '#004085' },
-  Paused:     { bg: '#e2d9f3', text: '#4a235a' },
-  Completed:  { bg: '#d4edda', text: '#155724' },
-  Cancelled:  { bg: '#f8d7da', text: '#721c24' },
+const STATUS_TONES: Record<string, BadgeTone> = {
+  Pending:    'warning',
+  InProgress: 'brand',
+  Paused:     'info',
+  Completed:  'success',
+  Cancelled:  'danger',
 };
 
 function StatusBadge({ status }: { status: string }) {
-  const colors = STATUS_COLORS[status] ?? { bg: '#eee', text: '#333' };
   return (
-    <span style={{
-      marginLeft: '0.5rem',
-      padding: '0.15rem 0.6rem',
-      borderRadius: 4,
-      fontSize: '0.8rem',
-      fontWeight: 'bold',
-      background: colors.bg,
-      color: colors.text,
-    }}>
+    <Badge tone={STATUS_TONES[status] ?? 'neutral'} variant="solid">
       {SESSION_STATUS_LABELS[status as keyof typeof SESSION_STATUS_LABELS] ?? status}
-    </span>
+    </Badge>
   );
 }
 
 /** Formats elapsed time since a given ISO date string. */
 function useElapsedTime(since: string | null): string {
   const [elapsed, setElapsed] = useState('—');
-
   useEffect(() => {
     if (!since) return;
     function update() {
@@ -61,47 +61,32 @@ function useElapsedTime(since: string | null): string {
       setElapsed(
         h > 0
           ? `${h}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`
-          : `${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`
+          : `${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`,
       );
     }
     update();
     const id = setInterval(update, 1000);
     return () => clearInterval(id);
   }, [since]);
-
   return elapsed;
 }
 
 function MetricCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
-    <div style={{
-      flex: 1,
-      minWidth: 140,
-      padding: '1rem',
-      border: '1px solid #ddd',
-      borderRadius: 8,
-      textAlign: 'center',
-      background: '#fafafa',
-    }}>
-      <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#333' }}>{value}</div>
-      <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '0.25rem' }}>{label}</div>
-      {sub && <div style={{ fontSize: '0.75rem', color: '#999', marginTop: '0.1rem' }}>{sub}</div>}
-    </div>
+    <Card padded={false} className="flex-1 min-w-[140px] p-4 text-center bg-surface-inset">
+      <div className="text-3xl font-bold text-ink">{value}</div>
+      <div className="text-xs text-ink-muted mt-1 font-medium uppercase tracking-wider">{label}</div>
+      {sub && <div className="text-xs text-ink-subtle mt-0.5">{sub}</div>}
+    </Card>
   );
 }
 
 function EventRow({ event }: { event: SessionEventDto }) {
   const time = new Date(event.occurredAt).toLocaleTimeString('es-VE', { timeStyle: 'medium' });
   return (
-    <li style={{
-      display: 'flex',
-      gap: '0.75rem',
-      padding: '0.5rem 0',
-      borderBottom: '1px solid #f0f0f0',
-      alignItems: 'flex-start',
-    }}>
-      <span style={{ flexShrink: 0, fontSize: '0.75rem', color: '#999', paddingTop: '0.1rem' }}>{time}</span>
-      <span style={{ fontSize: '0.9rem', color: '#333' }}>{event.description}</span>
+    <li className="flex gap-3 py-2 border-b border-slate-100 last:border-b-0 items-start">
+      <span className="shrink-0 text-xs text-ink-subtle font-mono pt-0.5">{time}</span>
+      <span className="text-sm text-ink-soft">{event.description}</span>
     </li>
   );
 }
@@ -115,6 +100,7 @@ export function SessionDashboard({ sessionId, onBack, onOpenCommandAudit }: Prop
   const [cluesByStage, setCluesByStage] = useState<Record<string, Clue[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const elapsed = useElapsedTime(data?.createdAt ?? null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -130,15 +116,11 @@ export function SessionDashboard({ sessionId, onBack, onOpenCommandAudit }: Prop
           try {
             const clues = await clueService.getClues(missionId, stage.id);
             clueMap[stage.id] = clues.slice().sort((a, b) => a.order - b.order);
-          } catch {
-            clueMap[stage.id] = [];
-          }
-        })
+          } catch { clueMap[stage.id] = []; }
+        }),
       );
       setCluesByStage(clueMap);
-    } catch {
-      // Stages/clues unavailable — panel will show release button disabled
-    }
+    } catch { /* Stages/clues unavailable — release button will be disabled */ }
   }
 
   async function load() {
@@ -147,18 +129,14 @@ export function SessionDashboard({ sessionId, onBack, onOpenCommandAudit }: Prop
         sessionService.getDashboard(sessionId),
         teamService.getTeamProgress(sessionId),
       ]);
-
       if (dashboardResult.status === 'rejected') {
         setError('No se pudo cargar el tablero. Reintentando…');
         return;
       }
-
       const dashboard = dashboardResult.value;
       setData(dashboard);
       setTeams(teamsResult.status === 'fulfilled' ? teamsResult.value : []);
       setError(teamsResult.status === 'rejected' ? '⚠ TeamService no disponible — ranking sin datos' : null);
-
-      // Load stages + clues once we know the missionId (only when not yet loaded)
       if (stages.length === 0 && dashboard.missionId) {
         await loadStagesAndClues(dashboard.missionId);
       }
@@ -167,49 +145,55 @@ export function SessionDashboard({ sessionId, onBack, onOpenCommandAudit }: Prop
     }
   }
 
-  // ── SignalR connection ─────────────────────────────────────────────────────
   useEffect(() => {
     const hub = connectToSessionHub({ sessionId, onRefresh: () => load() });
     return () => hub.dispose();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
-  // ── Polling fallback ────────────────────────────────────────────────────────
   useEffect(() => {
     load();
     intervalRef.current = setInterval(load, 10_000);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
-  if (loading) return <p style={{ padding: '2rem' }}>Cargando tablero…</p>;
-  if (error && !data) return <p style={{ padding: '2rem', color: 'red' }}>{error}</p>;
+  async function copyCode() {
+    if (!data?.accessCode) return;
+    try {
+      await navigator.clipboard.writeText(data.accessCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* ignored */ }
+  }
+
+  if (loading) return <Card><Spinner label="Cargando tablero…" /></Card>;
+  if (error && !data) return <Alert tone="danger">{error}</Alert>;
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: '2rem', fontFamily: 'sans-serif' }}>
-
-      {/* ── Encabezado ───────────────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-        <button onClick={onBack} style={{ padding: '0.3rem 0.8rem', cursor: 'pointer' }}>
-          ← Volver
-        </button>
-        <h1 style={{ margin: 0, fontSize: '1.4rem' }}>
-          {data!.name}
-          <StatusBadge status={data!.status} />
-        </h1>
-        {error && (
-          <span style={{ marginLeft: 'auto', fontSize: '0.8rem', color: '#c0392b' }}>
-            ⚠ Error al actualizar
-          </span>
-        )}
-        <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: '#aaa' }}>
-          Actualización automática cada 10 s
-        </span>
+    <div>
+      {/* ── Encabezado ───────────────────────────────────────────────────── */}
+      <div className="flex items-start gap-4 mb-5 flex-wrap">
+        <Button variant="ghost" size="sm" onClick={onBack} leadingIcon="←">
+          Volver
+        </Button>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-xl md:text-2xl font-bold text-ink leading-tight">{data!.name}</h1>
+            <StatusBadge status={data!.status} />
+          </div>
+          <p className="text-xs text-ink-muted mt-1">
+            Actualización automática cada 10 s · ID {data!.id}
+            {data!.scheduledAt && (
+              <> · Programada para {new Date(data!.scheduledAt).toLocaleString('es-VE', { dateStyle: 'medium', timeStyle: 'short' })}</>
+            )}
+          </p>
+        </div>
+        {error && <Badge tone="danger">⚠ Error al actualizar</Badge>}
       </div>
 
-      {/* ── Controles de estado ──────────────────────────────────── */}
-      <div style={{ marginBottom: '1.5rem' }}>
+      {/* ── Controles de estado ──────────────────────────────────────────── */}
+      <div className="mb-5">
         <SessionControls
           sessionId={sessionId}
           status={data!.status as SessionStatus}
@@ -218,128 +202,92 @@ export function SessionDashboard({ sessionId, onBack, onOpenCommandAudit }: Prop
         />
       </div>
 
-      {/* ── Código de acceso para participantes ─────────────────── */}
+      {/* ── Código de acceso para participantes ──────────────────────────── */}
       {data!.accessCode && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: '1.5rem',
-          marginBottom: '1.5rem', padding: '0.75rem 1.25rem',
-          background: '#eef2ff', border: '2px solid #6366f1', borderRadius: 8,
-        }}>
-          <div>
-            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#6366f1', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              Código para participantes
+        <Card accent="brand" className="mb-5">
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="min-w-0">
+              <div className="text-xs font-semibold uppercase tracking-wider text-brand-700">
+                Código para participantes
+              </div>
+              <div className="text-3xl font-extrabold tracking-[0.35em] text-brand-700 font-mono mt-1">
+                {data!.accessCode}
+              </div>
             </div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 800, letterSpacing: '0.35em', color: '#3730a3', fontFamily: 'monospace', lineHeight: 1.2 }}>
-              {data!.accessCode}
+            <div className="ml-auto">
+              <Button variant="secondary" onClick={copyCode}>
+                {copied ? '✓ Copiado' : 'Copiar'}
+              </Button>
             </div>
           </div>
-          <button
-            onClick={() => navigator.clipboard.writeText(data!.accessCode)}
-            style={{ marginLeft: 'auto', padding: '0.4rem 1rem', borderRadius: 6, border: '1px solid #6366f1', background: 'white', color: '#6366f1', fontWeight: 600, cursor: 'pointer' }}
-          >
-            Copiar
-          </button>
-        </div>
+        </Card>
       )}
 
-      {/* ── Métricas ─────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '2rem' }}>
+      {/* ── Métricas ─────────────────────────────────────────────────────── */}
+      <div className="flex flex-wrap gap-3 mb-5">
         <MetricCard
           label="Equipos registrados"
           value={teams.length}
           sub={teams.length === 0 ? 'Sin equipos registrados' : undefined}
         />
-        <MetricCard
-          label="Tiempo transcurrido"
-          value={elapsed}
-          sub="desde la creación de la sesión"
-        />
+        <MetricCard label="Tiempo transcurrido" value={elapsed} sub="desde la creación de la sesión" />
         <MetricCard
           label="Estado"
           value={SESSION_STATUS_LABELS[data!.status as keyof typeof SESSION_STATUS_LABELS] ?? data!.status}
         />
       </div>
 
-      {/* ── Progreso de equipos (panel operativo) ────────────────── */}
-      <section style={{ border: '1px solid #ddd', borderRadius: 8, padding: '1rem', marginBottom: '1.5rem' }}>
-        <h2 style={{ margin: '0 0 0.75rem', fontSize: '1rem', color: '#444' }}>
-          Progreso y acciones por equipo
-        </h2>
-        <TeamProgressPanel
-          teams={teams}
-          sessionId={sessionId}
-          sessionStatus={data!.status}
-          stages={stages}
-          cluesByStage={cluesByStage}
-          onClueReleased={load}
-        />
-      </section>
+      <Stack gap={4}>
+        {/* ── Progreso de equipos ──────────────────────────────────────── */}
+        <Card>
+          <CardHeader title="Progreso y acciones por equipo" />
+          <TeamProgressPanel
+            teams={teams}
+            sessionId={sessionId}
+            sessionStatus={data!.status}
+            stages={stages}
+            cluesByStage={cluesByStage}
+            onClueReleased={load}
+          />
+        </Card>
 
-      {/* ── Ranking en vivo (HU-21) ──────────────────────────────── */}
-      <section style={{ border: '1px solid #ddd', borderRadius: 8, padding: '1rem', marginBottom: '1.5rem' }}>
-        <h2 style={{ margin: '0 0 0.75rem', fontSize: '1rem', color: '#444' }}>
-          🏆 Ranking en vivo
-        </h2>
-        <SessionRankingPanel sessionId={sessionId} />
-      </section>
+        {/* ── Ranking en vivo (HU-21) ──────────────────────────────────── */}
+        <Card>
+          <CardHeader title="🏆 Ranking en vivo" />
+          <SessionRankingPanel sessionId={sessionId} />
+        </Card>
 
-      {/* ── Log de eventos recientes (HU-9) ───────────────────────── */}
-      <section style={{ border: '1px solid #ddd', borderRadius: 8, padding: '1rem', marginBottom: '1.5rem' }}>
-        <h2 style={{ margin: '0 0 0.75rem', fontSize: '1rem', color: '#444' }}>
-          Eventos recientes
-        </h2>
-        {data!.recentEvents.length === 0 ? (
-          <p style={{ color: '#999', fontSize: '0.9rem', margin: 0 }}>
-            Aún no hay eventos registrados para esta sesión.
-          </p>
-        ) : (
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-            {data!.recentEvents.map(ev => (
-              <EventRow key={ev.id} event={ev} />
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {/* ── Historial completo de auditoría (HU-22) ──────────────── */}
-      <section style={{ border: '1px solid #ddd', borderRadius: 8, padding: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem' }}>
-          <h2 style={{ margin: 0, fontSize: '1rem', color: '#444' }}>
-            📜 Historial de auditoría
-          </h2>
-          {onOpenCommandAudit && (
-            <button
-              onClick={onOpenCommandAudit}
-              style={{
-                cursor: 'pointer',
-                padding: '0.4rem 0.85rem',
-                border: '1px solid #4338ca',
-                borderRadius: 4,
-                background: '#fff',
-                color: '#4338ca',
-                fontWeight: 600,
-                fontSize: '0.82rem',
-              }}
-              title="Abre la vista técnica con comandos CQRS, timestamps con milisegundos y exportación CSV (HU-26)"
-            >
-              🔍 Auditoría completa (HU-26)
-            </button>
+        {/* ── Eventos recientes (HU-9) ─────────────────────────────────── */}
+        <Card>
+          <CardHeader title="Eventos recientes" />
+          {data!.recentEvents.length === 0 ? (
+            <p className="text-sm text-ink-muted">Aún no hay eventos registrados para esta sesión.</p>
+          ) : (
+            <ul className="list-none m-0 p-0">
+              {data!.recentEvents.map(ev => <EventRow key={ev.id} event={ev} />)}
+            </ul>
           )}
-        </div>
-        <p style={{ margin: '0 0 0.75rem', fontSize: '0.82rem', color: '#777' }}>
-          Línea de tiempo completa con quién, qué y cuándo. Útil para revisar
-          reclamos o auditar la operación.
-        </p>
-        <SessionAuditTimeline sessionId={sessionId} />
-      </section>
+        </Card>
 
-      {/* ── Info adicional ────────────────────────────────────────── */}
-      <p style={{ marginTop: '1rem', fontSize: '0.8rem', color: '#aaa' }}>
-        ID: {data!.id}
-        {data!.scheduledAt && (
-          <> · Programada: {new Date(data!.scheduledAt).toLocaleString('es-VE', { dateStyle: 'medium', timeStyle: 'short' })}</>
-        )}
-      </p>
+        {/* ── Historial de auditoría (HU-22 + HU-26) ───────────────────── */}
+        <Card>
+          <CardHeader
+            title="📜 Historial de auditoría"
+            description="Línea de tiempo completa con quién, qué y cuándo. Útil para revisar reclamos o auditar la operación."
+            actions={onOpenCommandAudit && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onOpenCommandAudit}
+                title="Abre la vista técnica con comandos CQRS, timestamps con milisegundos y exportación CSV (HU-26)"
+              >
+                🔍 Auditoría completa
+              </Button>
+            )}
+          />
+          <SessionAuditTimeline sessionId={sessionId} />
+        </Card>
+      </Stack>
     </div>
   );
 }

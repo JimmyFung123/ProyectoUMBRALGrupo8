@@ -3,7 +3,22 @@ import { missionService } from '../../services/missionService';
 import { sessionService } from '../../services/sessionService';
 import type { Mission } from '../../types/mission';
 import type { ApiError } from '../../types/mission';
-import { SESSION_STATUS_LABELS, type CreateSessionPayload, type Session } from '../../types/session';
+import { SESSION_STATUS_LABELS, type CreateSessionPayload, type Session, type SessionStatus } from '../../types/session';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  EmptyState,
+  FormField,
+  PageHeader,
+  Select,
+  Spinner,
+  Stack,
+  TextInput,
+  type BadgeTone,
+} from '../ui';
 
 const initialForm: CreateSessionPayload = {
   missionId: '',
@@ -16,8 +31,6 @@ interface EditForm {
   scheduledAt: string | null;
 }
 
-// ── SessionList ───────────────────────────────────────────────────────────────
-
 interface Props {
   onViewDetail: (sessionId: string) => void;
 }
@@ -28,23 +41,18 @@ export function SessionList({ onViewDetail }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Estado del formulario de creación
   const [form, setForm] = useState<CreateSessionPayload>(initialForm);
   const [createError, setCreateError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
-  // Estado de edición inline
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({ name: '', scheduledAt: null });
   const [editError, setEditError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Estado de cancelación
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadAll();
-  }, []);
+  useEffect(() => { loadAll(); }, []);
 
   async function loadAll() {
     setLoading(true);
@@ -55,7 +63,6 @@ export function SessionList({ onViewDetail }: Props) {
         missionService.getAll(),
       ]);
       setSessions(s);
-      // Solo las misiones activas pueden tener sesiones
       setMissions(m.filter(m => m.status === 'Active'));
     } catch {
       setError('No se pudieron cargar las sesiones. Intentá de nuevo.');
@@ -81,7 +88,7 @@ export function SessionList({ onViewDetail }: Props) {
 
   async function handleCancel(session: Session) {
     const confirmed = window.confirm(
-      `¿Cancelar la sesión "${session.name}"?\n\nSe eliminarán todos los equipos registrados. Esta acción no se puede deshacer.`
+      `¿Cancelar la sesión "${session.name}"?\n\nSe eliminarán todos los equipos registrados. Esta acción no se puede deshacer.`,
     );
     if (!confirmed) return;
 
@@ -137,207 +144,196 @@ export function SessionList({ onViewDetail }: Props) {
     }
   }
 
-  // ── Renderizado ───────────────────────────────────────────────────────────
-
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto', padding: '2rem', fontFamily: 'sans-serif' }}>
-      <h1>Sesiones</h1>
+    <div>
+      <PageHeader
+        eyebrow="Operaciones"
+        title="Sesiones"
+        description="Crea, edita y supervisa las instancias de juego. Solo las sesiones pendientes se pueden editar o cancelar."
+      />
 
-      {/* ── Formulario de creación ─────────────────────────────── */}
-      <section style={{ marginBottom: '2rem', padding: '1rem', border: '1px solid #ddd', borderRadius: 8 }}>
-        <h2 style={{ marginTop: 0 }}>Nueva sesión</h2>
+      {/* ── Creación ─────────────────────────────────────────────────────── */}
+      <Card className="mb-5">
+        <CardHeader
+          title="Nueva sesión"
+          description="A partir de una misión activa generamos una sala de espera con su código de acceso."
+        />
         <form onSubmit={handleCreate}>
-          <div style={{ marginBottom: '0.75rem' }}>
-            <label>Misión (activa)</label>
-            <select
-              required
-              value={form.missionId}
-              onChange={e => setForm(f => ({ ...f, missionId: e.target.value }))}
-              style={{ display: 'block', width: '100%', padding: '0.4rem' }}
-            >
-              <option value="">— Seleccioná una misión —</option>
-              {missions.map(m => (
-                <option key={m.id} value={m.id}>{m.name}</option>
-              ))}
-            </select>
-            {missions.length === 0 && (
-              <small style={{ color: '#888' }}>No hay misiones activas. Activá una primero.</small>
-            )}
-          </div>
+          <Stack gap={3}>
+            <FormField label="Misión (activa)" htmlFor="session-mission" required hint={
+              missions.length === 0 ? 'No hay misiones activas. Activá una desde la pestaña Misiones primero.' : undefined
+            }>
+              <Select
+                id="session-mission"
+                required
+                value={form.missionId}
+                onChange={e => setForm(f => ({ ...f, missionId: e.target.value }))}
+                disabled={missions.length === 0}
+              >
+                <option value="">— Seleccioná una misión —</option>
+                {missions.map(m => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </Select>
+            </FormField>
 
-          <div style={{ marginBottom: '0.75rem' }}>
-            <label>Nombre de la sesión</label>
-            <input
-              required
-              value={form.name}
-              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              placeholder="Ej: Ronda 1 — Equipo A"
-              style={{ display: 'block', width: '100%', padding: '0.4rem' }}
-            />
-          </div>
+            <FormField label="Nombre de la sesión" htmlFor="session-name" required>
+              <TextInput
+                id="session-name"
+                required
+                value={form.name}
+                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                placeholder="Ej: Ronda 1 — Equipo A"
+              />
+            </FormField>
 
-          <div style={{ marginBottom: '0.75rem' }}>
-            <label>Fecha programada (opcional)</label>
-            <input
-              type="datetime-local"
-              value={form.scheduledAt ?? ''}
-              onChange={e => setForm(f => ({ ...f, scheduledAt: e.target.value || null }))}
-              style={{ display: 'block', padding: '0.4rem' }}
-            />
-          </div>
+            <FormField label="Fecha programada (opcional)" htmlFor="session-scheduled">
+              <TextInput
+                id="session-scheduled"
+                type="datetime-local"
+                value={form.scheduledAt ?? ''}
+                onChange={e => setForm(f => ({ ...f, scheduledAt: e.target.value || null }))}
+              />
+            </FormField>
 
-          {createError && <p style={{ color: 'red', margin: '0.4rem 0' }}>{createError}</p>}
-          <button type="submit" disabled={creating}>
-            {creating ? 'Creando…' : 'Crear sesión'}
-          </button>
+            {createError && <Alert tone="danger">{createError}</Alert>}
+
+            <div>
+              <Button type="submit" disabled={creating || missions.length === 0}>
+                {creating ? 'Creando…' : 'Crear sesión'}
+              </Button>
+            </div>
+          </Stack>
         </form>
-      </section>
+      </Card>
 
-      {/* ── Lista ─────────────────────────────────────────────── */}
-      {loading && <p>Cargando sesiones…</p>}
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {/* ── Lista ─────────────────────────────────────────────────────────── */}
+      {loading && <Card><Spinner label="Cargando sesiones…" /></Card>}
+
+      {error && <Alert tone="danger">{error}</Alert>}
+
       {!loading && !error && sessions.length === 0 && (
-        <p>Todavía no hay sesiones. Creá la primera arriba.</p>
+        <Card>
+          <EmptyState
+            icon="🎮"
+            title="Todavía no hay sesiones"
+            description="Creá la primera completando el formulario de arriba."
+          />
+        </Card>
       )}
 
-      <ul style={{ listStyle: 'none', padding: 0 }}>
-        {sessions.map(session => {
-          const missionName = missions.find(m => m.id === session.missionId)?.name ?? session.missionId;
-          const isPending = session.status === 'Pending';
-          const isEditing = editingId === session.id;
-          const isCancelling = cancellingId === session.id;
-
-          return (
-            <li
-              key={session.id}
-              style={{ marginBottom: '0.75rem', border: '1px solid #ddd', borderRadius: 8, padding: '0.9rem 1rem' }}
-            >
-              {/* ── Vista normal ── */}
-              {!isEditing && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <strong>{session.name}</strong>
-                    <StatusBadge status={session.status} />
-                    <p style={{ margin: '0.2rem 0', color: '#555', fontSize: '0.9rem' }}>
-                      Misión: <em>{missionName}</em>
-                    </p>
-                    <small style={{ color: '#888' }}>
-                      Creada: {new Date(session.createdAt).toLocaleDateString('es-VE', { dateStyle: 'medium' })}
-                      {session.scheduledAt && (
-                        <> · Programada: {new Date(session.scheduledAt).toLocaleString('es-VE', { dateStyle: 'medium', timeStyle: 'short' })}</>
-                      )}
-                    </small>
-
-                    {/* Aviso de solo lectura para sesiones no pendientes */}
-                    {!isPending && (
-                      <p style={{ margin: '0.3rem 0 0', fontSize: '0.8rem', color: '#888', fontStyle: 'italic' }}>
-                        No se puede modificar una sesión que ya ha comenzado.
+      {!loading && !error && sessions.length > 0 && (
+        <Stack gap={3}>
+          {sessions.map(session => {
+            const missionName = missions.find(m => m.id === session.missionId)?.name ?? session.missionId;
+            const isPending = session.status === 'Pending';
+            const isEditing = editingId === session.id;
+            const isCancelling = cancellingId === session.id;
+            return (
+              <Card key={session.id}>
+                {!isEditing ? (
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-base font-semibold text-ink">{session.name}</h3>
+                        <StatusBadge status={session.status} />
+                      </div>
+                      <p className="text-sm text-ink-soft mt-1">
+                        Misión: <span className="font-medium">{missionName}</span>
                       </p>
-                    )}
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
-                    <button
-                      onClick={() => startEdit(session)}
-                      disabled={!isPending || isCancelling}
-                      title={isPending ? 'Editar sesión' : 'Solo se pueden editar sesiones pendientes'}
-                      style={{
-                        cursor: isPending ? 'pointer' : 'not-allowed',
-                        padding: '0.3rem 0.8rem',
-                        opacity: isPending ? 1 : 0.45,
-                      }}
-                    >
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => handleCancel(session)}
-                      disabled={!isPending || isCancelling}
-                      title={isPending ? 'Cancelar sesión' : 'Solo se pueden cancelar sesiones pendientes'}
-                      style={{
-                        cursor: isPending ? 'pointer' : 'not-allowed',
-                        padding: '0.3rem 0.8rem',
-                        opacity: isPending ? 1 : 0.45,
-                        color: isPending ? '#c0392b' : undefined,
-                      }}
-                    >
-                      {isCancelling ? 'Cancelando…' : 'Cancelar'}
-                    </button>
-                    <button
-                      onClick={() => onViewDetail(session.id)}
-                      style={{ cursor: 'pointer', padding: '0.3rem 0.8rem', whiteSpace: 'nowrap' }}
-                    >
-                      Ver detalle
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* ── Formulario de edición inline ── */}
-              {isEditing && (
-                <form onSubmit={handleSaveEdit}>
-                  <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                    <div style={{ flex: 1, minWidth: 200 }}>
-                      <label style={{ fontSize: '0.85rem' }}>Nombre</label>
-                      <input
-                        required
-                        value={editForm.name}
-                        onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
-                        style={{ display: 'block', width: '100%', padding: '0.35rem' }}
-                        autoFocus
-                      />
+                      <p className="text-xs text-ink-muted mt-1">
+                        Creada el {new Date(session.createdAt).toLocaleDateString('es-VE', { dateStyle: 'medium' })}
+                        {session.scheduledAt && (
+                          <> · Programada para {new Date(session.scheduledAt).toLocaleString('es-VE', { dateStyle: 'medium', timeStyle: 'short' })}</>
+                        )}
+                      </p>
+                      {!isPending && (
+                        <p className="text-xs text-ink-muted italic mt-1.5">
+                          No se puede modificar una sesión que ya ha comenzado.
+                        </p>
+                      )}
                     </div>
-                    <div style={{ flex: 1, minWidth: 200 }}>
-                      <label style={{ fontSize: '0.85rem' }}>Fecha programada (opcional)</label>
-                      <input
-                        type="datetime-local"
-                        value={editForm.scheduledAt ?? ''}
-                        onChange={e => setEditForm(f => ({ ...f, scheduledAt: e.target.value || null }))}
-                        style={{ display: 'block', width: '100%', padding: '0.35rem' }}
-                      />
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.4rem' }}>
-                      <button type="submit" disabled={saving}>
-                        {saving ? 'Guardando…' : 'Guardar'}
-                      </button>
-                      <button type="button" onClick={cancelEdit} disabled={saving}>
-                        Cancelar
-                      </button>
+                    <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => startEdit(session)}
+                        disabled={!isPending || isCancelling}
+                        title={isPending ? 'Editar sesión' : 'Solo se pueden editar sesiones pendientes'}
+                      >
+                        Editar
+                      </Button>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => handleCancel(session)}
+                        disabled={!isPending || isCancelling}
+                        title={isPending ? 'Cancelar sesión' : 'Solo se pueden cancelar sesiones pendientes'}
+                      >
+                        {isCancelling ? 'Cancelando…' : 'Cancelar'}
+                      </Button>
+                      <Button size="sm" onClick={() => onViewDetail(session.id)}>
+                        Ver detalle
+                      </Button>
                     </div>
                   </div>
-                  {editError && (
-                    <p style={{ color: 'red', margin: '0.4rem 0 0', fontSize: '0.85rem' }}>{editError}</p>
-                  )}
-                </form>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+                ) : (
+                  <form onSubmit={handleSaveEdit}>
+                    <Stack gap={3}>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <FormField label="Nombre" htmlFor={`edit-name-${session.id}`} required>
+                          <TextInput
+                            id={`edit-name-${session.id}`}
+                            required
+                            autoFocus
+                            value={editForm.name}
+                            onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                          />
+                        </FormField>
+                        <FormField label="Fecha programada (opcional)" htmlFor={`edit-sched-${session.id}`}>
+                          <TextInput
+                            id={`edit-sched-${session.id}`}
+                            type="datetime-local"
+                            value={editForm.scheduledAt ?? ''}
+                            onChange={e => setEditForm(f => ({ ...f, scheduledAt: e.target.value || null }))}
+                          />
+                        </FormField>
+                      </div>
+                      {editError && <Alert tone="danger">{editError}</Alert>}
+                      <div className="flex items-center gap-2">
+                        <Button type="submit" disabled={saving} size="sm">
+                          {saving ? 'Guardando…' : 'Guardar'}
+                        </Button>
+                        <Button type="button" variant="secondary" size="sm" onClick={cancelEdit} disabled={saving}>
+                          Cancelar
+                        </Button>
+                      </div>
+                    </Stack>
+                  </form>
+                )}
+              </Card>
+            );
+          })}
+        </Stack>
+      )}
     </div>
   );
 }
 
 // ── StatusBadge ───────────────────────────────────────────────────────────────
 
-const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  Pending:    { bg: '#fff3cd', text: '#856404' },
-  InProgress: { bg: '#cce5ff', text: '#004085' },
-  Completed:  { bg: '#d4edda', text: '#155724' },
-  Cancelled:  { bg: '#f8d7da', text: '#721c24' },
+const STATUS_TONES: Record<SessionStatus, BadgeTone> = {
+  Pending:    'warning',
+  InProgress: 'brand',
+  Paused:     'info',
+  Completed:  'success',
+  Cancelled:  'danger',
 };
 
-function StatusBadge({ status }: { status: string }) {
-  const colors = STATUS_COLORS[status] ?? { bg: '#eee', text: '#333' };
+function StatusBadge({ status }: { status: SessionStatus }) {
   return (
-    <span style={{
-      marginLeft: '0.5rem',
-      padding: '0.1rem 0.5rem',
-      borderRadius: 4,
-      fontSize: '0.75rem',
-      background: colors.bg,
-      color: colors.text,
-    }}>
-      {SESSION_STATUS_LABELS[status as keyof typeof SESSION_STATUS_LABELS] ?? status}
-    </span>
+    <Badge tone={STATUS_TONES[status] ?? 'neutral'}>
+      {SESSION_STATUS_LABELS[status] ?? status}
+    </Badge>
   );
 }

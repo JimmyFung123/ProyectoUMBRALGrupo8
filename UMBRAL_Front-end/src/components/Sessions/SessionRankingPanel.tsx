@@ -2,60 +2,45 @@ import { useEffect, useRef, useState } from 'react';
 import { sessionService } from '../../services/sessionService';
 import { connectToSessionHub, type HubConnState } from '../../services/sessionHub';
 import type { SessionRanking, SessionRankingTeam } from '../../types/ranking';
+import { Badge, EmptyState, type BadgeTone } from '../ui';
 
-// Fallback HTTP poll period when SignalR is unavailable or while it reconnects.
-// HU-21 expects "instantáneo" via WebSockets — polling is the safety net (AC #4).
 const FALLBACK_POLL_MS = 10_000;
-
 type ConnectionState = HubConnState;
 
-interface Props {
-  sessionId: string;
-}
+interface Props { sessionId: string }
 
-const RANK_COLORS: Record<number, string> = {
-  1: '#f9a825',
-  2: '#90a4ae',
-  3: '#a1887f',
+const RANK_COLOR: Record<number, string> = {
+  1: '#f59e0b',
+  2: '#94a3b8',
+  3: '#b45309',
 };
 
 function RankBadge({ rank }: { rank: number }) {
   const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : null;
   return (
-    <span style={{
-      fontWeight: 'bold',
-      color: RANK_COLORS[rank] ?? '#555',
-      minWidth: 32,
-      display: 'inline-block',
-    }}>
+    <span
+      className="font-bold inline-block min-w-[32px]"
+      style={{ color: RANK_COLOR[rank] ?? '#475569' }}
+    >
       {medal ?? `#${rank}`}
     </span>
   );
 }
 
-function ConnectionPill({ state }: { state: ConnectionState }) {
-  const config: Record<ConnectionState, { label: string; bg: string; color: string }> = {
-    connecting:   { label: 'Conectando…',    bg: '#fff3cd', color: '#856404' },
-    connected:    { label: '● En vivo',      bg: '#d4edda', color: '#155724' },
-    reconnecting: { label: 'Sincronizando…', bg: '#fff3cd', color: '#856404' },
-    disconnected: { label: 'Desconectado',   bg: '#f8d7da', color: '#721c24' },
-  };
-  const c = config[state];
-  return (
-    <span style={{
-      fontSize: '0.75rem',
-      padding: '0.15rem 0.55rem',
-      borderRadius: 999,
-      background: c.bg,
-      color: c.color,
-      fontWeight: 600,
-    }}>
-      {c.label}
-    </span>
-  );
-}
+const CONN_TONE: Record<ConnectionState, BadgeTone> = {
+  connecting:   'warning',
+  connected:    'success',
+  reconnecting: 'warning',
+  disconnected: 'danger',
+};
 
-/** Formats an ISO timestamp as "hace Xs / Xm". */
+const CONN_LABEL: Record<ConnectionState, string> = {
+  connecting:   'Conectando…',
+  connected:    '● En vivo',
+  reconnecting: 'Sincronizando…',
+  disconnected: 'Desconectado',
+};
+
 function formatRelative(iso: string | null): string {
   if (!iso) return '—';
   const diffSec = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
@@ -71,22 +56,12 @@ function formatResolutionTime(iso: string | null): string {
   return new Date(iso).toLocaleTimeString('es-VE', { timeStyle: 'medium' });
 }
 
-/**
- * HU-21 — Ranking en vivo.
- *
- * Listens to the SignalR "SessionStateChanged" event for instant updates,
- * falls back to a 10s HTTP poll if the hub is unreachable (criterion 4),
- * and always exposes the timestamp of the last successful sync (criterion 5).
- * Retains the last known ranking when the connection drops so the UI
- * never goes blank (flujo alterno HU-21).
- */
 export function SessionRankingPanel({ sessionId }: Props) {
   const [ranking, setRanking] = useState<SessionRanking | null>(null);
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
   const [connState, setConnState] = useState<ConnectionState>('connecting');
   const [error, setError] = useState<string | null>(null);
-  const [, setTick] = useState(0); // re-render every second for "hace Xs"
-
+  const [, setTick] = useState(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   async function loadRanking() {
@@ -100,24 +75,19 @@ export function SessionRankingPanel({ sessionId }: Props) {
     }
   }
 
-  // Tick every second so the "hace Xs" indicator stays fresh without re-fetching.
   useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), 1000);
+    const id = setInterval(() => setTick(t => t + 1), 1000);
     return () => clearInterval(id);
   }, []);
 
-  // SignalR + polling fallback
   useEffect(() => {
     const hub = connectToSessionHub({
       sessionId,
       onRefresh: () => { void loadRanking(); },
       onStateChange: setConnState,
     });
-
-    // Always run the HTTP fallback poll, regardless of SignalR state.
     void loadRanking();
     pollRef.current = setInterval(() => { void loadRanking(); }, FALLBACK_POLL_MS);
-
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
       hub.dispose();
@@ -129,73 +99,63 @@ export function SessionRankingPanel({ sessionId }: Props) {
 
   return (
     <div>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.6rem',
-        marginBottom: '0.75rem',
-        flexWrap: 'wrap',
-      }}>
-        <ConnectionPill state={connState} />
-        <span style={{ fontSize: '0.78rem', color: '#777' }}>
+      <div className="flex items-center gap-3 mb-3 flex-wrap">
+        <Badge tone={CONN_TONE[connState]}>{CONN_LABEL[connState]}</Badge>
+        <span className="text-xs text-ink-muted">
           Última sincronización: <strong>{formatRelative(lastSyncedAt?.toISOString() ?? null)}</strong>
-          {lastSyncedAt && (
-            <> · {lastSyncedAt.toLocaleTimeString('es-VE', { timeStyle: 'medium' })}</>
-          )}
+          {lastSyncedAt && <> · {lastSyncedAt.toLocaleTimeString('es-VE', { timeStyle: 'medium' })}</>}
         </span>
-        {error && (
-          <span style={{ marginLeft: 'auto', fontSize: '0.78rem', color: '#c0392b' }}>
-            ⚠ {error}
-          </span>
-        )}
+        {error && <Badge tone="danger">⚠ {error}</Badge>}
       </div>
 
       {teams.length === 0 ? (
-        <p style={{ color: '#999', fontSize: '0.9rem', margin: 0 }}>
-          Aún no hay equipos en esta sesión.
-        </p>
+        <EmptyState
+          icon="🏁"
+          title="Aún no hay equipos en esta sesión"
+          description="Cuando ingresen participantes verás el ranking actualizarse en vivo."
+        />
       ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-            <thead>
-              <tr style={{ background: '#f5f5f5', textAlign: 'left' }}>
-                <th style={thStyle}>Pos.</th>
-                <th style={thStyle}>Equipo</th>
-                <th style={{ ...thStyle, textAlign: 'center' }}>Etapa</th>
-                <th style={{ ...thStyle, textAlign: 'right' }}>Puntos</th>
-                <th style={{ ...thStyle, textAlign: 'center' }}>Última resolución</th>
+        <div className="overflow-x-auto rounded border border-slate-200">
+          <table className="w-full text-sm">
+            <thead className="bg-surface-subtle">
+              <tr>
+                <Th>Pos.</Th>
+                <Th>Equipo</Th>
+                <Th align="center">Etapa</Th>
+                <Th align="right">Puntos</Th>
+                <Th align="center">Última resolución</Th>
               </tr>
             </thead>
             <tbody>
-              {teams.map((team) => (
-                <tr key={team.teamId} style={{
-                  borderBottom: '1px solid #eee',
-                  background: team.rank === 1 ? '#fffde7' : undefined,
-                }}>
-                  <td style={tdStyle}><RankBadge rank={team.rank} /></td>
-                  <td style={tdStyle}>
+              {teams.map(team => (
+                <tr
+                  key={team.teamId}
+                  className={`border-t border-slate-100 ${team.rank === 1 ? 'bg-warning-50/40' : ''}`}
+                >
+                  <Td><RankBadge rank={team.rank} /></Td>
+                  <Td>
                     <span
                       title={team.isConnected ? 'Conectado' : 'Desconectado'}
-                      style={{
-                        display: 'inline-block',
-                        width: 8, height: 8, borderRadius: '50%',
-                        background: team.isConnected ? '#27ae60' : '#bdc3c7',
-                        marginRight: '0.4rem',
-                      }}
+                      className="inline-block w-2 h-2 rounded-full mr-2 align-middle"
+                      style={{ background: team.isConnected ? '#16a34a' : '#cbd5e1' }}
                     />
-                    <strong>{team.name}</strong>
-                  </td>
-                  <td style={{ ...tdStyle, textAlign: 'center', color: '#555' }}>
+                    <strong className="text-ink">{team.name}</strong>
+                  </Td>
+                  <Td align="center">
                     {team.currentStageOrder === 0
-                      ? <span style={{ color: '#aaa' }}>—</span>
-                      : `Etapa ${team.currentStageOrder}`}
-                  </td>
-                  <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 'bold', color: '#2c3e50' }}>
-                    {team.score.toLocaleString('es-VE')}
-                  </td>
-                  <td style={{ ...tdStyle, textAlign: 'center', color: '#777', fontSize: '0.82rem' }}>
-                    {formatResolutionTime(team.lastStageCompletedAt)}
-                  </td>
+                      ? <span className="text-ink-subtle">—</span>
+                      : <span className="text-ink-soft">Etapa {team.currentStageOrder}</span>}
+                  </Td>
+                  <Td align="right">
+                    <span className="font-bold tabular-nums text-ink">
+                      {team.score.toLocaleString('es-VE')}
+                    </span>
+                  </Td>
+                  <Td align="center">
+                    <span className="text-xs text-ink-muted">
+                      {formatResolutionTime(team.lastStageCompletedAt)}
+                    </span>
+                  </Td>
                 </tr>
               ))}
             </tbody>
@@ -206,15 +166,16 @@ export function SessionRankingPanel({ sessionId }: Props) {
   );
 }
 
-const thStyle: React.CSSProperties = {
-  padding: '0.5rem 0.75rem',
-  fontWeight: 600,
-  fontSize: '0.8rem',
-  color: '#555',
-  borderBottom: '2px solid #ddd',
-};
+function Th({ children, align = 'left' }: { children: React.ReactNode; align?: 'left' | 'center' | 'right' }) {
+  return (
+    <th className={`px-3 py-2 text-xs font-semibold uppercase tracking-wider text-ink-muted text-${align}`}>
+      {children}
+    </th>
+  );
+}
 
-const tdStyle: React.CSSProperties = {
-  padding: '0.55rem 0.75rem',
-  verticalAlign: 'middle',
-};
+function Td({ children, align = 'left' }: { children: React.ReactNode; align?: 'left' | 'center' | 'right' }) {
+  return (
+    <td className={`px-3 py-2.5 align-middle text-${align}`}>{children}</td>
+  );
+}

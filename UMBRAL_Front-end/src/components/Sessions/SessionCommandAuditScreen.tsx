@@ -2,32 +2,30 @@ import { useEffect, useMemo, useState } from 'react';
 import { connectToSessionHub } from '../../services/sessionHub';
 import { sessionService } from '../../services/sessionService';
 import type { SessionCommandAudit, SessionCommandAuditEntry } from '../../types/audit';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  PageHeader,
+  Select,
+  Spinner,
+} from '../ui';
 
 interface Props {
   sessionId: string;
   onBack: () => void;
 }
 
-// HU-22 alternate-flow alignment: pending/cancelled sessions render an empty
-// state instead of the table — keeps both audit views consistent.
 const EMPTY_STATE_STATUSES: ReadonlySet<string> = new Set(['Pending', 'Cancelled']);
-
 const ALL_FILTER = '__ALL__';
 
 /**
  * HU-26 — Auditoría y trazabilidad de acciones (vista técnica).
  *
  * Pantalla dedicada, NO embebida en el dashboard. Muestra el log inmutable de
- * comandos CQRS ejecutados contra la sesión, con:
- *
- *   • Timestamp con precisión de milisegundos (criterio 1).
- *   • Tipo de comando CQRS y outcome (Success/Failure).
- *   • Filtros por actor y por tipo de comando.
- *   • Exportación CSV para reconstruir eventos en disputas.
- *
- * Refresca en tiempo real vía SignalR. La tabla es de solo lectura — la
- * inmutabilidad se garantiza también del lado backend mediante el
- * SessionEventImmutabilityInterceptor (criterio 2).
+ * comandos CQRS ejecutados contra la sesión.
  */
 export function SessionCommandAuditScreen({ sessionId, onBack }: Props) {
   const [audit, setAudit] = useState<SessionCommandAudit | null>(null);
@@ -55,7 +53,6 @@ export function SessionCommandAuditScreen({ sessionId, onBack }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
-  // Build dropdown options from the actual data — no hard-coded lists.
   const actorOptions = useMemo(() => {
     const names = new Set(audit?.entries.map(e => e.actorName) ?? []);
     return Array.from(names).sort();
@@ -105,92 +102,92 @@ export function SessionCommandAuditScreen({ sessionId, onBack }: Props) {
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.headerBar}>
-        <button onClick={onBack} style={styles.backBtn}>← Volver al dashboard</button>
-        <h1 style={styles.title}>🔍 Auditoría completa de comandos</h1>
-        <p style={styles.subtitle}>
-          HU-26 — log inmutable de cada comando ejecutado en esta sesión, con
-          precisión de milisegundos. Pensado para reconstruir disputas o
-          incidentes técnicos.
-        </p>
+    <div>
+      <div className="mb-3">
+        <Button variant="ghost" size="sm" onClick={onBack} leadingIcon="←">
+          Volver al dashboard
+        </Button>
       </div>
+      <PageHeader
+        eyebrow="HU-26"
+        title="🔍 Auditoría completa de comandos"
+        description="Log inmutable de cada comando ejecutado en esta sesión, con precisión de milisegundos. Pensado para reconstruir disputas o incidentes técnicos."
+      />
 
-      {loading && !audit && <p style={styles.muted}>Cargando log…</p>}
-      {error && !audit && <p style={{ ...styles.muted, color: '#c0392b' }}>{error}</p>}
+      {loading && !audit && <Card><Spinner label="Cargando log…" /></Card>}
+      {error && !audit && <Alert tone="danger">{error}</Alert>}
 
       {audit && (
         <>
-          <div style={styles.metaBar}>
-            <span><strong>Estado:</strong> {audit.sessionStatus}</span>
-            <span><strong>Última carga:</strong> {formatTimestamp(audit.generatedAt)}</span>
-            {error && <span style={{ color: '#c0392b' }}>⚠ Última actualización falló</span>}
-          </div>
+          <Card className="mb-4">
+            <div className="flex flex-wrap items-center gap-4 text-sm">
+              <span><strong>Estado:</strong> {audit.sessionStatus}</span>
+              <span><strong>Última carga:</strong> {formatTimestamp(audit.generatedAt)}</span>
+              {error && <Badge tone="danger">⚠ Última actualización falló</Badge>}
+            </div>
+          </Card>
 
           {EMPTY_STATE_STATUSES.has(audit.sessionStatus) || audit.entries.length === 0 ? (
-            <div style={styles.emptyBox}>
-              <p style={styles.emptyTitle}>📭 Aún no hay comandos registrados para esta sesión.</p>
-              <p style={styles.emptySubtitle}>
-                {audit.sessionStatus === 'Pending'
-                  ? 'La sesión está en preparación. Los comandos comenzarán a registrarse desde el primero ejecutado.'
-                  : audit.sessionStatus === 'Cancelled'
-                    ? 'La sesión fue cancelada antes de iniciar.'
-                    : 'Cada acción quedará registrada aquí en orden cronológico.'}
-              </p>
-            </div>
+            <Card>
+              <EmptyState
+                icon="📭"
+                title="Aún no hay comandos registrados"
+                description={
+                  audit.sessionStatus === 'Pending'
+                    ? 'La sesión está en preparación. Los comandos comenzarán a registrarse desde el primero ejecutado.'
+                    : audit.sessionStatus === 'Cancelled'
+                      ? 'La sesión fue cancelada antes de iniciar.'
+                      : 'Cada acción quedará registrada aquí en orden cronológico.'
+                }
+              />
+            </Card>
           ) : (
-            <>
-              <div style={styles.controlsBar}>
-                <label style={styles.filterLabel}>
+            <Card padded={false}>
+              <div className="flex flex-wrap items-center gap-3 p-4 border-b border-slate-200">
+                <label className="text-sm text-ink-soft flex items-center gap-2">
                   Actor:
-                  <select
+                  <Select
+                    className="w-auto"
                     value={actorFilter}
                     onChange={e => setActorFilter(e.target.value)}
-                    style={styles.select}
                   >
                     <option value={ALL_FILTER}>Todos</option>
-                    {actorOptions.map(a => (
-                      <option key={a} value={a}>{a}</option>
-                    ))}
-                  </select>
+                    {actorOptions.map(a => <option key={a} value={a}>{a}</option>)}
+                  </Select>
                 </label>
-
-                <label style={styles.filterLabel}>
+                <label className="text-sm text-ink-soft flex items-center gap-2">
                   Comando:
-                  <select
+                  <Select
+                    className="w-auto"
                     value={commandFilter}
                     onChange={e => setCommandFilter(e.target.value)}
-                    style={styles.select}
                   >
                     <option value={ALL_FILTER}>Todos</option>
-                    {commandOptions.map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
+                    {commandOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                  </Select>
                 </label>
-
-                <span style={styles.count}>
+                <span className="ml-auto text-sm font-semibold text-ink-soft">
                   {filteredEntries.length} de {audit.entries.length} {audit.entries.length === 1 ? 'comando' : 'comandos'}
                 </span>
-
-                <button
+                <Button
+                  size="sm"
                   onClick={handleExportCsv}
                   disabled={filteredEntries.length === 0}
-                  style={styles.exportBtn}
+                  leadingIcon="⬇"
                 >
-                  ⬇ Exportar CSV
-                </button>
+                  Exportar CSV
+                </Button>
               </div>
 
-              <div style={styles.tableWrap}>
-                <table style={styles.table}>
+              <div className="max-h-[600px] overflow-auto">
+                <table className="w-full text-sm">
                   <thead>
-                    <tr>
-                      <th style={styles.th}>Timestamp (ms)</th>
-                      <th style={styles.th}>Actor</th>
-                      <th style={styles.th}>Command</th>
-                      <th style={styles.th}>Outcome</th>
-                      <th style={styles.th}>Descripción</th>
+                    <tr className="sticky top-0 bg-surface-subtle border-b-2 border-slate-300">
+                      <Th>Timestamp (ms)</Th>
+                      <Th>Actor</Th>
+                      <Th>Command</Th>
+                      <Th>Outcome</Th>
+                      <Th>Descripción</Th>
                     </tr>
                   </thead>
                   <tbody>
@@ -200,7 +197,7 @@ export function SessionCommandAuditScreen({ sessionId, onBack }: Props) {
                   </tbody>
                 </table>
               </div>
-            </>
+            </Card>
           )}
         </>
       )}
@@ -208,28 +205,44 @@ export function SessionCommandAuditScreen({ sessionId, onBack }: Props) {
   );
 }
 
-// ── Row ────────────────────────────────────────────────────────────────────
+function Th({ children }: { children: React.ReactNode }) {
+  return (
+    <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-ink-muted">
+      {children}
+    </th>
+  );
+}
 
 function CommandRow({ entry }: { entry: SessionCommandAuditEntry }) {
-  const outcomeStyle = entry.outcome === 'Failure' ? styles.outcomeFail
-    : entry.outcome === 'Success' ? styles.outcomeOk
-    : styles.outcomeNeutral;
   return (
-    <tr style={styles.tr}>
-      <td style={{ ...styles.td, ...styles.timestamp }}>{formatTimestamp(entry.occurredAt)}</td>
-      <td style={{ ...styles.td, color: actorColor(entry.actorName), fontWeight: 600 }}>{entry.actorName}</td>
-      <td style={{ ...styles.td, ...styles.mono }}>{entry.commandType ?? '—'}</td>
-      <td style={{ ...styles.td, ...outcomeStyle }}>{entry.outcome ?? '—'}</td>
-      <td style={styles.td}>{entry.description}</td>
+    <tr className="border-t border-slate-100">
+      <td className="px-3 py-2 align-top font-mono text-xs text-ink-muted whitespace-nowrap">
+        {formatTimestamp(entry.occurredAt)}
+      </td>
+      <td
+        className="px-3 py-2 align-top font-semibold"
+        style={{ color: actorColor(entry.actorName) }}
+      >
+        {entry.actorName}
+      </td>
+      <td className="px-3 py-2 align-top font-mono text-xs text-ink">
+        {entry.commandType ?? '—'}
+      </td>
+      <td className="px-3 py-2 align-top">
+        <OutcomeBadge outcome={entry.outcome ?? null} />
+      </td>
+      <td className="px-3 py-2 align-top text-ink-soft">{entry.description}</td>
     </tr>
   );
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+function OutcomeBadge({ outcome }: { outcome: string | null }) {
+  if (outcome === 'Success') return <Badge tone="success">Success</Badge>;
+  if (outcome === 'Failure') return <Badge tone="danger">Failure</Badge>;
+  return <span className="text-ink-subtle">—</span>;
+}
 
 function formatTimestamp(iso: string): string {
-  // ES-VE date + time with milliseconds (HU-26 criterion 1). Intl does not
-  // expose ms — we append them manually from the Date instance.
   const d = new Date(iso);
   const date = d.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const time = d.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
@@ -238,7 +251,7 @@ function formatTimestamp(iso: string): string {
 }
 
 function actorColor(actorName: string): string {
-  if (actorName === 'Sistema')         return '#6b7280';
+  if (actorName === 'Sistema')         return '#64748b';
   if (actorName.startsWith('Equipo ')) return '#0891b2';
   return '#4338ca';
 }
@@ -249,129 +262,3 @@ function escapeCsvCell(value: string): string {
   }
   return value;
 }
-
-// ── Styles ────────────────────────────────────────────────────────────────
-
-const styles: Record<string, React.CSSProperties> = {
-  container: {
-    maxWidth: 1100,
-    margin: '0 auto',
-    padding: '2rem',
-    fontFamily: 'sans-serif',
-  },
-  headerBar: { marginBottom: '1.5rem' },
-  backBtn: {
-    cursor: 'pointer',
-    padding: '0.3rem 0.7rem',
-    border: '1px solid #ccc',
-    borderRadius: 4,
-    background: '#fff',
-    marginBottom: '0.75rem',
-  },
-  title: { margin: '0 0 0.35rem', fontSize: '1.5rem' },
-  subtitle: { margin: 0, color: '#666', fontSize: '0.88rem', lineHeight: 1.5 },
-  metaBar: {
-    display: 'flex',
-    gap: '1.5rem',
-    flexWrap: 'wrap',
-    padding: '0.75rem 1rem',
-    background: '#f8fafc',
-    border: '1px solid #e2e8f0',
-    borderRadius: 6,
-    marginBottom: '1rem',
-    fontSize: '0.85rem',
-    color: '#475569',
-  },
-  controlsBar: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: '1rem',
-    marginBottom: '0.75rem',
-    padding: '0.5rem 0',
-  },
-  filterLabel: {
-    fontSize: '0.85rem',
-    color: '#444',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.4rem',
-  },
-  select: {
-    padding: '0.3rem 0.5rem',
-    border: '1px solid #ccc',
-    borderRadius: 4,
-    fontSize: '0.85rem',
-    background: '#fff',
-  },
-  count: {
-    marginLeft: 'auto',
-    fontSize: '0.8rem',
-    color: '#666',
-    fontWeight: 600,
-  },
-  exportBtn: {
-    cursor: 'pointer',
-    padding: '0.45rem 0.9rem',
-    border: '1px solid #4338ca',
-    borderRadius: 4,
-    background: '#4338ca',
-    color: '#fff',
-    fontWeight: 600,
-    fontSize: '0.85rem',
-  },
-  tableWrap: {
-    border: '1px solid #e2e8f0',
-    borderRadius: 6,
-    overflow: 'auto',
-    maxHeight: 600,
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-    fontSize: '0.85rem',
-  },
-  th: {
-    position: 'sticky',
-    top: 0,
-    background: '#f1f5f9',
-    color: '#334155',
-    padding: '0.6rem 0.75rem',
-    textAlign: 'left',
-    borderBottom: '2px solid #cbd5e1',
-    fontSize: '0.78rem',
-    textTransform: 'uppercase',
-    letterSpacing: '0.04em',
-  },
-  tr: { borderBottom: '1px solid #f1f5f9' },
-  td: {
-    padding: '0.55rem 0.75rem',
-    verticalAlign: 'top',
-    color: '#1e293b',
-  },
-  timestamp: {
-    fontFamily: 'monospace',
-    fontSize: '0.78rem',
-    color: '#475569',
-    whiteSpace: 'nowrap',
-  },
-  mono: { fontFamily: 'monospace', fontSize: '0.78rem' },
-  outcomeOk:      { color: '#16a34a', fontWeight: 600 },
-  outcomeFail:    { color: '#dc2626', fontWeight: 600 },
-  outcomeNeutral: { color: '#94a3b8' },
-  emptyBox: {
-    padding: '1.5rem',
-    background: '#fafafa',
-    border: '1px dashed #ccc',
-    borderRadius: 6,
-    textAlign: 'center',
-  },
-  emptyTitle: {
-    margin: '0 0 0.5rem',
-    color: '#555',
-    fontSize: '1rem',
-    fontWeight: 700,
-  },
-  emptySubtitle: { margin: 0, color: '#888', fontSize: '0.85rem' },
-  muted: { color: '#999', fontSize: '0.9rem' },
-};
