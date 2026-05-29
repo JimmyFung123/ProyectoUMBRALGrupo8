@@ -6,12 +6,14 @@ import { SessionCommandAuditScreen } from './components/Sessions/SessionCommandA
 import { SessionDashboard } from './components/Sessions/SessionDashboard'
 import { SessionList } from './components/Sessions/SessionList'
 import { StatisticsDashboard } from './components/Statistics/StatisticsDashboard'
+import { SyncHealthDashboard } from './components/SyncHealth/SyncHealthDashboard'
 import { UsersList } from './components/Users/UsersList'
 
 const BASE_TABS = [
   { key: 'missions',   label: '🗺️ Misiones',     adminOnly: false },
   { key: 'sessions',   label: '🎮 Sesiones',     adminOnly: false },
   { key: 'statistics', label: '📊 Estadísticas', adminOnly: true  }, // HU-25
+  { key: 'sync',       label: '🔄 Sincronización', adminOnly: true }, // HU-27
   { key: 'users',      label: '👥 Personal',     adminOnly: true  }, // HU-23
 ]
 
@@ -90,6 +92,7 @@ function App() {
             )
       )}
       {activeTab === 'statistics' && isAdmin && <StatisticsDashboard />}
+      {activeTab === 'sync' && isAdmin && <SyncHealthDashboard />}
       {activeTab === 'users' && isAdmin && <UsersList />}
     </div>
   )

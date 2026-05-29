@@ -24,6 +24,10 @@ builder.Services.AddMediatR(cfg =>
 builder.Services.AddScoped<IStageRepository, StageRepository>();
 builder.Services.AddScoped<IMissionLookupRepository, MissionLookupRepository>();
 
+// HU-27 — the InternalSyncHealthController calls MissionService over HTTP to
+// re-seed MissionsLookup when an admin triggers a manual reproject.
+builder.Services.AddHttpClient();
+
 builder.Services.AddMassTransit(x =>
 {
     x.AddConsumer<MissionCreatedConsumer>();
@@ -34,7 +38,9 @@ builder.Services.AddMassTransit(x =>
     {
         cfg.Host(new Uri(builder.Configuration.GetConnectionString("RabbitMQ")
                          ?? "amqp://guest:guest@localhost:5672/"));
-        cfg.ConfigureEndpoints(ctx);
+        // Per-service prefix so this service's MissionsLookup consumers don't
+        // share a queue with SessionService's (fan-out, not load balancing).
+        cfg.ConfigureEndpoints(ctx, new KebabCaseEndpointNameFormatter(prefix: "stage", includeNamespace: false));
     });
 });
 

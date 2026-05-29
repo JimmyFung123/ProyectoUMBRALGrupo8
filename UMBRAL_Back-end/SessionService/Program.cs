@@ -2,6 +2,7 @@ using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using SessionService.Application.Sessions;
 using SessionService.Application.Statistics;
+using SessionService.Application.SyncHealth;
 using SessionService.Domain.MissionLookup;
 using SessionService.Domain.Sessions;
 using SessionService.Domain.Statistics;
@@ -47,9 +48,14 @@ builder.Services.AddScoped<IStageCompletionRecordRepository, StageCompletionReco
 builder.Services.AddScoped<IStatisticsReadRepository, StatisticsReadRepository>();
 
 // ── MassTransit + RabbitMQ (consumer side) ───────────────────────────────────
+// Per-service queue prefix: forces each service to bind its own queue to the
+// shared event exchange so the bus behaves as fan-out (every service receives
+// every event) instead of competing consumers (RabbitMQ load-balances events
+// between same-named queues). Without the prefix, SessionService and
+// StageService both register a "MissionCreated" queue and RabbitMQ splits the
+// events between them, leaving each MissionsLookup behind by ~50%.
 builder.Services.AddMassTransit(x =>
 {
-    // Register all three consumers that keep MissionsLookup in sync
     x.AddConsumer<MissionCreatedConsumer>();
     x.AddConsumer<MissionActivatedConsumer>();
     x.AddConsumer<MissionDeactivatedConsumer>();
@@ -59,8 +65,10 @@ builder.Services.AddMassTransit(x =>
         cfg.Host(new Uri(builder.Configuration.GetConnectionString("RabbitMQ")
                          ?? "amqp://guest:guest@localhost:5672/"));
 
-        // Auto-configure queues/exchanges for all registered consumers
-        cfg.ConfigureEndpoints(ctx);
+        // Auto-configure queues/exchanges for all registered consumers, but
+        // with a per-service prefix so the queue names cannot collide with
+        // the other services that consume the same integration events.
+        cfg.ConfigureEndpoints(ctx, new KebabCaseEndpointNameFormatter(prefix: "session", includeNamespace: false));
     });
 });
 
@@ -80,6 +88,34 @@ builder.Services.AddHttpClient<IClueServiceClient, ClueServiceClient>(client =>
 builder.Services.AddHttpClient<IStageServiceClient, StageServiceClient>(client =>
 {
     var url = builder.Configuration["StageServiceUrl"] ?? "http://localhost:5093/";
+    client.BaseAddress = new Uri(url);
+});
+
+// ── HU-27: sync-health aggregator — typed clients to every downstream service
+//          plus the local EF-backed reader for SessionService's own projections
+builder.Services.AddScoped<ILocalSyncHealthReader, LocalSyncHealthReader>();
+
+builder.Services.AddHttpClient<IMissionServiceSyncClient, MissionServiceSyncClient>(client =>
+{
+    var url = builder.Configuration["MissionServiceUrl"] ?? "http://localhost:5091/";
+    client.BaseAddress = new Uri(url);
+});
+
+builder.Services.AddHttpClient<IStageServiceSyncClient, StageServiceSyncClient>(client =>
+{
+    var url = builder.Configuration["StageServiceUrl"] ?? "http://localhost:5093/";
+    client.BaseAddress = new Uri(url);
+});
+
+builder.Services.AddHttpClient<IClueServiceSyncClient, ClueServiceSyncClient>(client =>
+{
+    var url = builder.Configuration["ClueServiceUrl"] ?? "http://localhost:5094/";
+    client.BaseAddress = new Uri(url);
+});
+
+builder.Services.AddHttpClient<ITeamServiceSyncClient, TeamServiceSyncClient>(client =>
+{
+    var url = builder.Configuration["TeamServiceUrl"] ?? "http://localhost:5095/";
     client.BaseAddress = new Uri(url);
 });
 

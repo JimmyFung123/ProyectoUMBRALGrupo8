@@ -44,7 +44,10 @@ builder.Services.AddMassTransit(x =>
     {
         cfg.Host(new Uri(builder.Configuration.GetConnectionString("RabbitMQ")
                          ?? "amqp://guest:guest@localhost:5672/"));
-        cfg.ConfigureEndpoints(ctx);
+        // Per-service prefix — keeps the queue namespace uniform with the
+        // rest of the bus even though TeamService's consumer name doesn't
+        // currently collide with anyone else's.
+        cfg.ConfigureEndpoints(ctx, new KebabCaseEndpointNameFormatter(prefix: "team", includeNamespace: false));
     });
 });
 

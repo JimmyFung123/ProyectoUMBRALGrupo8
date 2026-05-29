@@ -24,6 +24,10 @@ builder.Services.AddMediatR(cfg =>
 builder.Services.AddScoped<IClueRepository, ClueRepository>();
 builder.Services.AddScoped<IStageLookupRepository, StageLookupRepository>();
 
+// HU-27 — InternalSyncHealthController calls StageService over HTTP to rebuild
+// the StageLookup projection on manual reproject.
+builder.Services.AddHttpClient();
+
 builder.Services.AddMassTransit(x =>
 {
     x.AddConsumer<StageAddedConsumer>();
@@ -33,7 +37,9 @@ builder.Services.AddMassTransit(x =>
     {
         cfg.Host(new Uri(builder.Configuration.GetConnectionString("RabbitMQ")
                          ?? "amqp://guest:guest@localhost:5672/"));
-        cfg.ConfigureEndpoints(ctx);
+        // Per-service prefix so this service's stage-event consumers don't
+        // share a queue with MissionService's (fan-out, not load balancing).
+        cfg.ConfigureEndpoints(ctx, new KebabCaseEndpointNameFormatter(prefix: "clue", includeNamespace: false));
     });
 });
 

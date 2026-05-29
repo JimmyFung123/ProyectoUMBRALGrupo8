@@ -370,6 +370,7 @@ hubMock.Setup(h => h.Clients).Returns(clientsMock.Object);
 | HU-22 | Consultar historial de auditoría de sesión | SessionService, Front Operador |
 | HU-23 | Gestión integral de personal operativo (KeyCloak) | Infra (Docker), UMBRAL.Auth, UserService (5096), Front Operador |
 | HU-26 | Auditoría y trazabilidad de acciones (log técnico de comandos CQRS + CSV) | SessionService (interceptor de inmutabilidad + endpoint `/audit-log`), Front Operador (pantalla `SessionCommandAuditScreen`) |
+| HU-27 | Monitoreo de sincronización entre modelos de escritura y lectura | SessionService (aggregador `/api/sync-health` + reproject local), MissionService/StageService/ClueService/TeamService (endpoints `/api/internal/sync-health` + reproject por servicio), Front Operador (tab admin "🔄 Sincronización") |
 
 ---
 
