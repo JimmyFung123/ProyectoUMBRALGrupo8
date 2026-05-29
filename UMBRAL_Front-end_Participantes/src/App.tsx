@@ -143,6 +143,7 @@ export default function App() {
         team={teamProp}
         nickname={nickname}
         onGameStart={handleGameStart}
+        onLeaveSession={handleLeaveSession}
       />
     );
   }

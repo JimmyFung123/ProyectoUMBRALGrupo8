@@ -5,6 +5,7 @@ import { useClueStream } from '../services/clueStream';
 import { TriviaScreen } from './TriviaScreen';
 import { TreasureHuntScreen } from './TreasureHuntScreen';
 import { RankingScreen } from './RankingScreen';
+import { SessionStatusOverlay, type BlockingSessionStatus } from './SessionStatusOverlay';
 
 type TeamProp = { teamId: string; isLeader: boolean };
 
@@ -25,12 +26,16 @@ type AnswerState =
 
 const POLL_INTERVAL_MS = 8_000;
 const RESULT_DISPLAY_MS = 3_000;
+const BLOCKING_STATUSES: ReadonlySet<string> = new Set(['Paused', 'Completed', 'Cancelled']);
 
 export function GameScreen({ session, team, nickname, initialStage, onLeaveSession }: Props) {
   const [stage, setStage] = useState<ParticipantStage>(initialStage);
   const [answerState, setAnswerState] = useState<AnswerState>({ phase: 'answering' });
   const [error, setError] = useState<string | null>(null);
   const [showRanking, setShowRanking] = useState(false);
+  // Cuando el operador pausa/finaliza/cancela la sesión, el polling detecta el
+  // cambio de sessionStatus y bloqueamos toda interacción con un overlay.
+  const [blockingStatus, setBlockingStatus] = useState<BlockingSessionStatus | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Real-time clue stream (HU-20): SignalR + API resync after reconnect.
@@ -45,6 +50,13 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
       intervalRef.current = setInterval(async () => {
         try {
           const updated = await getParticipantStage(session.id, team.teamId);
+          // Detect operator-driven state changes (HU-11) — pause/finalize/cancel
+          // block the UI; resume clears the overlay automatically.
+          if (BLOCKING_STATUSES.has(updated.sessionStatus)) {
+            setBlockingStatus(updated.sessionStatus as BlockingSessionStatus);
+          } else {
+            setBlockingStatus(null);
+          }
           // Only update if still in answering phase to avoid overwriting result card
           setStage((prev) => {
             if (updated.currentStageOrder !== prev.currentStageOrder) {
@@ -94,6 +106,17 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
     />
   );
 
+  // Blocking overlay shared by every branch (Trivia, TreasureHunt, Waiting,
+  // result, Completed). Declared up here so JSX in every branch can reference
+  // it without tripping over TS's no-use-before-declaration rule.
+  const blockingOverlay = blockingStatus && (
+    <SessionStatusOverlay
+      status={blockingStatus}
+      onLeaveSession={blockingStatus === 'Paused' ? undefined : onLeaveSession}
+      onViewRanking={blockingStatus === 'Completed' ? () => setShowRanking(true) : undefined}
+    />
+  );
+
   // Completed: team has gone past the last stage
   if (stage.type === 'Completed' || (stage.isLastStage && answerState.phase === 'result' && answerState.result.nextStageOrder > stage.order)) {
     return (
@@ -117,6 +140,7 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
           </div>
         </div>
         {rankingOverlay}
+        {blockingOverlay}
       </>
     );
   }
@@ -140,6 +164,7 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
           </div>
         </div>
         {rankingOverlay}
+        {blockingOverlay}
       </>
     );
   }
@@ -162,6 +187,7 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
           </div>
         </div>
         {rankingOverlay}
+        {blockingOverlay}
       </>
     );
   }
@@ -175,6 +201,23 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
       title="Ver ranking"
     >
       🏆
+    </button>
+  );
+
+  // Exit FAB — always reachable from Trivia / TreasureHunt. Confirms before
+  // leaving so a stray tap doesn't kick a teammate out mid-stage.
+  const exitFab = (
+    <button
+      onClick={() => {
+        if (window.confirm('¿Salir de la sesión? Volverás a la pantalla de inicio.')) {
+          onLeaveSession();
+        }
+      }}
+      style={styles.exitFab}
+      aria-label="Salir de la sesión"
+      title="Salir de la sesión"
+    >
+      ✕
     </button>
   );
 
@@ -198,8 +241,10 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
           clues={clues}
           clueStatus={clueStatus}
         />
+        {exitFab}
         {rankingFab}
         {rankingOverlay}
+        {blockingOverlay}
       </>
     );
   }
@@ -223,8 +268,10 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
         clues={clues}
         clueStatus={clueStatus}
       />
+      {exitFab}
       {rankingFab}
       {rankingOverlay}
+      {blockingOverlay}
     </>
   );
 }
@@ -275,6 +322,24 @@ const styles: Record<string, React.CSSProperties> = {
     // Above Leaflet's panes/controls (max ~1000) so it stays visible on the
     // TreasureHunt map, but below the ranking overlay itself (zIndex 2000).
     zIndex: 1500,
+  },
+  exitFab: {
+    position: 'fixed',
+    top: '1rem',
+    right: '1rem',
+    padding: '0.4rem 0.85rem',
+    borderRadius: 999,
+    background: 'rgba(15, 23, 42, 0.85)',
+    border: '1px solid #334155',
+    color: '#cbd5e1',
+    fontSize: '0.85rem',
+    fontWeight: 600,
+    cursor: 'pointer',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.35)',
+    // Same layer as the ranking FAB so it always stays reachable on the map.
+    zIndex: 1500,
+    backdropFilter: 'blur(4px)',
+    WebkitBackdropFilter: 'blur(4px)',
   },
   viewRankingButton: {
     marginTop: '1.5rem',
