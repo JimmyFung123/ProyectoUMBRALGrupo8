@@ -16,6 +16,9 @@ public static class MissionErrors
     public static readonly Error InvalidName =
         new("Mission.InvalidName", "Mission name cannot be empty.");
 
+    public static readonly Error InvalidDescription =
+        new("Mission.InvalidDescription", "Mission description is too long.");
+
     public static readonly Error InvalidMaxDuration =
         new("Mission.InvalidMaxDuration", "Max duration must be greater than zero.");
 
