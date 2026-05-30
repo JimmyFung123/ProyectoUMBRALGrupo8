@@ -24,11 +24,13 @@ public class UpdateStageCommandHandler : IRequestHandler<UpdateStageCommand, Res
         var mission = await _missionLookupRepository.GetByIdAsync(stage.MissionId, cancellationToken);
         if (mission is not null && mission.IsActive) return Result.Failure<bool>(StageErrors.MissionIsActive);
 
-        stage.Update(
+        var updateResult = stage.Update(
             request.Title, request.Order, request.BaseScore,
             request.Question,
             request.Latitude, request.Longitude, request.QrCode,
             request.AutoReleaseTimeMinutes, request.AutoReleaseMaxAttempts);
+        if (updateResult.IsFailure)
+            return Result.Failure<bool>(updateResult.Error);
 
         if (stage.Type == StageType.Trivia && request.Options is not null)
         {

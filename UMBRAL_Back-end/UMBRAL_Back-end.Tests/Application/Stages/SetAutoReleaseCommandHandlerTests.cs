@@ -37,7 +37,8 @@ public class SetAutoReleaseCommandHandlerTests
     {
         var missionId = Guid.NewGuid();
         var stageId = Guid.NewGuid();
-        var stage = Stage.Create(missionId, "Etapa con auto-release", StageType.TreasureHunt, 1, 100).Value;
+        var stage = Stage.Create(missionId, "Etapa con auto-release", StageType.TreasureHunt, 1, 100,
+            question: null, latitude: 10.5, longitude: -66.9, qrCode: "QR-TREASURE-1").Value;
 
         _stageRepoMock
             .Setup(r => r.GetByIdAsync(stageId, It.IsAny<CancellationToken>()))
