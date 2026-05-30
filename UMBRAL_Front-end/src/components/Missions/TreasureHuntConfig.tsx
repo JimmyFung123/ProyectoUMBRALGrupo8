@@ -56,6 +56,12 @@ export function TreasureHuntConfig({
   const [qrCode] = useState<string>(() => initialQrCode ?? crypto.randomUUID());
 
   const qrWrapperRef = useRef<HTMLDivElement>(null);
+  // Canvas oculto en alta resolución, usado solo para exportar el QR a imprimir.
+  const qrExportRef = useRef<HTMLDivElement>(null);
+
+  // Tamaño de descarga del QR (px). El QR visible se mantiene pequeño (140px)
+  // por layout, pero el archivo se exporta grande para que imprima nítido.
+  const QR_EXPORT_SIZE = 2048;
 
   function handlePickLocation(ll: LatLng) {
     setPosition(ll);
@@ -63,7 +69,9 @@ export function TreasureHuntConfig({
   }
 
   function handleDownloadQR() {
-    const canvas = qrWrapperRef.current?.querySelector('canvas') as HTMLCanvasElement | null;
+    // Exportamos desde el canvas oculto de alta resolución, no del visible (140px),
+    // para que el PNG descargado no salga pixelado al imprimirlo.
+    const canvas = qrExportRef.current?.querySelector('canvas') as HTMLCanvasElement | null;
     if (!canvas) return;
     const link = document.createElement('a');
     link.href = canvas.toDataURL('image/png');
@@ -142,6 +150,25 @@ export function TreasureHuntConfig({
                   bgColor="#ffffff"
                   fgColor="#1e293b"
                   level="H"
+                />
+              </div>
+
+              {/* Canvas oculto en alta resolución: solo se usa para exportar.
+                  Se posiciona fuera de pantalla (no display:none, que impediría
+                  pintar el canvas). includeMargin agrega el "quiet zone" que los
+                  lectores necesitan para enfocar. */}
+              <div
+                ref={qrExportRef}
+                aria-hidden="true"
+                style={{ position: 'absolute', left: '-99999px', top: 0, pointerEvents: 'none' }}
+              >
+                <QRCodeCanvas
+                  value={qrCode}
+                  size={QR_EXPORT_SIZE}
+                  bgColor="#ffffff"
+                  fgColor="#1e293b"
+                  level="H"
+                  marginSize={4}
                 />
               </div>
               <p className="text-[9px] font-mono text-slate-400 break-all text-center leading-relaxed">
