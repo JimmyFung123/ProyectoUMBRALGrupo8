@@ -29,7 +29,7 @@ public class Session
             Status = SessionStatus.Pending,
             CreatedAt = DateTime.UtcNow,
             ScheduledAt = scheduledAt,
-            AccessCode = GenerateCode(6),
+            AccessCode = SessionCode.Generate().Value,
         });
     }
 
@@ -102,12 +102,5 @@ public class Session
         Name = name.Trim();
         ScheduledAt = scheduledAt;
         return Result.Success(true);
-    }
-
-    private static string GenerateCode(int length)
-    {
-        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        return new string(Enumerable.Range(0, length)
-            .Select(_ => chars[Random.Shared.Next(chars.Length)]).ToArray());
     }
 }

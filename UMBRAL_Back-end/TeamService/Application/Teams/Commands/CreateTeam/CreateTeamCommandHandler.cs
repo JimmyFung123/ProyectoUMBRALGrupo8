@@ -17,10 +17,12 @@ public class CreateTeamCommandHandler : IRequestHandler<CreateTeamCommand, Resul
 
     public async Task<Result<CreateTeamResult>> Handle(CreateTeamCommand request, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.TeamName))
-            return Result.Failure<CreateTeamResult>(TeamErrors.InvalidTeamName);
+        // HU-17: validate the participant-supplied team name via the TeamName VO.
+        var nameResult = TeamName.Create(request.TeamName);
+        if (nameResult.IsFailure)
+            return Result.Failure<CreateTeamResult>(nameResult.Error);
 
-        var team = Team.Create(request.SessionId, request.TeamName.Trim());
+        var team = Team.Create(request.SessionId, nameResult.Value.Value);
         await _repo.AddAsync(team, cancellationToken);
 
         // HU-24: keep the ranking read model in sync within the same transaction.

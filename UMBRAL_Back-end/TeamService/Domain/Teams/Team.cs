@@ -63,7 +63,7 @@ public class Team
             Id = Guid.NewGuid(),
             SessionId = sessionId,
             Name = name.Trim(),
-            InviteCode = GenerateInviteCode(),
+            InviteCode = TeamCode.Generate().Value,
             MemberCount = 1,
             IsConnected = false,
             CurrentStageOrder = 0,
@@ -78,13 +78,6 @@ public class Team
     {
         MemberCount++;
         return Result.Success(MemberCount);
-    }
-
-    private static string GenerateInviteCode()
-    {
-        const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no ambiguous chars
-        return new string(Enumerable.Range(0, 4)
-            .Select(_ => chars[Random.Shared.Next(chars.Length)]).ToArray());
     }
 
     public void SetConnected(bool connected) => IsConnected = connected;
