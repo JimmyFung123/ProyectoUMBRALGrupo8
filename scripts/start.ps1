@@ -1,19 +1,26 @@
 # UMBRAL — Arranque completo
 #
 # Uso desde la raiz del repo:
-#   .\scripts\start.ps1            (todo: infra + migraciones + servicios + fronts)
+#   .\scripts\start.ps1            (todo: infra + migraciones + servicios + fronts + tunel movil)
 #   .\scripts\start.ps1 -SkipInfra (asume Postgres + RabbitMQ ya corriendo)
 #   .\scripts\start.ps1 -SkipMigrations
-#   .\scripts\start.ps1 -BackOnly  (no levanta los front-ends)
+#   .\scripts\start.ps1 -BackOnly  (no levanta los front-ends ni el tunel)
+#   .\scripts\start.ps1 -NoTunnel  (no expone el front participante por Cloudflare)
 #
 # Cada servicio .NET y cada front-end se abre en su propia ventana de PowerShell
 # para que puedas leer sus logs por separado.
+#
+# Tunel movil: por defecto levanta un Cloudflare Quick Tunnel apuntando al front
+# participante (5174) y muestra una URL https://...trycloudflare.com para entrar
+# desde el celular (cert valido, sin instalar nada). La URL cambia en cada
+# arranque. Requiere cloudflared (winget install Cloudflare.cloudflared).
 
 [CmdletBinding()]
 param(
     [switch]$SkipInfra,
     [switch]$SkipMigrations,
-    [switch]$BackOnly
+    [switch]$BackOnly,
+    [switch]$NoTunnel
 )
 
 $ErrorActionPreference = 'Stop'
@@ -34,6 +41,19 @@ function Test-Tool($name, $hint) {
 if (-not $SkipInfra) { Test-Tool 'docker' 'Instala Docker Desktop.' }
 Test-Tool 'dotnet' 'Instala .NET 10 SDK.'
 if (-not $BackOnly) { Test-Tool 'npm' 'Instala Node.js 20+.' }
+
+# Localiza cloudflared aunque el PATH de esta sesion no se haya refrescado tras
+# instalarlo con winget (busca el alias en PATH y luego en los paquetes WinGet).
+function Get-CloudflaredPath {
+    $cmd = Get-Command cloudflared -ErrorAction SilentlyContinue
+    if ($cmd) { return $cmd.Source }
+    $direct = "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\Cloudflare.cloudflared_Microsoft.Winget.Source_8wekyb3d8bbwe\cloudflared.exe"
+    if (Test-Path $direct) { return $direct }
+    $found = Get-ChildItem "$env:LOCALAPPDATA\Microsoft\WinGet\Packages" -Recurse -Filter 'cloudflared.exe' -ErrorAction SilentlyContinue |
+             Select-Object -First 1
+    if ($found) { return $found.FullName }
+    return $null
+}
 
 # dotnet-ef como herramienta global
 if (-not $SkipMigrations) {
@@ -173,6 +193,47 @@ if (-not $BackOnly) {
     Start-InNewWindow 'UMBRAL - Front Participante (5174)' 'UMBRAL_Front-end_Participantes' 'npm run dev'
 }
 
+# ── 5b. Tunel Cloudflare para el front participante (acceso movil HTTPS) ──────
+# El front participante sirve API + SignalR por proxy desde su propio origen
+# (ver vite.config: proxy /api,/team-api,/hubs + allowedHosts), asi que un solo
+# tunel al 5174 basta: HTTPS con cert valido, sin CORS ni mixed content.
+$tunnelUrl = $null
+if (-not $BackOnly -and -not $NoTunnel) {
+    $cf = Get-CloudflaredPath
+    if (-not $cf) {
+        Write-Host "==> cloudflared no esta instalado; omito el tunel movil." -ForegroundColor Yellow
+        Write-Host "    Instalalo con: winget install Cloudflare.cloudflared" -ForegroundColor DarkGray
+    } else {
+        $tunnelLog = Join-Path $env:TEMP 'umbral-cloudflared.log'
+        if (Test-Path $tunnelLog) { Remove-Item $tunnelLog -Force -ErrorAction SilentlyContinue }
+        Write-Host "==> Levantando tunel Cloudflare (front participante 5174)..." -ForegroundColor Cyan
+        # Ventana propia: deja ver los logs y mantiene vivo el proceso. Tee escribe
+        # el log a un archivo que sondeamos para extraer la URL del tunel.
+        $cfCmd = "`$host.UI.RawUI.WindowTitle='UMBRAL - Cloudflared (movil)'; " +
+                 "& '$cf' tunnel --url http://localhost:5174 --no-autoupdate 2>&1 | " +
+                 "Tee-Object -FilePath '$tunnelLog'"
+        Start-Process powershell -ArgumentList @('-NoExit', '-Command', $cfCmd) | Out-Null
+
+        # Esperar a que cloudflared imprima la URL (hasta ~25s).
+        $attempts = 0
+        do {
+            Start-Sleep -Seconds 1
+            $attempts++
+            if (Test-Path $tunnelLog) {
+                $m = Select-String -Path $tunnelLog -Pattern 'https://[a-z0-9-]+\.trycloudflare\.com' -ErrorAction SilentlyContinue |
+                     Select-Object -First 1
+                if ($m) { $tunnelUrl = $m.Matches[0].Value }
+            }
+        } while (-not $tunnelUrl -and $attempts -lt 25)
+
+        if ($tunnelUrl) {
+            Write-Host "    Tunel listo: $tunnelUrl" -ForegroundColor Green
+        } else {
+            Write-Host "    El tunel tarda en responder; revisa la ventana 'UMBRAL - Cloudflared (movil)'." -ForegroundColor Yellow
+        }
+    }
+}
+
 Write-Host ""
 Write-Host "========================================================" -ForegroundColor Green
 Write-Host " UMBRAL arriba" -ForegroundColor Green
@@ -193,6 +254,11 @@ if (-not $BackOnly) {
     Write-Host " Front:"
     Write-Host "   Operador       http://localhost:5173"
     Write-Host "   Participante   http://localhost:5174"
+    if ($tunnelUrl) {
+        Write-Host "   Movil (HTTPS)  $tunnelUrl" -ForegroundColor Cyan
+    } elseif (-not $NoTunnel) {
+        Write-Host "   Movil (HTTPS)  (tunel iniciando; ver ventana 'UMBRAL - Cloudflared (movil)')" -ForegroundColor DarkGray
+    }
 }
 Write-Host ""
 Write-Host " Para parar todo:  .\scripts\stop.ps1" -ForegroundColor Yellow

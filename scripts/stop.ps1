@@ -37,6 +37,15 @@ Get-CimInstance Win32_Process -Filter "Name='node.exe' OR Name='dotnet.exe'" -Er
         try { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue } catch { }
     }
 
+# Cerrar el tunel de Cloudflare del front participante. El cloudflared.exe es un
+# proceso hijo que NO muere al cerrar su ventana PowerShell, asi que lo matamos
+# por linea de comandos (solo el que apunta al 5174, para no tocar otros tuneles).
+Get-CimInstance Win32_Process -Filter "Name='cloudflared.exe'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.CommandLine -and $_.CommandLine -like '*localhost:5174*' } |
+    ForEach-Object {
+        try { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue } catch { }
+    }
+
 # Cerrar ventanas PowerShell con titulo "UMBRAL - ..." (las que lanzo start.ps1)
 Get-Process powershell -ErrorAction SilentlyContinue |
     Where-Object { $_.MainWindowTitle -like 'UMBRAL - *' } |
