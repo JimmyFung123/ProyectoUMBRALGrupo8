@@ -20,14 +20,14 @@ public class ChangeRoleCommandHandler : IRequestHandler<ChangeRoleCommand, Resul
         if (user.Role == request.NewRole)
             return Result.Success();
 
-        // ── HU-23 Criterio 4: proteger al último administrador ────────────────
-        // Si estamos bajando un admin a operator, primero verificamos que no
-        // sea el único admin activo del sistema.
-        if (user.Role == UserRole.Admin && request.NewRole == UserRole.Operator)
+        // ── HU-23 Criterio 4: proteger al último administrador (RolePolicy) ───
+        // Sólo una degradación Admin→Operator puede dejar al sistema sin admins;
+        // por eso únicamente en ese caso consultamos la población de usuarios.
+        if (RolePolicy.IsDemotion(user.Role, request.NewRole))
         {
             var allUsers = await _keycloak.ListUsersAsync(cancellationToken);
-            var activeAdmins = allUsers.Count(u => u.Role == UserRole.Admin && u.Enabled);
-            if (activeAdmins <= 1)
+            var activeAdmins = RolePolicy.CountActiveAdmins(allUsers.Select(u => (u.Role, u.Enabled)));
+            if (RolePolicy.IsLastActiveAdmin(activeAdmins))
                 return Result.Failure(UserErrors.CannotDemoteLastAdmin);
         }
 

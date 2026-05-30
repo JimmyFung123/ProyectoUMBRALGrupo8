@@ -20,21 +20,17 @@ public class DisableUserCommandHandler : IRequestHandler<DisableUserCommand, Res
         if (!user.Enabled)
             return Result.Success();
 
-        // ── HU-23 Criterio 4a: no puede deshabilitarse a sí mismo ─────────────
-        if (!string.IsNullOrWhiteSpace(request.RequestingUserEmail) &&
-            string.Equals(request.RequestingUserEmail.Trim(),
-                          user.Email,
-                          StringComparison.OrdinalIgnoreCase))
-        {
+        // ── HU-23 Criterio 4a: no puede deshabilitarse a sí mismo (RolePolicy) ─
+        if (RolePolicy.IsSelf(user.Email, request.RequestingUserEmail))
             return Result.Failure(UserErrors.CannotDisableSelf);
-        }
 
-        // ── HU-23 Criterio 4b: no puede ser el último admin activo ───────────
+        // ── HU-23 Criterio 4b: no puede ser el último admin activo (RolePolicy) ─
+        // Sólo se consulta la población cuando el objetivo es admin.
         if (user.Role == UserRole.Admin)
         {
             var allUsers = await _keycloak.ListUsersAsync(cancellationToken);
-            var activeAdmins = allUsers.Count(u => u.Role == UserRole.Admin && u.Enabled);
-            if (activeAdmins <= 1)
+            var activeAdmins = RolePolicy.CountActiveAdmins(allUsers.Select(u => (u.Role, u.Enabled)));
+            if (RolePolicy.IsLastActiveAdmin(activeAdmins))
                 return Result.Failure(UserErrors.CannotDisableLastAdmin);
         }
 
