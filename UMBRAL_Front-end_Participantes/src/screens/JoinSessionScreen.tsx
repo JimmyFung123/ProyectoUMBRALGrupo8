@@ -6,6 +6,26 @@ interface Props {
   onSessionFound: (session: SessionInfo) => void;
 }
 
+// Único estado en el que la sesión admite nuevos participantes/equipos.
+// Una vez iniciada (InProgress/Paused) o terminada (Completed/Cancelled) ya no
+// se puede entrar: la sala de espera avanzaría sola al juego salteando la
+// validación de equipo (mínimo 2 integrantes).
+const JOINABLE_STATUS = 'Pending';
+
+function blockedMessage(status: string): string {
+  switch (status) {
+    case 'InProgress':
+    case 'Paused':
+      return 'La sesión ya comenzó. No es posible unirse una vez iniciada.';
+    case 'Completed':
+      return 'La sesión ya finalizó.';
+    case 'Cancelled':
+      return 'La sesión fue cancelada.';
+    default:
+      return 'La sesión no está disponible para unirse.';
+  }
+}
+
 export function JoinSessionScreen({ onSessionFound }: Props) {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -18,6 +38,10 @@ export function JoinSessionScreen({ onSessionFound }: Props) {
     setError('');
     try {
       const session = await getSessionByCode(code);
+      if (session.status !== JOINABLE_STATUS) {
+        setError(blockedMessage(session.status));
+        return;
+      }
       onSessionFound(session);
     } catch {
       setError('Código inválido. Verificá el código con tu profesor.');
