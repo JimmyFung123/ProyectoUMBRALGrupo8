@@ -61,25 +61,29 @@ export function MissionList() {
 
   useEffect(() => { loadMissions(); }, []);
 
-  async function loadMissions() {
-    setLoading(true);
+  // `silent`: recarga en segundo plano sin activar el spinner global, que
+  // desmontaría toda la lista y haría saltar el scroll al inicio.
+  async function loadMissions(silent = false) {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       setMissions(await missionService.getAll());
     } catch {
       setError('No se pudieron cargar las misiones. Intentá de nuevo.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }
 
-  async function loadStages(missionId: string) {
-    setStagesLoading(prev => ({ ...prev, [missionId]: true }));
+  // `silent`: recarga en segundo plano sin reemplazar el formulario de etapas
+  // por el spinner "Cargando etapas…", que colapsaría esa zona.
+  async function loadStages(missionId: string, silent = false) {
+    if (!silent) setStagesLoading(prev => ({ ...prev, [missionId]: true }));
     try {
       const stages = await stageService.getByMission(missionId);
       setStagesByMission(prev => ({ ...prev, [missionId]: stages }));
     } finally {
-      setStagesLoading(prev => ({ ...prev, [missionId]: false }));
+      if (!silent) setStagesLoading(prev => ({ ...prev, [missionId]: false }));
     }
   }
 
@@ -123,7 +127,9 @@ export function MissionList() {
   }
 
   async function handleStageChanged(missionId: string) {
-    await Promise.all([loadMissions(), loadStages(missionId)]);
+    // Recarga silenciosa: actualiza el contador de etapas y la lista sin
+    // desmontar la vista, para que la página no salte al inicio.
+    await Promise.all([loadMissions(true), loadStages(missionId, true)]);
   }
 
   return (
