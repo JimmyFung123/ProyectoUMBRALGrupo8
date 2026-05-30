@@ -30,9 +30,12 @@ async function authedFetch(input: RequestInfo, init: RequestInit = {}): Promise<
 
   const response = await fetch(input, { ...init, headers });
 
-  // 401 implica que el back rechazó el token (o no llegó). Forzamos un
-  // re-login para que el usuario vuelva a entrar con credenciales frescas.
-  if (response.status === 401) {
+  // Un 401 CUANDO ya tenemos sesión válida significa que el back rechazó un
+  // token que no debería (o la llamada se adelantó a la auth). Re-loguear acá
+  // rebotaría por el SSO de Keycloak (aún válido) y volvería al instante: un
+  // loop de redirección infinito. Solo forzamos login si NO hay sesión; si la
+  // hay, dejamos que el error se propague al caller.
+  if (response.status === 401 && !keycloak.authenticated) {
     keycloak.login();
   }
   return response;

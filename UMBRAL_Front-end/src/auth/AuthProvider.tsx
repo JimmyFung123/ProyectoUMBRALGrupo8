@@ -4,11 +4,17 @@ import keycloak from './keycloak';
 
 /**
  * keycloak-js no soporta ser inicializado dos veces. React Strict Mode (que
- * ejecuta useEffect dos veces en dev) rompe esa garantía. Usamos un flag a
- * nivel de módulo (no a nivel de componente) que sobrevive al re-mount del
- * Strict Mode y solo permite UN init() global en toda la vida de la pestaña.
+ * ejecuta useEffect dos veces en dev) rompe esa garantía. Guardamos la PROMESA
+ * de init() a nivel de módulo: el primer mount la crea, los demás se cuelgan de
+ * ella. Así `init()` se llama UNA sola vez por pestaña, y `ready` solo se marca
+ * cuando esa promesa YA resolvió (es decir, cuando keycloak-js terminó de
+ * autenticar). Antes esto se hacía con un booleano + un `.finally` atado al
+ * `mounted` del primer mount; el segundo mount de Strict Mode podía marcar
+ * `ready` con la sesión a medio iniciar (`authenticated` aún false), la app
+ * renderizaba la vista no autenticada y disparaba llamadas sin token → 401 →
+ * loop de login. Con la promesa compartida eso ya no puede pasar.
  */
-let keycloakInitStarted = false;
+let initPromise: Promise<boolean> | null = null;
 
 export interface UmbralUser {
   /** Stable Keycloak subject (sub claim). */
@@ -81,27 +87,25 @@ export function AuthProvider({ children, loadingFallback }: Props) {
   const forceRerender = useCallback(() => setTick((t) => t + 1), []);
 
   useEffect(() => {
-    let mounted = true;
+    let active = true;
 
     // Wire up callbacks BEFORE init so we never miss an event.
-    keycloak.onAuthSuccess        = () => mounted && forceRerender();
-    keycloak.onAuthRefreshSuccess = () => mounted && forceRerender();
-    keycloak.onAuthLogout         = () => mounted && forceRerender();
+    keycloak.onAuthSuccess        = () => active && forceRerender();
+    keycloak.onAuthRefreshSuccess = () => active && forceRerender();
+    keycloak.onAuthLogout         = () => active && forceRerender();
     keycloak.onTokenExpired       = () => { void keycloak.updateToken(30).catch(() => keycloak.login()); };
 
-    if (!keycloakInitStarted) {
-      keycloakInitStarted = true;
-      keycloak.init({
-        onLoad: 'login-required',
-        pkceMethod: 'S256',
-        checkLoginIframe: false,
-      })
-        .catch(() => { /* swallow: the user will retry by reloading */ })
-        .finally(() => { if (mounted) setReady(true); });
-    } else if (keycloak.authenticated !== undefined) {
-      // Strict Mode segundo mount: keycloak ya está listo, solo marcamos ready.
-      setReady(true);
+    // init() se llama UNA vez (promesa singleton). Cada mount cuelga su propia
+    // continuación; el que siga activo cuando la promesa resuelva marca `ready`.
+    // Marcamos `ready` SOLO tras resolver init() → `keycloak.authenticated` ya
+    // tiene su valor final, así que la app nunca renderiza una vista sin sesión
+    // que dispare llamadas sin token.
+    if (!initPromise) {
+      initPromise = keycloak
+        .init({ onLoad: 'login-required', pkceMethod: 'S256', checkLoginIframe: false })
+        .catch(() => false);
     }
+    void initPromise.then(() => { if (active) setReady(true); });
 
     // Background refresh: try to renew if the token expires within 60s.
     const interval = setInterval(() => {
@@ -109,7 +113,7 @@ export function AuthProvider({ children, loadingFallback }: Props) {
     }, 30_000);
 
     return () => {
-      mounted = false;
+      active = false;
       clearInterval(interval);
     };
   }, [forceRerender]);
@@ -141,7 +145,10 @@ export function AuthProvider({ children, loadingFallback }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, keycloak.authenticated, keycloak.token]);
 
-  if (!ready) {
+  // Gate el render hasta tener sesión real. Con onLoad='login-required',
+  // `ready && !authenticated` solo ocurre si init() falló: mostramos el splash
+  // (en vez de renderizar la app sin sesión y disparar llamadas sin token).
+  if (!ready || keycloak.authenticated !== true) {
     return <>{loadingFallback ?? <DefaultSplash />}</>;
   }
 
