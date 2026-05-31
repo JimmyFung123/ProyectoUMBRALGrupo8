@@ -253,7 +253,7 @@ patrones de diseño GoF como parte del entregable. **Todos viven en `SessionServ
 | **State** | Comportamiento | `Domain/Sessions/States/` | Qué transiciones son válidas según el estado de la sesión |
 | **Chain of Responsibility** | Comportamiento | `Application/Sessions/Validation/` | Validar la evidencia paso a paso; cada validador decide si sigue la cadena |
 | **Composite + Visitor** | Estructural / Comportamiento | `Application/Missions/Composite/` | Recorrer la jerarquía Misión → Etapas → Pistas de forma uniforme |
-| **Facade** *(en progreso)* | Estructural | `Application/Sessions/` | Esconder la orquestación del dashboard tras una sola interfaz |
+| **Facade** | Estructural | `Application/Sessions/Facade/` | Interfaz única para armar la vista de la etapa actual del participante (sesión + equipo + etapa) |
 | **Proxy** *(en progreso)* | Estructural | `Infrastructure/ExternalClients/` | Cachear las llamadas a StageService sin que el consumidor se entere |
 
 ### Strategy — puntaje por dificultad
@@ -286,6 +286,20 @@ resumen (cantidad de etapas/pistas, puntaje total, etapas sin pistas).
 # Demo (requiere token de operador)
 curl -H "Authorization: Bearer <token>" \
      http://localhost:5092/api/missions/<missionId>/structure
+```
+
+### Facade — vista de la etapa actual del participante
+Responder *qué etapa juega ahora* un equipo exige orquestar tres subsistemas (repositorio de
+sesiones + TeamService + StageService) más reglas de auto-arranque, estados centinela
+(`Waiting`/`Completed`) y ocultar la respuesta correcta. `IParticipantStageFacade` expone un
+único método `GetCurrentStageAsync(sessionId, teamId)` que esconde toda esa orquestación y el
+mapeo seguro (oculta `IsCorrect`, expone coordenadas solo en `TreasureHunt`). El handler
+`GetParticipantStageQueryHandler` ahora **solo delega** en la fachada. Caso de uso real:
+**`GET /api/sessions/{id}/participant-stage/{teamId}`** (participante).
+
+```bash
+# Demo (participante, sin token)
+curl http://localhost:5092/api/sessions/<sessionId>/participant-stage/<teamId>
 ```
 
 ---
