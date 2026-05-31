@@ -240,6 +240,56 @@ CORS configurado para 5173 y 5174 en cada servicio.
 
 ---
 
+## Patrones de diseño (GoF)
+
+Además de los patrones arquitectónicos (hexagonal, CQRS, Result), el equipo aplicó
+patrones de diseño GoF como parte del entregable. **Todos viven en `SessionService`**
+(el orquestador, donde está la lógica de juego más rica).
+
+| Patrón | Tipo | Dónde | Qué resuelve |
+|---|---|---|---|
+| **Strategy** | Comportamiento | `Application/Sessions/Scoring/` | El cálculo de puntaje cambia según la dificultad de la misión |
+| **Template Method** | Comportamiento | `Application/Sessions/Commands/Evidence/` | Esqueleto común para procesar evidencias (trivia vs QR) con pasos que varían |
+| **State** | Comportamiento | `Domain/Sessions/States/` | Qué transiciones son válidas según el estado de la sesión |
+| **Chain of Responsibility** | Comportamiento | `Application/Sessions/Validation/` | Validar la evidencia paso a paso; cada validador decide si sigue la cadena |
+| **Composite + Visitor** | Estructural / Comportamiento | `Application/Missions/Composite/` | Recorrer la jerarquía Misión → Etapas → Pistas de forma uniforme |
+| **Facade** *(en progreso)* | Estructural | `Application/Sessions/` | Esconder la orquestación del dashboard tras una sola interfaz |
+| **Proxy** *(en progreso)* | Estructural | `Infrastructure/ExternalClients/` | Cachear las llamadas a StageService sin que el consumidor se entere |
+
+### Strategy — puntaje por dificultad
+`IScoringStrategy` con `Easy/Medium/HardScoringStrategy` y `ScoringStrategyFactory`. El
+handler `SubmitTriviaAnswerCommandHandler` pide la estrategia según la dificultad de la
+misión y delega el cálculo del puntaje (positivo o penalización).
+
+### Template Method — procesamiento de evidencias
+`EvidenceHandlerBase` define el algoritmo fijo (validar → procesar → puntuar → auditar →
+notificar por SignalR → armar DTO). Las subclases `SubmitTriviaAnswerCommandHandler` y
+`ValidateQrCodeCommandHandler` solo rellenan los *hooks* que cambian.
+
+### State — ciclo de vida de la sesión
+`ISessionState` con `Pending / InProgress / Paused / Completed / CancelledState`. El
+agregado `Session` delega `Start()/Pause()/Resume()/Finalize()/Cancel()` al estado actual,
+que acepta o rechaza la transición. Evita los `if (status == …)` regados por el código.
+
+### Chain of Responsibility — validación de evidencias
+`EvidenceValidatorBase` encadena `SessionExistsValidator → SessionInProgressValidator →
+StageExistsValidator`. Cada eslabón valida una regla y pasa al siguiente o corta la cadena.
+
+### Composite + Visitor — estructura de una misión
+`IMissionComponent` modela la jerarquía como árbol: `MissionComponent` (raíz) →
+`StageComponent` → `ClueComponent` (hoja). `TotalScore()` agrega el puntaje recursivamente
+y `MissionSummaryVisitor` recorre el árbol una sola vez para sacar el resumen. Caso de uso
+real: **`GET /api/missions/{id}/structure`** (operador) devuelve el árbol completo con su
+resumen (cantidad de etapas/pistas, puntaje total, etapas sin pistas).
+
+```bash
+# Demo (requiere token de operador)
+curl -H "Authorization: Bearer <token>" \
+     http://localhost:5092/api/missions/<missionId>/structure
+```
+
+---
+
 ## Cómo implementar una Historia de Usuario nueva
 
 Seguimos este flujo para cada HU:
