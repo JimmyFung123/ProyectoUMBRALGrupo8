@@ -156,6 +156,50 @@ public class UpdateStageCommandHandlerTests
         _stageRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Fact]
+    public async Task Handle_WhenTriviaOptionsProvided_RemovesOldAndAddsNew()
+    {
+        var missionId = Guid.NewGuid();
+        var stageId = Guid.NewGuid();
+        var stage = Stage.Create(missionId, "Trivia original", StageType.Trivia, 1, 50,
+            question: "Pregunta vieja").Value;
+        var inactiveMission = MissionLookup.Create(missionId, "Inactive Mission", "Inactive");
+
+        _stageRepoMock
+            .Setup(r => r.GetByIdAsync(stageId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(stage);
+
+        _missionLookupMock
+            .Setup(r => r.GetByIdAsync(missionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(inactiveMission);
+
+        _stageRepoMock
+            .Setup(r => r.RemoveOptionsAsync(stage.Id, It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        _stageRepoMock
+            .Setup(r => r.AddOptionsAsync(It.IsAny<IEnumerable<TriviaOption>>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var command = new UpdateStageCommand(
+            stageId, "Trivia actualizada", Order: 1, BaseScore: 50,
+            Question: "Pregunta nueva",
+            Options: [("Opción A", true), ("Opción B", false)],
+            Latitude: null, Longitude: null, QrCode: null,
+            AutoReleaseTimeMinutes: null, AutoReleaseMaxAttempts: null);
+
+        var result = await _handler.Handle(command, default);
+
+        result.IsSuccess.Should().BeTrue();
+        _stageRepoMock.Verify(r => r.RemoveOptionsAsync(stage.Id, It.IsAny<CancellationToken>()), Times.Once);
+        _stageRepoMock.Verify(
+            r => r.AddOptionsAsync(
+                It.Is<IEnumerable<TriviaOption>>(opts => opts.Count() == 2),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+        _stageRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     // ── Helper ────────────────────────────────────────────────────────────────
 
     private static UpdateStageCommand ValidCommand(Guid stageId) =>

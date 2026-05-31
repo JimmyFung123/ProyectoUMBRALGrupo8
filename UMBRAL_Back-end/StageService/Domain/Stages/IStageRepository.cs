@@ -14,11 +14,15 @@ public interface IStageRepository
     Task<bool> ExistsWithQrCodeAsync(string qrCode, Guid? excludeId = null, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Borra explícitamente todas las opciones de trivia de una etapa.
-    /// Evita el escenario en el que EF Core no elimina los huérfanos al
-    /// llamar <c>Stage.Options.Clear()</c> y termina lanzando una
-    /// excepción de FK no nulo al hacer SaveChanges (causa del 500
-    /// reportado al editar una trivia con opciones existentes).
+    /// Deletes all existing trivia options for a stage directly in the DB
+    /// (bypasses the EF change tracker to avoid FK/orphan conflicts).
     /// </summary>
     Task RemoveOptionsAsync(Guid stageId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Persists a set of new trivia options directly to the DB without going
+    /// through the Stage navigation collection (avoids change-tracker conflicts
+    /// when combined with <see cref="RemoveOptionsAsync"/>).
+    /// </summary>
+    Task AddOptionsAsync(IEnumerable<TriviaOption> options, CancellationToken cancellationToken = default);
 }

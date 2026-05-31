@@ -37,22 +37,30 @@ public class StageRepository : IStageRepository
 
     public async Task RemoveOptionsAsync(Guid stageId, CancellationToken cancellationToken = default)
     {
-        // Bulk delete vía EF Core 7+. Borra las TriviaOptions directamente en
-        // SQL sin pasar por el change tracker, evitando el problema del
-        // orphan-removal que producía un 500 al editar una etapa con
-        // opciones existentes (Stage.Options.Clear() no marcaba los items
-        // tracked para DELETE cuando ya habían quedado en estado Detached
-        // dentro del mismo SaveChanges).
+        // Bulk-delete directly in the DB so the EF change tracker never has
+        // to reconcile the deletion with the Stage navigation collection.
+        // This avoids the FK/orphan-removal 500 that occurs when EF tries to
+        // process Options.Clear() on a collection whose items were already
+        // detached or marked Deleted in the same unit of work.
         await _context.TriviaOptions
             .Where(o => o.StageId == stageId)
             .ExecuteDeleteAsync(cancellationToken);
 
-        // Quita las referencias locales que pudieran estar tracked, para que
-        // el siguiente SaveChanges no intente re-insertarlas.
-        foreach (var entry in _context.ChangeTracker.Entries<TriviaOption>().ToList())
+        // Detach any locally-tracked instances so SaveChangesAsync does not
+        // attempt a redundant DELETE (rows are already gone from the DB).
+        foreach (var entry in _context.ChangeTracker.Entries<TriviaOption>()
+                     .Where(e => e.Entity.StageId == stageId)
+                     .ToList())
         {
-            if (entry.Entity.StageId == stageId)
-                entry.State = EntityState.Detached;
+            entry.State = EntityState.Detached;
         }
+    }
+
+    public async Task AddOptionsAsync(IEnumerable<TriviaOption> options, CancellationToken cancellationToken = default)
+    {
+        // Insert the new options directly — bypasses the Stage.Options
+        // navigation collection so there is no change-tracker conflict with
+        // the ExecuteDeleteAsync that ran just before this call.
+        await _context.TriviaOptions.AddRangeAsync(options, cancellationToken);
     }
 }

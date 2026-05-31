@@ -38,13 +38,16 @@ public class UpdateStageCommandHandler : IRequestHandler<UpdateStageCommand, Res
 
         if (stage.Type == StageType.Trivia && request.Options is not null)
         {
-            // Fix del 500 al editar una trivia: borramos las opciones viejas
-            // directamente en SQL (ExecuteDelete) y luego dejamos que el
-            // dominio adjunte las nuevas. Esto evita el caso en que EF Core
-            // no consigue ejecutar el orphan-removal sobre items tracked y
-            // termina lanzando una violación de FK al hacer SaveChanges.
+            // Delete old options directly in the DB (bypasses EF change tracker).
             await _stageRepository.RemoveOptionsAsync(stage.Id, cancellationToken);
-            stage.ReplaceOptions(request.Options.Select(o => (o.Text, o.IsCorrect)));
+
+            // Insert new options directly to the DbSet — avoids touching
+            // stage.Options (which would call Options.Clear() and trigger EF's
+            // change-tracker reconciliation on detached entities, causing the
+            // FK violation 500).
+            var newOptions = request.Options
+                .Select(o => new TriviaOption(Guid.NewGuid(), stage.Id, o.Text, o.IsCorrect));
+            await _stageRepository.AddOptionsAsync(newOptions, cancellationToken);
         }
 
         await _stageRepository.SaveChangesAsync(cancellationToken);
