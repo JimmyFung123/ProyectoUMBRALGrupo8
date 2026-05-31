@@ -21,6 +21,13 @@ public class SessionRepository : ISessionRepository
         return await query.OrderByDescending(s => s.CreatedAt).ToListAsync(ct);
     }
 
+    public async Task<bool> HasNonTerminalSessionsAsync(Guid missionId, CancellationToken ct = default)
+        => await _context.Sessions.AnyAsync(
+            s => s.MissionId == missionId &&
+                 s.Status != SessionStatus.Completed &&
+                 s.Status != SessionStatus.Cancelled,
+            ct);
+
     public async Task<IReadOnlyList<Session>> GetAllInProgressAsync(CancellationToken ct = default)
     {
         var list = await _context.Sessions

@@ -1,7 +1,9 @@
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using UMBRAL.Auth;
+using UMBRAL_Back_end.Application.Missions;
 using UMBRAL_Back_end.Domain.Missions;
+using UMBRAL_Back_end.Infrastructure.ExternalClients;
 using UMBRAL_Back_end.Infrastructure.Messaging.Consumers;
 using UMBRAL_Back_end.Infrastructure.Persistence;
 using UMBRAL_Back_end.Infrastructure.Persistence.Repositories;
@@ -29,6 +31,14 @@ builder.Services.AddScoped<IStageCountLookupRepository, StageCountLookupReposito
 // HU-27 — InternalSyncHealthController calls StageService over HTTP to rebuild
 // the StageCountLookup projection on manual reproject.
 builder.Services.AddHttpClient();
+
+// RB-15 — SessionServiceClient calls SessionService to check for active sessions
+// before allowing mission deactivation.
+builder.Services.AddHttpClient<ISessionServiceClient, SessionServiceClient>(client =>
+{
+    var url = builder.Configuration["SessionServiceUrl"] ?? "http://localhost:5092/";
+    client.BaseAddress = new Uri(url);
+});
 
 // MassTransit — MissionService publishes integration events to RabbitMQ
 builder.Services.AddMassTransit(x =>

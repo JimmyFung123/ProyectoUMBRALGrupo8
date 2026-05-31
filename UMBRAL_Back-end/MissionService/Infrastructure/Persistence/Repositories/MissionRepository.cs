@@ -30,14 +30,6 @@ public class MissionRepository : IMissionRepository
         => await _context.Missions
             .AnyAsync(m => m.Name == name && (excludeId == null || m.Id != excludeId), cancellationToken);
 
-    public Task<bool> HasActiveSessionsAsync(Guid missionId, CancellationToken cancellationToken = default)
-    {
-        // Cross-service check: SessionService owns session data.
-        // In production, call SessionService via HTTP: GET /api/sessions?missionId={id}&status=InProgress
-        // For now returns false (no blocking sessions during design phase).
-        return Task.FromResult(false);
-    }
-
     public async Task AddAsync(Mission mission, CancellationToken cancellationToken = default)
         => await _context.Missions.AddAsync(mission, cancellationToken);
 

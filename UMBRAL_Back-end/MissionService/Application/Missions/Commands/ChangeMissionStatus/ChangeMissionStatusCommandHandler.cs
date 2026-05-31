@@ -3,6 +3,7 @@ namespace UMBRAL_Back_end.Application.Missions.Commands.ChangeMissionStatus;
 using MassTransit;
 using MediatR;
 using UMBRAL.Contracts.Events;
+using UMBRAL_Back_end.Application.Missions;
 using UMBRAL_Back_end.Domain.Common;
 using UMBRAL_Back_end.Domain.Missions;
 using UMBRAL_Back_end.Domain.Missions.Events;
@@ -13,17 +14,20 @@ public class ChangeMissionStatusCommandHandler : IRequestHandler<ChangeMissionSt
     private readonly IPublisher _publisher;
     private readonly IPublishEndpoint _bus;
     private readonly IStageCountLookupRepository _stageCountLookupRepository;
+    private readonly ISessionServiceClient _sessionServiceClient;
 
     public ChangeMissionStatusCommandHandler(
         IMissionRepository repository,
         IPublisher publisher,
         IPublishEndpoint bus,
-        IStageCountLookupRepository stageCountLookupRepository)
+        IStageCountLookupRepository stageCountLookupRepository,
+        ISessionServiceClient sessionServiceClient)
     {
         _repository = repository;
         _publisher = publisher;
         _bus = bus;
         _stageCountLookupRepository = stageCountLookupRepository;
+        _sessionServiceClient = sessionServiceClient;
     }
 
     public async Task<Result> Handle(ChangeMissionStatusCommand request, CancellationToken cancellationToken)
@@ -39,7 +43,8 @@ public class ChangeMissionStatusCommandHandler : IRequestHandler<ChangeMissionSt
                 return Result.Failure(MissionErrors.NoStages);
         }
 
-        bool hasActiveSessions = await _repository.HasActiveSessionsAsync(request.MissionId, cancellationToken);
+        // RB-15: cross-service check — SessionService owns session lifecycle
+        bool hasActiveSessions = await _sessionServiceClient.HasActiveSessionsAsync(request.MissionId, cancellationToken);
 
         var operationResult = request.Activate
             ? mission.Activate()

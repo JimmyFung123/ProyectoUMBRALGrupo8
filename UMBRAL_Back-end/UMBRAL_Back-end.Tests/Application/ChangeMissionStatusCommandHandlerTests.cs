@@ -4,6 +4,7 @@ using FluentAssertions;
 using MassTransit;
 using MediatR;
 using Moq;
+using UMBRAL_Back_end.Application.Missions;
 using UMBRAL_Back_end.Application.Missions.Commands.ChangeMissionStatus;
 using UMBRAL_Back_end.Domain.Missions;
 using UMBRAL_Back_end.Domain.Missions.Events;
@@ -15,6 +16,7 @@ public class ChangeMissionStatusCommandHandlerTests
     private readonly Mock<IPublisher> _publisherMock = new();
     private readonly Mock<IPublishEndpoint> _busMock = new();
     private readonly Mock<IStageCountLookupRepository> _stageCountLookupMock = new();
+    private readonly Mock<ISessionServiceClient> _sessionClientMock = new();
     private readonly ChangeMissionStatusCommandHandler _handler;
 
     public ChangeMissionStatusCommandHandlerTests()
@@ -23,7 +25,8 @@ public class ChangeMissionStatusCommandHandlerTests
             _repositoryMock.Object,
             _publisherMock.Object,
             _busMock.Object,
-            _stageCountLookupMock.Object);
+            _stageCountLookupMock.Object,
+            _sessionClientMock.Object);
     }
 
     [Fact]
@@ -35,10 +38,6 @@ public class ChangeMissionStatusCommandHandlerTests
         _repositoryMock
             .Setup(r => r.GetByIdAsync(mission.Id, default))
             .ReturnsAsync(mission);
-
-        _repositoryMock
-            .Setup(r => r.HasActiveSessionsAsync(mission.Id, default))
-            .ReturnsAsync(false);
 
         _stageCountLookupMock
             .Setup(r => r.GetByMissionIdAsync(mission.Id, default))
@@ -66,8 +65,8 @@ public class ChangeMissionStatusCommandHandlerTests
             .Setup(r => r.GetByIdAsync(mission.Id, default))
             .ReturnsAsync(mission);
 
-        _repositoryMock
-            .Setup(r => r.HasActiveSessionsAsync(mission.Id, default))
+        _sessionClientMock
+            .Setup(c => c.HasActiveSessionsAsync(mission.Id, default))
             .ReturnsAsync(true);
 
         var command = new ChangeMissionStatusCommand(mission.Id, Activate: false);
@@ -87,8 +86,8 @@ public class ChangeMissionStatusCommandHandlerTests
             .Setup(r => r.GetByIdAsync(mission.Id, default))
             .ReturnsAsync(mission);
 
-        _repositoryMock
-            .Setup(r => r.HasActiveSessionsAsync(mission.Id, default))
+        _sessionClientMock
+            .Setup(c => c.HasActiveSessionsAsync(mission.Id, default))
             .ReturnsAsync(false);
 
         var command = new ChangeMissionStatusCommand(mission.Id, Activate: false);
@@ -102,6 +101,30 @@ public class ChangeMissionStatusCommandHandlerTests
         _publisherMock.Verify(
             p => p.Publish(It.IsAny<MissionDeactivatedEvent>(), default),
             Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_DeactivateMission_WhenSessionServiceUnreachable_BlocksDeactivation()
+    {
+        // Fail-safe: if SessionService is down we assume there MIGHT be active sessions
+        // and block the deactivation to avoid orphaning them (SessionServiceClient returns true on error).
+        var mission = Mission.Create("Test Mission", "desc", DifficultyLevel.Medium, 60).Value;
+
+        _repositoryMock
+            .Setup(r => r.GetByIdAsync(mission.Id, default))
+            .ReturnsAsync(mission);
+
+        _sessionClientMock
+            .Setup(c => c.HasActiveSessionsAsync(mission.Id, default))
+            .ReturnsAsync(true); // simulates unreachable service returning fail-safe true
+
+        var command = new ChangeMissionStatusCommand(mission.Id, Activate: false);
+
+        var result = await _handler.Handle(command, default);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Be(MissionErrors.HasActiveSessions);
+        _repositoryMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
