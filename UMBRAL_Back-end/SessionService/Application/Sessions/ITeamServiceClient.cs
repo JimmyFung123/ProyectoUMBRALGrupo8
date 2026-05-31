@@ -37,6 +37,13 @@ public interface ITeamServiceClient
     /// </summary>
     Task<StageTransitionResult?> AnswerTriviaAsync(Guid teamId, bool isCorrect, int scoreChange, int nextStageOrder, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// RB-18: Returns true if every team enrolled in the session has at least
+    /// <paramref name="minMembers"/> members. Returns false if any team falls below
+    /// the minimum or if the TeamService is unreachable.
+    /// </summary>
+    Task<bool> AllTeamsMeetMinimumMembersAsync(Guid sessionId, int minMembers, CancellationToken cancellationToken);
+
     /// <summary>Returns basic info for a single team by ID.</summary>
     Task<TeamInfoItem?> GetTeamByIdAsync(Guid teamId, CancellationToken cancellationToken);
 

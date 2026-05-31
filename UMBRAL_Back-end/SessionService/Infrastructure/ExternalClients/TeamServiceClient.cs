@@ -37,6 +37,25 @@ public class TeamServiceClient : ITeamServiceClient
         }
     }
 
+    public async Task<bool> AllTeamsMeetMinimumMembersAsync(Guid sessionId, int minMembers, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await _http.GetAsync($"api/teams?sessionId={sessionId}", cancellationToken);
+            if (!response.IsSuccessStatusCode) return false;
+
+            var json = await response.Content.ReadAsStringAsync(cancellationToken);
+            var items = JsonSerializer.Deserialize<List<TeamProgressJsonItem>>(json, _jsonOptions);
+            if (items is null || items.Count == 0) return false;
+
+            return items.All(t => t.MemberCount >= minMembers);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public async Task<int> ReleaseClueAsync(Guid teamId, int totalCluesForStage, CancellationToken cancellationToken, bool isAutomatic = false)
     {
         try
@@ -203,7 +222,8 @@ public class TeamServiceClient : ITeamServiceClient
         int Score,
         int Rank,
         DateTime? ClueTimerResetAt,
-        bool LastClueWasAutomatic);
+        bool LastClueWasAutomatic,
+        int MemberCount);
 
     private record TeamInfoJsonItem(
         Guid TeamId,

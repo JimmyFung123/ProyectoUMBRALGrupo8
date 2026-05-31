@@ -13,5 +13,6 @@ public record TeamProgressDto(
     int Score,
     int Rank,
     DateTime? ClueTimerResetAt,
-    bool LastClueWasAutomatic
+    bool LastClueWasAutomatic,
+    int MemberCount
 );

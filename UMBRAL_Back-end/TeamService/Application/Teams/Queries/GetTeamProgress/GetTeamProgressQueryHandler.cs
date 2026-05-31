@@ -39,7 +39,8 @@ public class GetTeamProgressQueryHandler
                 Score: sorted[i].Score,
                 Rank: rank,
                 ClueTimerResetAt: sorted[i].ClueTimerResetAt,
-                LastClueWasAutomatic: sorted[i].LastClueWasAutomatic));
+                LastClueWasAutomatic: sorted[i].LastClueWasAutomatic,
+                MemberCount: sorted[i].MemberCount));
         }
 
         return result;

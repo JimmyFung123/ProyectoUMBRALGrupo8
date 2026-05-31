@@ -113,9 +113,11 @@ public class StartSessionCommandHandlerTests
             .Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(session);
 
-        // Teams exist but state is wrong
         _teamClientMock
             .Setup(t => t.HasEnrolledTeamsAsync(sessionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _teamClientMock
+            .Setup(t => t.AllTeamsMeetMinimumMembersAsync(sessionId, 2, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         var result = await _handler.Handle(new StartSessionCommand(sessionId), default);
@@ -125,10 +127,61 @@ public class StartSessionCommandHandlerTests
         _sessionRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    // ── RB-18: minimum 2 members per team ────────────────────────────────────
+
+    [Fact]
+    public async Task Handle_WhenATeamHasFewerThanTwoMembers_ReturnsTeamBelowMinimumMembersError()
+    {
+        var sessionId = Guid.NewGuid();
+        var session = Session.Create(Guid.NewGuid(), "Sesión con equipo incompleto").Value;
+
+        _sessionRepoMock
+            .Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(session);
+
+        _teamClientMock
+            .Setup(t => t.HasEnrolledTeamsAsync(sessionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _teamClientMock
+            .Setup(t => t.AllTeamsMeetMinimumMembersAsync(sessionId, 2, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var result = await _handler.Handle(new StartSessionCommand(sessionId), default);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Be(SessionErrors.TeamBelowMinimumMembers);
+        session.Status.Should().Be(SessionStatus.Pending);
+        _sessionRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_WhenRb18CheckFails_DoesNotCheckSessionState()
+    {
+        var sessionId = Guid.NewGuid();
+        var session = Session.Create(Guid.NewGuid(), "Sesión RB-18").Value;
+
+        _sessionRepoMock
+            .Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(session);
+
+        _teamClientMock
+            .Setup(t => t.HasEnrolledTeamsAsync(sessionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _teamClientMock
+            .Setup(t => t.AllTeamsMeetMinimumMembersAsync(sessionId, 2, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var result = await _handler.Handle(new StartSessionCommand(sessionId), default);
+
+        result.Error.Should().Be(SessionErrors.TeamBelowMinimumMembers);
+        // session.Start() was never called — state is still Pending
+        session.Status.Should().Be(SessionStatus.Pending);
+    }
+
     // ── Happy path ────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task Handle_WhenPendingAndHasTeams_StartsAndBroadcasts()
+    public async Task Handle_WhenPendingAndAllTeamsHaveEnoughMembers_StartsAndBroadcasts()
     {
         var sessionId = Guid.NewGuid();
         var session = Session.Create(Guid.NewGuid(), "Sesión a iniciar").Value;
@@ -140,6 +193,9 @@ public class StartSessionCommandHandlerTests
         _teamClientMock
             .Setup(t => t.HasEnrolledTeamsAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
+        _teamClientMock
+            .Setup(t => t.AllTeamsMeetMinimumMembersAsync(sessionId, 2, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
 
         var result = await _handler.Handle(new StartSessionCommand(sessionId), default);
 
@@ -147,7 +203,6 @@ public class StartSessionCommandHandlerTests
         session.Status.Should().Be(SessionStatus.InProgress);
         _sessionRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         _hubMock.Verify(h => h.Clients.Group(sessionId.ToString()), Times.Once);
-        // HU-22: audit event recorded
         _eventRepoMock.Verify(
             r => r.AddAsync(It.Is<SessionEvent>(e => e.Description.Contains("iniciada")), It.IsAny<CancellationToken>()),
             Times.Once);
@@ -164,6 +219,9 @@ public class StartSessionCommandHandlerTests
             .ReturnsAsync(session);
         _teamClientMock
             .Setup(t => t.HasEnrolledTeamsAsync(sessionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _teamClientMock
+            .Setup(t => t.AllTeamsMeetMinimumMembersAsync(sessionId, 2, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         SessionEvent? captured = null;

@@ -31,10 +31,15 @@ public class StartSessionCommandHandler : IRequestHandler<StartSessionCommand, R
         if (session is null)
             return Result.Failure<bool>(SessionErrors.NotFound);
 
-        // HU-12: at least one enrolled team is required to start
+        // HU-12 / RB-02: at least one enrolled team is required to start
         var hasTeams = await _teamServiceClient.HasEnrolledTeamsAsync(request.SessionId, cancellationToken);
         if (!hasTeams)
             return Result.Failure<bool>(SessionErrors.NoTeamsEnrolled);
+
+        // RB-18: every team must have at least 2 members
+        var allMeetMinimum = await _teamServiceClient.AllTeamsMeetMinimumMembersAsync(request.SessionId, minMembers: 2, cancellationToken);
+        if (!allMeetMinimum)
+            return Result.Failure<bool>(SessionErrors.TeamBelowMinimumMembers);
 
         var result = session.Start();
         if (result.IsFailure)
