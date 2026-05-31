@@ -1,0 +1,187 @@
+namespace SessionService.Application.Sessions.Commands.Evidence;
+
+using MediatR;
+using Microsoft.AspNetCore.SignalR;
+using SessionService.Application.Sessions;
+using SessionService.Domain.Common;
+using SessionService.Domain.Sessions;
+using SessionService.Domain.Statistics;
+using SessionService.Infrastructure.Hubs;
+
+/// <summary>
+/// Template Method pattern — defines the invariant algorithm for processing
+/// evidence (trivia answers and QR scans) during a live session.
+///
+/// Shared steps handled here:
+///   1. Validate session (exists + InProgress)
+///   2. Fetch stage with options
+///   3. HOOK: ProcessEvidenceAsync  ← varies per evidence type
+///   4. Early return if evidence was rejected (e.g. wrong QR scan)
+///   5. Compute next-stage navigation
+///   6. Record result in TeamService (score + stage advance)
+///   7. HOOK: RecordAnalyticsAsync  ← varies per evidence type
+///   8. HOOK: WriteAuditAsync       ← varies per evidence type
+///   9. Broadcast via SignalR
+///  10. HOOK: BuildSuccessResult    ← maps shared data to concrete DTO
+/// </summary>
+public abstract class EvidenceHandlerBase<TCommand, TResultDto>
+    : IRequestHandler<TCommand, Result<TResultDto>>
+    where TCommand : IRequest<Result<TResultDto>>
+{
+    protected readonly ISessionRepository SessionRepository;
+    protected readonly ITeamServiceClient TeamClient;
+    protected readonly IStageServiceClient StageClient;
+    protected readonly IStageCompletionRecordRepository StatsRepository;
+    protected readonly ISessionEventRepository EventRepository;
+    protected readonly IHubContext<SessionHub> Hub;
+
+    protected EvidenceHandlerBase(
+        ISessionRepository sessionRepository,
+        ITeamServiceClient teamClient,
+        IStageServiceClient stageClient,
+        IStageCompletionRecordRepository statsRepository,
+        ISessionEventRepository eventRepository,
+        IHubContext<SessionHub> hub)
+    {
+        SessionRepository = sessionRepository;
+        TeamClient        = teamClient;
+        StageClient       = stageClient;
+        StatsRepository   = statsRepository;
+        EventRepository   = eventRepository;
+        Hub               = hub;
+    }
+
+    // ── Template Method ───────────────────────────────────────────────────────
+
+    public async Task<Result<TResultDto>> Handle(TCommand command, CancellationToken ct)
+    {
+        // Step 1: validate session
+        var session = await SessionRepository.GetByIdAsync(GetSessionId(command), ct);
+        if (session is null)           return Fail(SessionErrors.NotFound);
+        if (session.Status != SessionStatus.InProgress)
+                                       return Fail(SessionErrors.NotInProgress);
+
+        // Step 2: fetch stage (with options/QR — internal data never sent to participant)
+        var stage = await StageClient.GetStageWithOptionsAsync(GetStageId(command), ct);
+        if (stage is null)             return Fail(SessionErrors.StageNotFound);
+
+        // Step 3: HOOK — process evidence (validate option / validate QR)
+        var evidenceResult = await ProcessEvidenceAsync(command, session, stage, ct);
+        if (evidenceResult.IsFailure)  return Fail(evidenceResult.Error);
+
+        var evidence = evidenceResult.Value;
+
+        // Step 4: early return when evidence was rejected without stage advance
+        // (e.g. wrong QR scan — team stays on the same stage, no points changed)
+        if (!evidence.ShouldAdvance)
+            return Result.Success(BuildEarlyResult(evidence, command));
+
+        // Step 5: compute navigation (next stage order + is-last flag)
+        var nav = await ComputeNavigationAsync(session.MissionId, GetStageId(command), ct);
+        if (nav is null)               return Fail(SessionErrors.StageNotFound);
+
+        // Step 6: record in TeamService — updates score + advances stage order
+        var transition = await TeamClient.AnswerTriviaAsync(
+            GetTeamId(command), evidence.IsCorrect, evidence.ScoreChange, nav.NextStageOrder, ct);
+        if (transition is null)        return Fail(GetRecordingError());
+
+        // Step 7: HOOK — append analytics fact row (varies by evidence type)
+        await RecordAnalyticsAsync(command, session, stage, evidence.IsCorrect, transition, ct);
+
+        // Step 8: HOOK — write command audit log (varies by evidence type)
+        await WriteAuditAsync(command, session, stage, evidence.ScoreChange, transition, ct);
+
+        // Step 9: broadcast to operators (dashboard refresh) and participants (HU-28)
+        await BroadcastAsync(command, session, stage, evidence, transition, nav, ct);
+
+        // Step 10: HOOK — map shared data to the concrete result DTO
+        return Result.Success(BuildSuccessResult(evidence.IsCorrect, transition, nav));
+    }
+
+    // ── Abstract hooks ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Validates the evidence specific to the stage type.
+    /// May write an early audit event and return ShouldAdvance=false for rejected evidence.
+    /// </summary>
+    protected abstract Task<Result<EvidenceOutcome>> ProcessEvidenceAsync(
+        TCommand command, Session session, StageWithOptionsInfo stage, CancellationToken ct);
+
+    /// <summary>
+    /// Builds the result DTO when the evidence was rejected (ShouldAdvance=false).
+    /// </summary>
+    protected abstract TResultDto BuildEarlyResult(EvidenceOutcome outcome, TCommand command);
+
+    /// <summary>Appends the analytics fact row to the statistics store.</summary>
+    protected abstract Task RecordAnalyticsAsync(
+        TCommand command, Session session, StageWithOptionsInfo stage,
+        bool isCorrect, StageTransitionResult transition, CancellationToken ct);
+
+    /// <summary>Writes the command audit log entry (HU-22 / HU-26).</summary>
+    protected abstract Task WriteAuditAsync(
+        TCommand command, Session session, StageWithOptionsInfo stage,
+        int scoreChange, StageTransitionResult transition, CancellationToken ct);
+
+    /// <summary>Returns the error to surface when TeamService fails to record the result.</summary>
+    protected abstract Error GetRecordingError();
+
+    /// <summary>Maps the shared result data to the concrete DTO.</summary>
+    protected abstract TResultDto BuildSuccessResult(
+        bool isCorrect, StageTransitionResult transition, StageNavigation nav);
+
+    /// <summary>Returns the stage type label used in the SignalR broadcast payload.</summary>
+    protected abstract string GetStageType();
+
+    // ── Command field accessors ───────────────────────────────────────────────
+
+    protected abstract Guid GetSessionId(TCommand command);
+    protected abstract Guid GetTeamId(TCommand command);
+    protected abstract Guid GetStageId(TCommand command);
+
+    // ── Concrete shared helpers ───────────────────────────────────────────────
+
+    private Result<TResultDto> Fail(Error error) => Result.Failure<TResultDto>(error);
+
+    private async Task<StageNavigation?> ComputeNavigationAsync(
+        Guid missionId, Guid stageId, CancellationToken ct)
+    {
+        var allStages = await StageClient.GetStagesByMissionAsync(missionId, ct);
+        var sorted = allStages.OrderBy(s => s.Order).ToList();
+        if (sorted.Count == 0) return null;
+
+        var index = sorted.FindIndex(s => s.Id == stageId);
+        if (index < 0) return null;
+
+        bool isLast = index == sorted.Count - 1;
+        int next    = isLast ? sorted.Max(s => s.Order) + 1 : sorted[index + 1].Order;
+        return new StageNavigation(next, isLast);
+    }
+
+    private async Task BroadcastAsync(
+        TCommand command, Session session, StageWithOptionsInfo stage,
+        EvidenceOutcome evidence, StageTransitionResult transition,
+        StageNavigation nav, CancellationToken ct)
+    {
+        var sessionId = GetSessionId(command);
+
+        await Hub.Clients
+            .Group(sessionId.ToString())
+            .SendAsync("SessionStateChanged", ct);
+
+        await Hub.Clients
+            .Group(sessionId.ToString())
+            .SendAsync("StageCompleted",
+                new
+                {
+                    SessionId      = sessionId,
+                    TeamId         = GetTeamId(command),
+                    StageOrder     = stage.Order,
+                    StageType      = GetStageType(),
+                    WasCorrect     = evidence.IsCorrect,
+                    PointsEarned   = evidence.ScoreChange,
+                    NewScore       = transition.NewScore,
+                    NextStageOrder = nav.NextStageOrder,
+                    IsLastStage    = nav.IsLastStage,
+                }, ct);
+    }
+}

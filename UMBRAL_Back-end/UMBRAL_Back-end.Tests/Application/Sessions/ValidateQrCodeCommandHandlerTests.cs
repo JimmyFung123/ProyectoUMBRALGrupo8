@@ -31,8 +31,8 @@ public class ValidateQrCodeCommandHandlerTests
             _sessionRepoMock.Object,
             _teamClientMock.Object,
             _stageClientMock.Object,
-            _eventRepoMock.Object,
             _statsRepoMock.Object,
+            _eventRepoMock.Object,
             _hubMock.Object);
     }
 

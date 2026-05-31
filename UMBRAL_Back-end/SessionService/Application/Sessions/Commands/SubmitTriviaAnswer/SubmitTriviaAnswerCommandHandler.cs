@@ -1,8 +1,8 @@
 namespace SessionService.Application.Sessions.Commands.SubmitTriviaAnswer;
 
-using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using SessionService.Application.Sessions;
+using SessionService.Application.Sessions.Commands.Evidence;
 using SessionService.Application.Sessions.Scoring;
 using SessionService.Domain.Common;
 using SessionService.Domain.MissionLookup;
@@ -10,14 +10,15 @@ using SessionService.Domain.Sessions;
 using SessionService.Domain.Statistics;
 using SessionService.Infrastructure.Hubs;
 
-public class SubmitTriviaAnswerCommandHandler : IRequestHandler<SubmitTriviaAnswerCommand, Result<TriviaAnswerResultDto>>
+/// <summary>
+/// Concrete Template Method for trivia-answer evidence (HU-18).
+/// Inherits the shared session/stage validation, navigation, TeamService call,
+/// and SignalR broadcast from <see cref="EvidenceHandlerBase{TCommand,TResultDto}"/>.
+/// Implements: option validation, Strategy-based scoring, trivia analytics, trivia audit.
+/// </summary>
+public class SubmitTriviaAnswerCommandHandler
+    : EvidenceHandlerBase<SubmitTriviaAnswerCommand, TriviaAnswerResultDto>
 {
-    private readonly ISessionRepository _sessionRepository;
-    private readonly ITeamServiceClient _teamClient;
-    private readonly IStageServiceClient _stageClient;
-    private readonly IStageCompletionRecordRepository _statsRepository;
-    private readonly ISessionEventRepository _eventRepository;
-    private readonly IHubContext<SessionHub> _hub;
     private readonly IMissionLookupRepository _missionLookupRepository;
 
     public SubmitTriviaAnswerCommandHandler(
@@ -28,117 +29,96 @@ public class SubmitTriviaAnswerCommandHandler : IRequestHandler<SubmitTriviaAnsw
         ISessionEventRepository eventRepository,
         IHubContext<SessionHub> hub,
         IMissionLookupRepository missionLookupRepository)
+        : base(sessionRepository, teamClient, stageClient, statsRepository, eventRepository, hub)
     {
-        _sessionRepository = sessionRepository;
-        _teamClient = teamClient;
-        _stageClient = stageClient;
-        _statsRepository = statsRepository;
-        _eventRepository = eventRepository;
-        _hub = hub;
         _missionLookupRepository = missionLookupRepository;
     }
 
-    public async Task<Result<TriviaAnswerResultDto>> Handle(SubmitTriviaAnswerCommand request, CancellationToken cancellationToken)
+    // ── Command field accessors ───────────────────────────────────────────────
+
+    protected override Guid GetSessionId(SubmitTriviaAnswerCommand c) => c.SessionId;
+    protected override Guid GetTeamId(SubmitTriviaAnswerCommand c)    => c.TeamId;
+    protected override Guid GetStageId(SubmitTriviaAnswerCommand c)   => c.StageId;
+    protected override string GetStageType()                           => "Trivia";
+    protected override Error GetRecordingError()                       => SessionErrors.CannotAnswerTrivia;
+
+    // ── Hook: validate trivia option + apply scoring strategy ────────────────
+
+    protected override async Task<Result<EvidenceOutcome>> ProcessEvidenceAsync(
+        SubmitTriviaAnswerCommand command,
+        Session session,
+        StageWithOptionsInfo stage,
+        CancellationToken ct)
     {
-        // 1. Validate session exists and is in a state that accepts answers
-        var session = await _sessionRepository.GetByIdAsync(request.SessionId, cancellationToken);
-        if (session is null)
-            return Result.Failure<TriviaAnswerResultDto>(SessionErrors.NotFound);
-
-        if (session.Status != SessionStatus.InProgress)
-            return Result.Failure<TriviaAnswerResultDto>(SessionErrors.NotInProgress);
-
-        // 2. Fetch the stage with full option details (IsCorrect included — internal only)
-        var stage = await _stageClient.GetStageWithOptionsAsync(request.StageId, cancellationToken);
-        if (stage is null)
-            return Result.Failure<TriviaAnswerResultDto>(SessionErrors.StageNotFound);
-
-        // 3. Find the selected option
-        var option = stage.Options.FirstOrDefault(o => o.Id == request.OptionId);
+        var option = stage.Options.FirstOrDefault(o => o.Id == command.OptionId);
         if (option is null)
-            return Result.Failure<TriviaAnswerResultDto>(SessionErrors.OptionNotFound);
+            return Result.Failure<EvidenceOutcome>(SessionErrors.OptionNotFound);
 
         bool isCorrect = option.IsCorrect;
 
-        // 4. Select scoring strategy based on mission difficulty (Strategy pattern)
-        var missionLookup = await _missionLookupRepository.GetByIdAsync(session.MissionId, cancellationToken);
-        var strategy = ScoringStrategyFactory.Create(missionLookup?.Difficulty ?? "Medium");
+        var missionLookup = await _missionLookupRepository.GetByIdAsync(session.MissionId, ct);
+        var strategy  = ScoringStrategyFactory.Create(missionLookup?.Difficulty ?? "Medium");
         int scoreChange = strategy.Calculate(stage.BaseScore, isCorrect);
 
-        // 5. Get all stages to determine next stage order and last-stage flag
-        var allStages = await _stageClient.GetStagesByMissionAsync(session.MissionId, cancellationToken);
-        var sortedStages = allStages.OrderBy(s => s.Order).ToList();
-        var maxOrder = sortedStages.Max(s => s.Order);
-
-        var currentStageIndex = sortedStages.FindIndex(s => s.Id == request.StageId);
-        bool isLastStage = currentStageIndex == sortedStages.Count - 1;
-
-        // Sentinel: one beyond max signals "team finished"
-        int nextStageOrder = isLastStage
-            ? maxOrder + 1
-            : sortedStages[currentStageIndex + 1].Order;
-
-        // 6. Record the answer in TeamService (updates score + advances stage)
-        var outcome = await _teamClient.AnswerTriviaAsync(
-            request.TeamId, isCorrect, scoreChange, nextStageOrder, cancellationToken);
-
-        if (outcome is null)
-            return Result.Failure<TriviaAnswerResultDto>(SessionErrors.CannotAnswerTrivia);
-
-        // 7. HU-25: append the analytics fact row. IncludedInStatistics stays
-        // false until the session is finalized — admin dashboard ignores
-        // in-flight games.
-        var record = StageCompletionRecord.ForTriviaAnswer(
-            sessionId: request.SessionId,
-            missionId: session.MissionId,
-            teamId: request.TeamId,
-            stageOrder: stage.Order,
-            elapsedSeconds: outcome.ElapsedSeconds,
-            wasCorrect: isCorrect);
-        await _statsRepository.AddAsync(record, cancellationToken);
-        await _statsRepository.SaveChangesAsync(cancellationToken);
-
-        // 8. HU-26: command audit log. Resolve team name for the actor field.
-        var teamInfo = await _teamClient.GetTeamByIdAsync(request.TeamId, cancellationToken);
-        var teamName = teamInfo?.Name ?? "Equipo";
-        var auditMessage = isCorrect
-            ? $"El equipo '{teamName}' respondió correctamente la etapa {stage.Order} y sumó {scoreChange} pts. Nuevo puntaje: {outcome.NewScore}."
-            : $"El equipo '{teamName}' respondió incorrectamente la etapa {stage.Order} ({scoreChange} pts). Nuevo puntaje: {outcome.NewScore}.";
-        var auditEvent = SessionEvent.Create(
-            request.SessionId,
-            auditMessage,
-            actorName: $"Equipo {teamName}",
-            commandType: nameof(SubmitTriviaAnswerCommand),
-            outcome: isCorrect ? SessionEvent.OutcomeSuccess : SessionEvent.OutcomeFailure);
-        await _eventRepository.AddAsync(auditEvent, cancellationToken);
-        await _eventRepository.SaveChangesAsync(cancellationToken);
-
-        // 9. Broadcast dashboard refresh (operators) + HU-28 StageCompleted
-        //    (participants). The dedicated event carries enough data for the
-        //    immersive toast/animation to fire without waiting for the next
-        //    polling tick.
-        await _hub.Clients
-            .Group(request.SessionId.ToString())
-            .SendAsync("SessionStateChanged", cancellationToken);
-
-        await _hub.Clients
-            .Group(request.SessionId.ToString())
-            .SendAsync(
-                "StageCompleted",
-                new
-                {
-                    SessionId       = request.SessionId,
-                    TeamId          = request.TeamId,
-                    StageOrder      = stage.Order,
-                    StageType       = "Trivia",
-                    WasCorrect      = isCorrect,
-                    PointsEarned    = scoreChange,
-                    NewScore        = outcome.NewScore,
-                    NextStageOrder  = nextStageOrder,
-                    IsLastStage     = isLastStage,
-                },
-                cancellationToken);
-
-        return Result.Success(new TriviaAnswerResultDto(isCorrect, outcome.NewScore, nextStageOrder, isLastStage));
+        // Trivia always advances the stage regardless of correctness
+        return Result.Success(new EvidenceOutcome(
+            IsCorrect: isCorrect,
+            ScoreChange: scoreChange,
+            ShouldAdvance: true));
     }
+
+    // ── Hook: trivia never has a wrong-answer early return ───────────────────
+
+    protected override TriviaAnswerResultDto BuildEarlyResult(
+        EvidenceOutcome outcome, SubmitTriviaAnswerCommand command)
+        => throw new InvalidOperationException(
+            "Trivia evidence always advances the stage; BuildEarlyResult should never be called.");
+
+    // ── Hook: analytics ──────────────────────────────────────────────────────
+
+    protected override async Task RecordAnalyticsAsync(
+        SubmitTriviaAnswerCommand command, Session session,
+        StageWithOptionsInfo stage, bool isCorrect, StageTransitionResult transition, CancellationToken ct)
+    {
+        var record = StageCompletionRecord.ForTriviaAnswer(
+            sessionId:      command.SessionId,
+            missionId:      session.MissionId,
+            teamId:         command.TeamId,
+            stageOrder:     stage.Order,
+            elapsedSeconds: transition.ElapsedSeconds,
+            wasCorrect:     isCorrect);
+        await StatsRepository.AddAsync(record, ct);
+        await StatsRepository.SaveChangesAsync(ct);
+    }
+
+    // ── Hook: audit log ──────────────────────────────────────────────────────
+
+    protected override async Task WriteAuditAsync(
+        SubmitTriviaAnswerCommand command, Session session,
+        StageWithOptionsInfo stage, int scoreChange,
+        StageTransitionResult transition, CancellationToken ct)
+    {
+        var teamInfo  = await TeamClient.GetTeamByIdAsync(command.TeamId, ct);
+        var teamName  = teamInfo?.Name ?? "Equipo";
+        bool isCorrect = scoreChange > 0;
+
+        var message = isCorrect
+            ? $"El equipo '{teamName}' respondió correctamente la etapa {stage.Order} y sumó {scoreChange} pts. Nuevo puntaje: {transition.NewScore}."
+            : $"El equipo '{teamName}' respondió incorrectamente la etapa {stage.Order} ({scoreChange} pts). Nuevo puntaje: {transition.NewScore}.";
+
+        var ev = SessionEvent.Create(
+            command.SessionId, message,
+            actorName:   $"Equipo {teamName}",
+            commandType: nameof(SubmitTriviaAnswerCommand),
+            outcome:     isCorrect ? SessionEvent.OutcomeSuccess : SessionEvent.OutcomeFailure);
+
+        await EventRepository.AddAsync(ev, ct);
+        await EventRepository.SaveChangesAsync(ct);
+    }
+
+    // ── Hook: build result DTO ───────────────────────────────────────────────
+
+    protected override TriviaAnswerResultDto BuildSuccessResult(
+        bool isCorrect, StageTransitionResult transition, StageNavigation nav)
+        => new(isCorrect, transition.NewScore, nav.NextStageOrder, nav.IsLastStage);
 }
