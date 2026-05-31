@@ -57,6 +57,8 @@ public class AnswerTriviaCommandHandlerTests
     [Fact]
     public async Task Handle_IncorrectAnswer_SavesAndReturnsDecreasedScore()
     {
+        // ScoreChange is now signed by the IScoringStrategy in SessionService.
+        // A wrong answer carries a negative value (e.g. -50 for Hard difficulty).
         var sessionId = Guid.NewGuid();
         var team = Team.Create(sessionId, "Beta");
         team.UpdateScore(100);
@@ -64,10 +66,10 @@ public class AnswerTriviaCommandHandlerTests
                  .ReturnsAsync(team);
 
         var result = await _handler.Handle(
-            new AnswerTriviaCommand(team.Id, IsCorrect: false, ScoreChange: 50, NextStageOrder: 2), default);
+            new AnswerTriviaCommand(team.Id, IsCorrect: false, ScoreChange: -50, NextStageOrder: 2), default);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.NewScore.Should().Be(50);
+        result.Value.NewScore.Should().Be(50);  // 100 + (-50) = 50
         team.Score.Should().Be(50);
         _repoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
 

@@ -20,15 +20,16 @@ public class TeamTriviaAnswerTests
     }
 
     [Fact]
-    public void AnswerTrivia_IncorrectAnswer_DecreasesScoreByScoreChange()
+    public void AnswerTrivia_IncorrectAnswer_DecreasesScoreBySignedScoreChange()
     {
+        // ScoreChange is now signed: negative = penalty (resolved by IScoringStrategy).
         var team = Team.Create(Guid.NewGuid(), "Beta");
         team.UpdateScore(100);
 
-        var result = team.AnswerTrivia(isCorrect: false, scoreChange: 50, nextStageOrder: 2);
+        var result = team.AnswerTrivia(isCorrect: false, scoreChange: -50, nextStageOrder: 2);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.NewScore.Should().Be(50);
+        result.Value.NewScore.Should().Be(50);  // 100 + (-50) = 50
         team.Score.Should().Be(50);
     }
 
@@ -38,10 +39,10 @@ public class TeamTriviaAnswerTests
         var team = Team.Create(Guid.NewGuid(), "Gamma");
         team.UpdateScore(10);
 
-        var result = team.AnswerTrivia(isCorrect: false, scoreChange: 50, nextStageOrder: 2);
+        var result = team.AnswerTrivia(isCorrect: false, scoreChange: -50, nextStageOrder: 2);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.NewScore.Should().Be(-40);
+        result.Value.NewScore.Should().Be(-40);  // 10 + (-50) = -40
         team.Score.Should().Be(-40);
     }
 
@@ -98,7 +99,7 @@ public class TeamTriviaAnswerTests
     {
         var team = Team.Create(Guid.NewGuid(), "Errado");
 
-        team.AnswerTrivia(isCorrect: false, scoreChange: 50, nextStageOrder: 2);
+        team.AnswerTrivia(isCorrect: false, scoreChange: -50, nextStageOrder: 2);
 
         team.LastStageCompletedAt.Should().BeNull();
     }

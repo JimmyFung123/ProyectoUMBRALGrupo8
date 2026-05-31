@@ -26,12 +26,14 @@ public class MissionActivatedConsumer : IConsumer<MissionActivatedIntegrationEve
             var newLookup = MissionLookup.Create(
                 context.Message.MissionId,
                 context.Message.Name,
-                "Active");
+                "Active",
+                context.Message.Difficulty);
             await _repository.AddAsync(newLookup, context.CancellationToken);
         }
         else
         {
             lookup.UpdateStatus("Active");
+            lookup.UpdateDifficulty(context.Message.Difficulty);
         }
 
         await _repository.SaveChangesAsync(context.CancellationToken);

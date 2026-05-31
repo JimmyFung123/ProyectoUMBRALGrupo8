@@ -12,6 +12,7 @@ public class MissionLookupConfiguration : IEntityTypeConfiguration<MissionLookup
         builder.HasKey(m => m.Id);
         builder.Property(m => m.Name).IsRequired().HasMaxLength(200);
         builder.Property(m => m.Status).IsRequired().HasMaxLength(50);
+        builder.Property(m => m.Difficulty).IsRequired().HasMaxLength(20).HasDefaultValue("Medium");
         builder.Property(m => m.LastUpdatedAt).IsRequired();
     }
 }

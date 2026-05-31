@@ -7,4 +7,5 @@ namespace UMBRAL.Contracts.Events;
 public record MissionActivatedIntegrationEvent(
     Guid MissionId,
     string Name,
-    DateTime OccurredAt);
+    DateTime OccurredAt,
+    string Difficulty = "Medium");

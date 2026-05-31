@@ -140,7 +140,10 @@ public class Team
 
     /// <summary>
     /// Updates the team's score and advances to the next stage after answering a trivia question.
-    /// Score increases on correct answer, decreases on incorrect. Resets clue tracking.
+    /// Score changes by the signed <paramref name="scoreChange"/> value provided
+    /// by the caller (positive = reward, negative = penalty, zero = no change).
+    /// The sign is resolved by the IScoringStrategy in SessionService before
+    /// this method is called. Resets clue tracking.
     /// Returns the seconds the team spent on the stage being abandoned — used by
     /// HU-25 to record the analytics fact row.
     /// </summary>
@@ -149,7 +152,7 @@ public class Team
         var now = DateTime.UtcNow;
         var elapsedSeconds = ComputeStageElapsedSeconds(now);
 
-        Score += isCorrect ? scoreChange : -scoreChange;
+        Score += scoreChange;   // sign already resolved by IScoringStrategy
         CurrentStageOrder = nextStageOrder;
         CluesReceivedCurrentStage = 0;
         ClueTimerResetAt = now;

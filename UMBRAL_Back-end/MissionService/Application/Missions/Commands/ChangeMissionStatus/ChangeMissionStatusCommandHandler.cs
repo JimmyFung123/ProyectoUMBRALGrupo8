@@ -66,7 +66,7 @@ public class ChangeMissionStatusCommandHandler : IRequestHandler<ChangeMissionSt
 
             // Integration event → RabbitMQ — SessionService updates its MissionLookup
             await _bus.Publish(
-                new MissionActivatedIntegrationEvent(mission.Id, mission.Name, DateTime.UtcNow),
+                new MissionActivatedIntegrationEvent(mission.Id, mission.Name, DateTime.UtcNow, mission.Difficulty.ToString()),
                 cancellationToken);
         }
         else

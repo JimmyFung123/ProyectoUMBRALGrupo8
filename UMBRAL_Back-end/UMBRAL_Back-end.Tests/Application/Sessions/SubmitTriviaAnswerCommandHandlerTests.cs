@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.SignalR;
 using Moq;
 using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Commands.SubmitTriviaAnswer;
+using SessionService.Domain.MissionLookup;
 using SessionService.Domain.Sessions;
 using SessionService.Domain.Statistics;
 using SessionService.Infrastructure.Hubs;
@@ -18,6 +19,7 @@ public class SubmitTriviaAnswerCommandHandlerTests
     private readonly Mock<IStageCompletionRecordRepository> _statsRepoMock = new();
     private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
     private readonly Mock<IHubContext<SessionHub>> _hubMock = new();
+    private readonly Mock<IMissionLookupRepository> _missionLookupRepoMock = new();
     private readonly SubmitTriviaAnswerCommandHandler _handler;
 
     public SubmitTriviaAnswerCommandHandlerTests()
@@ -27,13 +29,19 @@ public class SubmitTriviaAnswerCommandHandlerTests
         clientsMock.Setup(c => c.Group(It.IsAny<string>())).Returns(proxyMock.Object);
         _hubMock.Setup(h => h.Clients).Returns(clientsMock.Object);
 
+        // Default: null lookup → ScoringStrategyFactory defaults to MediumScoringStrategy
+        _missionLookupRepoMock
+            .Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((MissionLookup?)null);
+
         _handler = new SubmitTriviaAnswerCommandHandler(
             _sessionRepoMock.Object,
             _teamClientMock.Object,
             _stageClientMock.Object,
             _statsRepoMock.Object,
             _eventRepoMock.Object,
-            _hubMock.Object);
+            _hubMock.Object,
+            _missionLookupRepoMock.Object);
     }
 
     // ── Session not found ─────────────────────────────────────────────────────
@@ -175,8 +183,9 @@ public class SubmitTriviaAnswerCommandHandlerTests
                         .ReturnsAsync(stageInfo);
         _stageClientMock.Setup(s => s.GetStagesByMissionAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                         .ReturnsAsync(new[] { stage1Ref, stage2Ref });
-        _teamClientMock.Setup(t => t.AnswerTriviaAsync(It.IsAny<Guid>(), false, 50, It.IsAny<int>(), It.IsAny<CancellationToken>()))
-                       .ReturnsAsync(new StageTransitionResult(NewScore: 50, ElapsedSeconds: 13));
+        // Medium strategy: wrong answer → -(baseScore/2) = -25
+        _teamClientMock.Setup(t => t.AnswerTriviaAsync(It.IsAny<Guid>(), false, -25, It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                       .ReturnsAsync(new StageTransitionResult(NewScore: 25, ElapsedSeconds: 13));
 
         var result = await _handler.Handle(
             new SubmitTriviaAnswerCommand(Guid.NewGuid(), Guid.NewGuid(), stageId, wrongOptionId),
@@ -185,7 +194,7 @@ public class SubmitTriviaAnswerCommandHandlerTests
         result.IsSuccess.Should().BeTrue();
         result.Value.IsCorrect.Should().BeFalse();
         _teamClientMock.Verify(t => t.AnswerTriviaAsync(
-            It.IsAny<Guid>(), false, 50, It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Once);
+            It.IsAny<Guid>(), false, -25, It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Once);
 
         // HU-25: an incorrect-answer record still gets recorded — it's the
         // input for the effectiveness percentage.
@@ -257,8 +266,9 @@ public class SubmitTriviaAnswerCommandHandlerTests
                         .ReturnsAsync(stageInfo);
         _stageClientMock.Setup(s => s.GetStagesByMissionAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                         .ReturnsAsync(new[] { new StageInfo(stageId, 1) });
-        _teamClientMock.Setup(t => t.AnswerTriviaAsync(teamId, false, 50, It.IsAny<int>(), It.IsAny<CancellationToken>()))
-                       .ReturnsAsync(new StageTransitionResult(NewScore: 0, ElapsedSeconds: 12));
+        // Medium strategy: wrong answer → -25
+        _teamClientMock.Setup(t => t.AnswerTriviaAsync(teamId, false, -25, It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                       .ReturnsAsync(new StageTransitionResult(NewScore: 25, ElapsedSeconds: 12));
         _teamClientMock.Setup(t => t.GetTeamByIdAsync(teamId, It.IsAny<CancellationToken>()))
                        .ReturnsAsync(new TeamInfoItem(teamId, "Beta", 1));
 

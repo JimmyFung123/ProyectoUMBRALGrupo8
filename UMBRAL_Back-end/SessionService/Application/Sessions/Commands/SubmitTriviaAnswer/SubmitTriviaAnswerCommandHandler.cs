@@ -3,7 +3,9 @@ namespace SessionService.Application.Sessions.Commands.SubmitTriviaAnswer;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using SessionService.Application.Sessions;
+using SessionService.Application.Sessions.Scoring;
 using SessionService.Domain.Common;
+using SessionService.Domain.MissionLookup;
 using SessionService.Domain.Sessions;
 using SessionService.Domain.Statistics;
 using SessionService.Infrastructure.Hubs;
@@ -16,6 +18,7 @@ public class SubmitTriviaAnswerCommandHandler : IRequestHandler<SubmitTriviaAnsw
     private readonly IStageCompletionRecordRepository _statsRepository;
     private readonly ISessionEventRepository _eventRepository;
     private readonly IHubContext<SessionHub> _hub;
+    private readonly IMissionLookupRepository _missionLookupRepository;
 
     public SubmitTriviaAnswerCommandHandler(
         ISessionRepository sessionRepository,
@@ -23,7 +26,8 @@ public class SubmitTriviaAnswerCommandHandler : IRequestHandler<SubmitTriviaAnsw
         IStageServiceClient stageClient,
         IStageCompletionRecordRepository statsRepository,
         ISessionEventRepository eventRepository,
-        IHubContext<SessionHub> hub)
+        IHubContext<SessionHub> hub,
+        IMissionLookupRepository missionLookupRepository)
     {
         _sessionRepository = sessionRepository;
         _teamClient = teamClient;
@@ -31,6 +35,7 @@ public class SubmitTriviaAnswerCommandHandler : IRequestHandler<SubmitTriviaAnsw
         _statsRepository = statsRepository;
         _eventRepository = eventRepository;
         _hub = hub;
+        _missionLookupRepository = missionLookupRepository;
     }
 
     public async Task<Result<TriviaAnswerResultDto>> Handle(SubmitTriviaAnswerCommand request, CancellationToken cancellationToken)
@@ -55,7 +60,12 @@ public class SubmitTriviaAnswerCommandHandler : IRequestHandler<SubmitTriviaAnsw
 
         bool isCorrect = option.IsCorrect;
 
-        // 4. Get all stages to determine next stage order and last-stage flag
+        // 4. Select scoring strategy based on mission difficulty (Strategy pattern)
+        var missionLookup = await _missionLookupRepository.GetByIdAsync(session.MissionId, cancellationToken);
+        var strategy = ScoringStrategyFactory.Create(missionLookup?.Difficulty ?? "Medium");
+        int scoreChange = strategy.Calculate(stage.BaseScore, isCorrect);
+
+        // 5. Get all stages to determine next stage order and last-stage flag
         var allStages = await _stageClient.GetStagesByMissionAsync(session.MissionId, cancellationToken);
         var sortedStages = allStages.OrderBy(s => s.Order).ToList();
         var maxOrder = sortedStages.Max(s => s.Order);
@@ -68,14 +78,14 @@ public class SubmitTriviaAnswerCommandHandler : IRequestHandler<SubmitTriviaAnsw
             ? maxOrder + 1
             : sortedStages[currentStageIndex + 1].Order;
 
-        // 5. Record the answer in TeamService (updates score + advances stage)
+        // 6. Record the answer in TeamService (updates score + advances stage)
         var outcome = await _teamClient.AnswerTriviaAsync(
-            request.TeamId, isCorrect, stage.BaseScore, nextStageOrder, cancellationToken);
+            request.TeamId, isCorrect, scoreChange, nextStageOrder, cancellationToken);
 
         if (outcome is null)
             return Result.Failure<TriviaAnswerResultDto>(SessionErrors.CannotAnswerTrivia);
 
-        // 6. HU-25: append the analytics fact row. IncludedInStatistics stays
+        // 7. HU-25: append the analytics fact row. IncludedInStatistics stays
         // false until the session is finalized — admin dashboard ignores
         // in-flight games.
         var record = StageCompletionRecord.ForTriviaAnswer(
@@ -88,12 +98,12 @@ public class SubmitTriviaAnswerCommandHandler : IRequestHandler<SubmitTriviaAnsw
         await _statsRepository.AddAsync(record, cancellationToken);
         await _statsRepository.SaveChangesAsync(cancellationToken);
 
-        // 7. HU-26: command audit log. Resolve team name for the actor field.
+        // 8. HU-26: command audit log. Resolve team name for the actor field.
         var teamInfo = await _teamClient.GetTeamByIdAsync(request.TeamId, cancellationToken);
         var teamName = teamInfo?.Name ?? "Equipo";
         var auditMessage = isCorrect
-            ? $"El equipo '{teamName}' respondió correctamente la etapa {stage.Order} y sumó {stage.BaseScore} pts. Nuevo puntaje: {outcome.NewScore}."
-            : $"El equipo '{teamName}' respondió incorrectamente la etapa {stage.Order}. Nuevo puntaje: {outcome.NewScore}.";
+            ? $"El equipo '{teamName}' respondió correctamente la etapa {stage.Order} y sumó {scoreChange} pts. Nuevo puntaje: {outcome.NewScore}."
+            : $"El equipo '{teamName}' respondió incorrectamente la etapa {stage.Order} ({scoreChange} pts). Nuevo puntaje: {outcome.NewScore}.";
         var auditEvent = SessionEvent.Create(
             request.SessionId,
             auditMessage,
@@ -103,7 +113,7 @@ public class SubmitTriviaAnswerCommandHandler : IRequestHandler<SubmitTriviaAnsw
         await _eventRepository.AddAsync(auditEvent, cancellationToken);
         await _eventRepository.SaveChangesAsync(cancellationToken);
 
-        // 8. Broadcast dashboard refresh (operators) + HU-28 StageCompleted
+        // 9. Broadcast dashboard refresh (operators) + HU-28 StageCompleted
         //    (participants). The dedicated event carries enough data for the
         //    immersive toast/animation to fire without waiting for the next
         //    polling tick.
@@ -122,7 +132,7 @@ public class SubmitTriviaAnswerCommandHandler : IRequestHandler<SubmitTriviaAnsw
                     StageOrder      = stage.Order,
                     StageType       = "Trivia",
                     WasCorrect      = isCorrect,
-                    PointsEarned    = isCorrect ? stage.BaseScore : 0,
+                    PointsEarned    = scoreChange,
                     NewScore        = outcome.NewScore,
                     NextStageOrder  = nextStageOrder,
                     IsLastStage     = isLastStage,
