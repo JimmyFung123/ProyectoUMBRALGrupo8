@@ -26,4 +26,8 @@ public static class StageErrors
     /// <summary>RB-20: TreasureHunt stages require a physical QR code for validation.</summary>
     public static readonly Error QrCodeRequired =
         new("Stage.QrCodeRequired", "A QR code is required for TreasureHunt stages.");
+
+    /// <summary>HU-2: QR codes must be unique across all stages.</summary>
+    public static readonly Error DuplicateQrCode =
+        new("Stage.DuplicateQrCode", "This QR code is already assigned to another stage.");
 }

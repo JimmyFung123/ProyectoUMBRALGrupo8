@@ -89,6 +89,73 @@ public class UpdateStageCommandHandlerTests
         _stageRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Fact]
+    public async Task Handle_WhenTreasureHuntQrCodeIsDuplicate_ReturnsDuplicateQrCodeError()
+    {
+        var missionId = Guid.NewGuid();
+        var stageId = Guid.NewGuid();
+        var stage = Stage.Create(missionId, "Tesoro original", StageType.TreasureHunt, 1, 50,
+            latitude: 10.0, longitude: -66.0, qrCode: "QR-OLD").Value;
+        var inactiveMission = MissionLookup.Create(missionId, "Inactive Mission", "Inactive");
+
+        _stageRepoMock
+            .Setup(r => r.GetByIdAsync(stageId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(stage);
+
+        _missionLookupMock
+            .Setup(r => r.GetByIdAsync(missionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(inactiveMission);
+
+        _stageRepoMock
+            .Setup(r => r.ExistsWithQrCodeAsync("QR-TAKEN", stage.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var command = new UpdateStageCommand(
+            stageId, "Tesoro actualizado", Order: 1, BaseScore: 50,
+            Question: null, Options: null,
+            Latitude: 10.0, Longitude: -66.0, QrCode: "QR-TAKEN",
+            AutoReleaseTimeMinutes: null, AutoReleaseMaxAttempts: null);
+
+        var result = await _handler.Handle(command, default);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Be(StageErrors.DuplicateQrCode);
+        _stageRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_WhenTreasureHuntQrCodeIsUnchanged_UpdatesSuccessfully()
+    {
+        var missionId = Guid.NewGuid();
+        var stageId = Guid.NewGuid();
+        var stage = Stage.Create(missionId, "Tesoro original", StageType.TreasureHunt, 1, 50,
+            latitude: 10.0, longitude: -66.0, qrCode: "QR-SAME").Value;
+        var inactiveMission = MissionLookup.Create(missionId, "Inactive Mission", "Inactive");
+
+        _stageRepoMock
+            .Setup(r => r.GetByIdAsync(stageId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(stage);
+
+        _missionLookupMock
+            .Setup(r => r.GetByIdAsync(missionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(inactiveMission);
+
+        _stageRepoMock
+            .Setup(r => r.ExistsWithQrCodeAsync("QR-SAME", stage.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var command = new UpdateStageCommand(
+            stageId, "Tesoro renombrado", Order: 1, BaseScore: 75,
+            Question: null, Options: null,
+            Latitude: 10.0, Longitude: -66.0, QrCode: "QR-SAME",
+            AutoReleaseTimeMinutes: null, AutoReleaseMaxAttempts: null);
+
+        var result = await _handler.Handle(command, default);
+
+        result.IsSuccess.Should().BeTrue();
+        _stageRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     // ── Helper ────────────────────────────────────────────────────────────────
 
     private static UpdateStageCommand ValidCommand(Guid stageId) =>

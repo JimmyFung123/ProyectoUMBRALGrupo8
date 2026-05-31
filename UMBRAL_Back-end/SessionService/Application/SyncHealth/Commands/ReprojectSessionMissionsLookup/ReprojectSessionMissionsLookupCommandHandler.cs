@@ -3,53 +3,42 @@ namespace SessionService.Application.SyncHealth.Commands.ReprojectSessionMission
 using MediatR;
 using SessionService.Application.SyncHealth;
 
-/// <summary>
-/// HU-27 — rebuilds the local <c>MissionsLookup</c> table from MissionService.
-/// Returns a non-success result when MissionService is unreachable so the
-/// admin sees a clear failure on the dashboard instead of the table getting
-/// wiped silently.
-/// </summary>
 public class ReprojectSessionMissionsLookupCommandHandler
     : IRequestHandler<ReprojectSessionMissionsLookupCommand, ReprojectActionResultDto>
 {
-    private readonly IMissionServiceSyncClient _missionClient;
-    private readonly ILocalSyncHealthReader _localReader;
+    private readonly IMissionServiceSyncClient _client;
+    private readonly ILocalSyncHealthReader _reader;
 
     public ReprojectSessionMissionsLookupCommandHandler(
-        IMissionServiceSyncClient missionClient,
-        ILocalSyncHealthReader localReader)
+        IMissionServiceSyncClient client,
+        ILocalSyncHealthReader reader)
     {
-        _missionClient = missionClient;
-        _localReader = localReader;
+        _client = client;
+        _reader = reader;
     }
 
     public async Task<ReprojectActionResultDto> Handle(
         ReprojectSessionMissionsLookupCommand request,
-        CancellationToken ct)
+        CancellationToken cancellationToken)
     {
-        // Validate upstream is reachable BEFORE wiping the local table. The
-        // snapshot endpoint is cheap and the right signal — if it errors we
-        // bail out before deleting any rows.
-        var snapshot = await _missionClient.GetSnapshotAsync(ct);
+        var snapshot = await _client.GetSnapshotAsync(cancellationToken);
         if (snapshot is null)
-        {
             return new ReprojectActionResultDto(
                 ProjectionId: "missions-lookup-session",
                 Success: false,
                 ChangedRows: 0,
-                Detail: "MissionService no responde — no se rebuilt la réplica para no perder datos.",
+                Detail: "MissionService is unreachable. MissionsLookup table was not modified.",
                 CompletedAt: DateTime.UtcNow);
-        }
 
-        var changed = await _localReader.ReprojectMissionsLookupAsync(
-            sourceFetcher: ctk => _missionClient.GetMissionsAsync(ctk),
-            ct);
+        var changed = await _reader.ReprojectMissionsLookupAsync(
+            ct => _client.GetMissionsAsync(ct),
+            cancellationToken);
 
         return new ReprojectActionResultDto(
             ProjectionId: "missions-lookup-session",
             Success: true,
             ChangedRows: changed,
-            Detail: $"{changed} fila(s) afectada(s) en SessionService.MissionsLookup.",
+            Detail: $"SessionService rebuilt MissionsLookup from MissionService ({changed} rows affected).",
             CompletedAt: DateTime.UtcNow);
     }
 }

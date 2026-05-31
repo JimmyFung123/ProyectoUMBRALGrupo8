@@ -7,23 +7,19 @@ using SessionService.Application.SyncHealth.Commands.ReprojectSessionMissionsLoo
 public class ReconcileStageCompletionRecordsCommandHandler
     : IRequestHandler<ReconcileStageCompletionRecordsCommand, ReprojectActionResultDto>
 {
-    private readonly ILocalSyncHealthReader _localReader;
-
-    public ReconcileStageCompletionRecordsCommandHandler(ILocalSyncHealthReader localReader)
-        => _localReader = localReader;
+    private readonly ILocalSyncHealthReader _reader;
+    public ReconcileStageCompletionRecordsCommandHandler(ILocalSyncHealthReader reader) => _reader = reader;
 
     public async Task<ReprojectActionResultDto> Handle(
         ReconcileStageCompletionRecordsCommand request,
-        CancellationToken ct)
+        CancellationToken cancellationToken)
     {
-        var fixedRows = await _localReader.ReconcileStageCompletionRecordsAsync(ct);
+        var changed = await _reader.ReconcileStageCompletionRecordsAsync(cancellationToken);
         return new ReprojectActionResultDto(
             ProjectionId: "stage-completion-records",
             Success: true,
-            ChangedRows: fixedRows,
-            Detail: fixedRows == 0
-                ? "Flag IncludedInStatistics ya consistente con el estado de cada sesión."
-                : $"{fixedRows} fila(s) corregidas: ahora IncludedInStatistics refleja el estado de la sesión.",
+            ChangedRows: changed,
+            Detail: $"Reconciled {changed} StageCompletionRecord rows against session status.",
             CompletedAt: DateTime.UtcNow);
     }
 }

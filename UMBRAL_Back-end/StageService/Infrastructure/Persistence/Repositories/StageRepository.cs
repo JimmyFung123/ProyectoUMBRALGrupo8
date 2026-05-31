@@ -31,6 +31,10 @@ public class StageRepository : IStageRepository
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => await _context.SaveChangesAsync(cancellationToken);
 
+    public async Task<bool> ExistsWithQrCodeAsync(string qrCode, Guid? excludeId = null, CancellationToken cancellationToken = default)
+        => await _context.Stages
+            .AnyAsync(s => s.QrCode == qrCode && (excludeId == null || s.Id != excludeId), cancellationToken);
+
     public async Task RemoveOptionsAsync(Guid stageId, CancellationToken cancellationToken = default)
     {
         // Bulk delete vía EF Core 7+. Borra las TriviaOptions directamente en

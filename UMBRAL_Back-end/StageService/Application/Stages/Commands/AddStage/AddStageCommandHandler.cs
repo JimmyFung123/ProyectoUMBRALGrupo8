@@ -28,6 +28,10 @@ public class AddStageCommandHandler : IRequestHandler<AddStageCommand, Result<Gu
         if (!Enum.TryParse<StageType>(request.Type, out var stageType))
             return Result.Failure<Guid>(new Error("Stage.InvalidType", $"Unknown stage type: {request.Type}"));
 
+        if (stageType == StageType.TreasureHunt && !string.IsNullOrWhiteSpace(request.QrCode))
+            if (await _stageRepository.ExistsWithQrCodeAsync(request.QrCode.Trim(), cancellationToken: cancellationToken))
+                return Result.Failure<Guid>(StageErrors.DuplicateQrCode);
+
         var result = Stage.Create(
             request.MissionId, request.Title, stageType, request.Order, request.BaseScore,
             request.Question, request.Latitude, request.Longitude, request.QrCode);

@@ -121,6 +121,53 @@ public class AddStageCommandHandlerTests
         result.Error.Should().Be(StageErrors.InvalidName);
     }
 
+    [Fact]
+    public async Task Handle_WhenTreasureHuntHasDuplicateQrCode_ReturnsDuplicateQrCodeError()
+    {
+        var missionId = Guid.NewGuid();
+
+        _missionLookupMock
+            .Setup(r => r.GetByIdAsync(missionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((MissionLookup?)null);
+
+        _stageRepoMock
+            .Setup(r => r.ExistsWithQrCodeAsync("QR-001", null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var command = new AddStageCommand(missionId, "Tesoro duplicado", "TreasureHunt",
+            Order: 1, BaseScore: 50, Question: null, Options: null,
+            Latitude: 10.0, Longitude: -66.0, QrCode: "QR-001");
+
+        var result = await _handler.Handle(command, default);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Be(StageErrors.DuplicateQrCode);
+        _stageRepoMock.Verify(r => r.AddAsync(It.IsAny<Stage>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_WhenTreasureHuntHasUniqueQrCode_CreatesStageSuccessfully()
+    {
+        var missionId = Guid.NewGuid();
+
+        _missionLookupMock
+            .Setup(r => r.GetByIdAsync(missionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((MissionLookup?)null);
+
+        _stageRepoMock
+            .Setup(r => r.ExistsWithQrCodeAsync("QR-UNIQUE", null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var command = new AddStageCommand(missionId, "Tesoro único", "TreasureHunt",
+            Order: 1, BaseScore: 50, Question: null, Options: null,
+            Latitude: 10.0, Longitude: -66.0, QrCode: "QR-UNIQUE");
+
+        var result = await _handler.Handle(command, default);
+
+        result.IsSuccess.Should().BeTrue();
+        _stageRepoMock.Verify(r => r.AddAsync(It.IsAny<Stage>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     // ── Helper ────────────────────────────────────────────────────────────────
 
     private static AddStageCommand ValidCommand(Guid missionId) =>

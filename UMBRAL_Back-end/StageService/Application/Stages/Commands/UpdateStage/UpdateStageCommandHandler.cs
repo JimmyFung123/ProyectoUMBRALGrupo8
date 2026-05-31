@@ -24,6 +24,10 @@ public class UpdateStageCommandHandler : IRequestHandler<UpdateStageCommand, Res
         var mission = await _missionLookupRepository.GetByIdAsync(stage.MissionId, cancellationToken);
         if (mission is not null && mission.IsActive) return Result.Failure<bool>(StageErrors.MissionIsActive);
 
+        if (stage.Type == StageType.TreasureHunt && !string.IsNullOrWhiteSpace(request.QrCode))
+            if (await _stageRepository.ExistsWithQrCodeAsync(request.QrCode.Trim(), excludeId: stage.Id, cancellationToken: cancellationToken))
+                return Result.Failure<bool>(StageErrors.DuplicateQrCode);
+
         var updateResult = stage.Update(
             request.Title, request.Order, request.BaseScore,
             request.Question,
