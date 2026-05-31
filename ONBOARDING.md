@@ -254,7 +254,7 @@ patrones de diseño GoF como parte del entregable. **Todos viven en `SessionServ
 | **Chain of Responsibility** | Comportamiento | `Application/Sessions/Validation/` | Validar la evidencia paso a paso; cada validador decide si sigue la cadena |
 | **Composite + Visitor** | Estructural / Comportamiento | `Application/Missions/Composite/` | Recorrer la jerarquía Misión → Etapas → Pistas de forma uniforme |
 | **Facade** | Estructural | `Application/Sessions/Facade/` | Interfaz única para armar la vista de la etapa actual del participante (sesión + equipo + etapa) |
-| **Proxy** *(en progreso)* | Estructural | `Infrastructure/ExternalClients/` | Cachear las llamadas a StageService sin que el consumidor se entere |
+| **Proxy** | Estructural | `Infrastructure/ExternalClients/` | Cachear las llamadas a StageService sin que el consumidor se entere |
 
 ### Strategy — puntaje por dificultad
 `IScoringStrategy` con `Easy/Medium/HardScoringStrategy` y `ScoringStrategyFactory`. El
@@ -299,6 +299,26 @@ mapeo seguro (oculta `IsCorrect`, expone coordenadas solo en `TreasureHunt`). El
 
 ```bash
 # Demo (participante, sin token)
+curl http://localhost:5092/api/sessions/<sessionId>/participant-stage/<teamId>
+```
+
+### Proxy — caché del cliente de StageService
+El detalle de una etapa (`GetStageWithOptionsAsync`) se pide una y otra vez sobre las mismas
+etapas: en cada respuesta de trivia/QR (Template Method), en cada poll del participante
+(Facade), al re-sincronizar pistas y **N veces en el bucle del Composite**. Como ese detalle
+es inmutable durante la partida, cachearlo es ganancia pura. `CachedStageServiceProxy`
+implementa el mismo `IStageServiceClient` y envuelve al `StageServiceClient` real: memoiza
+`GetStageWithOptionsAsync(stageId)` en un `IMemoryCache` (TTL absoluto de 30 s) y deja pasar
+`GetStagesByMissionAsync` sin cachear. No cachea `null` (un fallo HTTP transitorio no debe
+quedar pegado). Los consumidores siguen pidiendo `IStageServiceClient` y **no se enteran** de
+la caché. En `Program.cs` se registra como decorador: el cliente concreto va por
+`AddHttpClient<StageServiceClient>` y `IStageServiceClient` se resuelve como el proxy que lo
+envuelve (con `AddMemoryCache()`, singleton → la caché se comparte entre peticiones).
+
+```bash
+# Demo: dos veces el mismo participant-stage dentro de 30 s. StageService recibe el detalle
+# /api/stages/{id} UNA sola vez (2ª = cache hit); la lista ?missionId sí se golpea cada vez.
+curl http://localhost:5092/api/sessions/<sessionId>/participant-stage/<teamId>
 curl http://localhost:5092/api/sessions/<sessionId>/participant-stage/<teamId>
 ```
 
