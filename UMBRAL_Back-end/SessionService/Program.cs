@@ -1,6 +1,7 @@
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using SessionService.Application.Sessions;
+using SessionService.Application.Sessions.Facade;
 using SessionService.Application.Statistics;
 using SessionService.Application.SyncHealth;
 using SessionService.Domain.MissionLookup;
@@ -38,6 +39,11 @@ builder.Services.AddMediatR(cfg =>
 // ── Repositories ──────────────────────────────────────────────────────────────
 builder.Services.AddScoped<ISessionRepository, SessionRepository>();
 builder.Services.AddScoped<ISessionEventRepository, SessionEventRepository>();
+
+// ── Application facades (GoF Facade) ───────────────────────────────────────
+// Punto de entrada único que orquesta sesión + TeamService + StageService para
+// resolver la etapa actual de un participante (usado por GetParticipantStage).
+builder.Services.AddScoped<IParticipantStageFacade, ParticipantStageFacade>();
 builder.Services.AddScoped<IMissionLookupRepository, MissionLookupRepository>();
 
 // ── HU-25: analytics fact table + dashboard read model ──────────────────────
