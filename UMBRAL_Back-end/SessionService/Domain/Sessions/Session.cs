@@ -1,6 +1,7 @@
 namespace SessionService.Domain.Sessions;
 
 using SessionService.Domain.Common;
+using SessionService.Domain.Sessions.States;
 
 public class Session
 {
@@ -15,6 +16,19 @@ public class Session
     public string AccessCode { get; private set; } = string.Empty;
 
     private Session() { }
+
+    // State pattern — current state is derived from the persisted Status enum so
+    // EF Core never needs to store it. A new object is resolved on each call;
+    // states are stateless and cheap to construct.
+    private ISessionState CurrentState => Status switch
+    {
+        SessionStatus.Pending    => new PendingState(),
+        SessionStatus.InProgress => new InProgressState(),
+        SessionStatus.Paused     => new PausedState(),
+        SessionStatus.Completed  => new CompletedState(),
+        SessionStatus.Cancelled  => new CancelledState(),
+        _                        => new PendingState()
+    };
 
     public static Result<Session> Create(Guid missionId, string name, DateTime? scheduledAt = null)
     {
@@ -33,74 +47,39 @@ public class Session
         });
     }
 
-    /// <summary>Starts the session. Only allowed while Pending.</summary>
-    public Result<bool> Start()
-    {
-        if (Status != SessionStatus.Pending)
-            return Result.Failure<bool>(SessionErrors.CannotStartSession);
+    // ── Public lifecycle API (delegates to current state) ────────────────────
 
-        Status = SessionStatus.InProgress;
-        return Result.Success(true);
-    }
+    /// <summary>Starts the session. Only allowed while Pending.</summary>
+    public Result<bool> Start()    => CurrentState.Start(this);
 
     /// <summary>Pauses the session. Only allowed while InProgress.</summary>
-    public Result<bool> Pause()
-    {
-        if (Status != SessionStatus.InProgress)
-            return Result.Failure<bool>(SessionErrors.CannotPauseSession);
-
-        Status = SessionStatus.Paused;
-        return Result.Success(true);
-    }
+    public Result<bool> Pause()    => CurrentState.Pause(this);
 
     /// <summary>Resumes the session. Only allowed while Paused.</summary>
-    public Result<bool> Resume()
-    {
-        if (Status != SessionStatus.Paused)
-            return Result.Failure<bool>(SessionErrors.CannotResumeSession);
+    public Result<bool> Resume()   => CurrentState.Resume(this);
 
-        Status = SessionStatus.InProgress;
-        return Result.Success(true);
-    }
-
-    /// <summary>
-    /// Finalizes the session. Allowed from InProgress or Paused. Irreversible.
-    /// </summary>
-    public Result<bool> Finalize()
-    {
-        if (Status != SessionStatus.InProgress && Status != SessionStatus.Paused)
-            return Result.Failure<bool>(SessionErrors.CannotFinalizeSession);
-
-        Status = SessionStatus.Completed;
-        return Result.Success(true);
-    }
+    /// <summary>Finalizes the session. Allowed from InProgress or Paused. Irreversible.</summary>
+    public Result<bool> Finalize() => CurrentState.Finalize(this);
 
     /// <summary>
     /// Cancels the session. Only allowed while still Pending.
     /// Enrolled teams must be removed by the caller before persisting.
     /// </summary>
-    public Result<bool> Cancel()
-    {
-        if (Status != SessionStatus.Pending)
-            return Result.Failure<bool>(SessionErrors.CannotCancelNonPendingSession);
+    public Result<bool> Cancel()   => CurrentState.Cancel(this);
 
-        Status = SessionStatus.Cancelled;
-        return Result.Success(true);
-    }
-
-    /// <summary>
-    /// Updates name and scheduled date. Only allowed when the session is still Pending.
-    /// </summary>
+    /// <summary>Updates name and scheduled date. Only allowed when still Pending.</summary>
     public Result<bool> Update(string name, DateTime? scheduledAt)
+        => CurrentState.Update(this, name, scheduledAt);
+
+    // ── Internal hooks called by state objects ────────────────────────────────
+
+    /// <summary>Called by concrete states to apply a status transition.</summary>
+    internal void TransitionTo(SessionStatus newStatus) => Status = newStatus;
+
+    /// <summary>Called by PendingState to apply property changes on Update.</summary>
+    internal void ApplyUpdate(string name, DateTime? scheduledAt)
     {
-        if (Status != SessionStatus.Pending)
-            return Result.Failure<bool>(SessionErrors.CannotEditNonPendingSession);
-
-        if (string.IsNullOrWhiteSpace(name))
-            return Result.Failure<bool>(SessionErrors.InvalidName);
-
-        Name = name.Trim();
+        Name = name;
         ScheduledAt = scheduledAt;
-        return Result.Success(true);
     }
 }
