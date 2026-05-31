@@ -66,9 +66,10 @@ public class ValidateQrCodeCommandHandlerTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be(SessionErrors.NotInProgress);
+        // CoR: stage is fetched upfront alongside session before the chain runs
         _stageClientMock.Verify(
             s => s.GetStageWithOptionsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
-            Times.Never);
+            Times.Once);
     }
 
     // ── Stage not a TreasureHunt ──────────────────────────────────────────────
