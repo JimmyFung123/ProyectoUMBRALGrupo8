@@ -18,7 +18,7 @@ using Microsoft.IdentityModel.Tokens;
 /// <code>
 /// {
 ///   "Keycloak": {
-///     "Authority": "http://localhost:8090/realms/umbral",
+///     "Authority": "http://localhost:18090/realms/umbral",
 ///     "Audience":  "account"
 ///   }
 /// }
@@ -37,7 +37,7 @@ public static class UmbralAuthExtensions
     public static IServiceCollection AddUmbralJwtAuth(this IServiceCollection services, IConfiguration configuration)
     {
         var authority = configuration["Keycloak:Authority"]
-            ?? "http://localhost:8090/realms/umbral";
+            ?? "http://localhost:18090/realms/umbral";
         var audience  = configuration["Keycloak:Audience"] ?? "account";
 
         // Prevent the default JWT handler from rewriting standard claim types

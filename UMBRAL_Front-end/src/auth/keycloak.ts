@@ -9,7 +9,7 @@ import Keycloak from 'keycloak-js';
  * VITE_KEYCLOAK_URL para soportar deploys en otros hosts.
  */
 const keycloak = new Keycloak({
-  url:      import.meta.env.VITE_KEYCLOAK_URL      ?? 'http://localhost:8090',
+  url:      import.meta.env.VITE_KEYCLOAK_URL      ?? 'http://localhost:18090',
   realm:    import.meta.env.VITE_KEYCLOAK_REALM    ?? 'umbral',
   clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID ?? 'umbral-frontend',
 });

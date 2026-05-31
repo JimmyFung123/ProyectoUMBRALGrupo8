@@ -76,7 +76,7 @@ services:
       KC_HOSTNAME_STRICT: "false"
       KC_HTTP_ENABLED: "true"
     ports:
-      - "8090:8080"    # Admin console + endpoints OIDC: http://localhost:8090
+      - "18090:8080"    # Admin console + endpoints OIDC: http://localhost:18090
     depends_on:
       keycloak-db:
         condition: service_healthy

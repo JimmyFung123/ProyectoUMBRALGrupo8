@@ -42,7 +42,7 @@ public class KeycloakAdminClient : IKeycloakAdminClient
     {
         _http = http;
         _baseUrl = configuration["Keycloak:AdminBaseUrl"]?.TrimEnd('/')
-                   ?? "http://localhost:8090";
+                   ?? "http://localhost:18090";
         _realm        = configuration["Keycloak:Realm"]             ?? "umbral";
         _clientId     = configuration["Keycloak:AdminClientId"]     ?? "umbral-backend";
         _clientSecret = configuration["Keycloak:AdminClientSecret"] ?? string.Empty;

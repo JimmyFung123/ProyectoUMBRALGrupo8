@@ -53,8 +53,8 @@ salvo que se quiera modificar algo del realm.
 
 | Qué | URL / valor |
 |---|---|
-| Admin console de Keycloak | http://localhost:8090 (`admin` / `admin`, realm `master`) |
-| OIDC well-known del realm | http://localhost:8090/realms/umbral/.well-known/openid-configuration |
+| Admin console de Keycloak | http://localhost:18090 (`admin` / `admin`, realm `master`) |
+| OIDC well-known del realm | http://localhost:18090/realms/umbral/.well-known/openid-configuration |
 | Admin inicial de UMBRAL | `admin@umbral.local` / `Umbral2026!` (realm `umbral`) |
 | Client SPA (operador) | `umbral-frontend` — público, PKCE S256 |
 | Client backend (Admin API) | `umbral-backend` — confidencial, service account |
@@ -117,7 +117,7 @@ Todos los cambios se reflejan en Keycloak en tiempo real. El próximo
 `UMBRAL_Front-end/.env` (no obligatorio, solo si querés apuntar a otro host):
 
 ```bash
-VITE_KEYCLOAK_URL=http://localhost:8090
+VITE_KEYCLOAK_URL=http://localhost:18090
 VITE_KEYCLOAK_REALM=umbral
 VITE_KEYCLOAK_CLIENT_ID=umbral-frontend
 VITE_USER_API_URL=http://localhost:5096/api

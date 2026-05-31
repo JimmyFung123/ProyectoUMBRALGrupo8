@@ -103,7 +103,7 @@ if (-not $SkipInfra) {
     } while (-not $ready)
     Write-Host "    RabbitMQ listo." -ForegroundColor Green
 
-    # Esperar a Keycloak (puerto 8090). El healthcheck del contenedor usa el
+    # Esperar a Keycloak (puerto 18090). El healthcheck del contenedor usa el
     # puerto 9000 interno; aca probamos contra el endpoint OIDC publico para
     # asegurarnos que el realm UMBRAL ya esta cargado.
     Write-Host "==> Esperando a Keycloak..." -ForegroundColor Cyan
@@ -113,7 +113,7 @@ if (-not $SkipInfra) {
         $attempts++
         $ready = $false
         try {
-            $resp = Invoke-WebRequest -Uri 'http://localhost:8090/realms/umbral/.well-known/openid-configuration' `
+            $resp = Invoke-WebRequest -Uri 'http://localhost:18090/realms/umbral/.well-known/openid-configuration' `
                        -UseBasicParsing -TimeoutSec 5 -ErrorAction Stop
             if ($resp.StatusCode -eq 200) { $ready = $true }
         } catch { }
@@ -122,7 +122,7 @@ if (-not $SkipInfra) {
             exit 1
         }
     } while (-not $ready)
-    Write-Host "    Keycloak listo. Admin console: http://localhost:8090 (admin / admin)" -ForegroundColor Green
+    Write-Host "    Keycloak listo. Admin console: http://localhost:18090 (admin / admin)" -ForegroundColor Green
     Write-Host "    Admin UMBRAL: admin@umbral.local / Umbral2026!" -ForegroundColor Green
 }
 
@@ -248,7 +248,7 @@ Write-Host "   UserService     http://localhost:5096/swagger  (HU-23)"
 Write-Host " Infra:"
 Write-Host "   PostgreSQL      localhost:5432   (postgres / 12345)"
 Write-Host "   RabbitMQ UI     http://localhost:15672  (guest / guest)"
-Write-Host "   Keycloak        http://localhost:8090   (admin / admin)"
+Write-Host "   Keycloak        http://localhost:18090   (admin / admin)"
 Write-Host "                   Admin UMBRAL: admin@umbral.local / Umbral2026!"
 if (-not $BackOnly) {
     Write-Host " Front:"
