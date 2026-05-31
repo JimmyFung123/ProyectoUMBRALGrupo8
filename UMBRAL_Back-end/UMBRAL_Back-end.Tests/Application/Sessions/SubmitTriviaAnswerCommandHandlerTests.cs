@@ -75,7 +75,8 @@ public class SubmitTriviaAnswerCommandHandlerTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be(SessionErrors.NotInProgress);
-        _stageClientMock.Verify(s => s.GetStageWithOptionsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        // CoR: stage is fetched upfront alongside session before the chain runs
+        _stageClientMock.Verify(s => s.GetStageWithOptionsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Once);
 
         // HU-25: no record is appended when the trivia attempt is rejected.
         _statsRepoMock.Verify(

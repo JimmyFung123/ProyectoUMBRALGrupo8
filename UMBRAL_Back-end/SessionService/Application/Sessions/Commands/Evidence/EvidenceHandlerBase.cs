@@ -3,6 +3,7 @@ namespace SessionService.Application.Sessions.Commands.Evidence;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
 using SessionService.Application.Sessions;
+using SessionService.Application.Sessions.Validation;
 using SessionService.Domain.Common;
 using SessionService.Domain.Sessions;
 using SessionService.Domain.Statistics;
@@ -51,19 +52,34 @@ public abstract class EvidenceHandlerBase<TCommand, TResultDto>
         Hub               = hub;
     }
 
+    // ── Validation chain (Chain of Responsibility) ────────────────────────────
+
+    /// <summary>
+    /// Builds the pre-processing validation chain: session exists →
+    /// session is in progress → stage exists.
+    /// Each link either rejects with a domain error or delegates to the next.
+    /// </summary>
+    private static EvidenceValidatorBase BuildValidationChain()
+    {
+        var sessionExists    = new SessionExistsValidator();
+        var sessionActive    = new SessionInProgressValidator();
+        var stageExists      = new StageExistsValidator();
+
+        sessionExists.SetNext(sessionActive).SetNext(stageExists);
+        return sessionExists;
+    }
+
     // ── Template Method ───────────────────────────────────────────────────────
 
     public async Task<Result<TResultDto>> Handle(TCommand command, CancellationToken ct)
     {
-        // Step 1: validate session
+        // Steps 1-2: fetch session + stage, then validate via CoR chain
         var session = await SessionRepository.GetByIdAsync(GetSessionId(command), ct);
-        if (session is null)           return Fail(SessionErrors.NotFound);
-        if (session.Status != SessionStatus.InProgress)
-                                       return Fail(SessionErrors.NotInProgress);
+        var stage   = await StageClient.GetStageWithOptionsAsync(GetStageId(command), ct);
 
-        // Step 2: fetch stage (with options/QR — internal data never sent to participant)
-        var stage = await StageClient.GetStageWithOptionsAsync(GetStageId(command), ct);
-        if (stage is null)             return Fail(SessionErrors.StageNotFound);
+        var context        = new EvidenceValidationContext(session, stage);
+        var validationResult = BuildValidationChain().Validate(context);
+        if (validationResult.IsFailure) return Fail(validationResult.Error);
 
         // Step 3: HOOK — process evidence (validate option / validate QR)
         var evidenceResult = await ProcessEvidenceAsync(command, session, stage, ct);
