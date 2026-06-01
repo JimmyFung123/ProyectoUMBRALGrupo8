@@ -16,10 +16,11 @@ public class GetMissionStructureQueryHandlerTests
 
     public GetMissionStructureQueryHandlerTests()
     {
+        // Se inyecta un builder REAL (no un mock) para que el test siga ejercitando
+        // el ensamblado completo del arbol + resumen + proyeccion de extremo a extremo.
         _handler = new GetMissionStructureQueryHandler(
             _missionLookupMock.Object,
-            _stageClientMock.Object,
-            _clueClientMock.Object);
+            new MissionStructureTreeBuilder(_stageClientMock.Object, _clueClientMock.Object));
     }
 
     [Fact]

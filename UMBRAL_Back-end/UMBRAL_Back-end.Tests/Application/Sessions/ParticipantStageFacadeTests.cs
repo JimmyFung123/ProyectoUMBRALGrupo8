@@ -164,19 +164,43 @@ public class ParticipantStageFacadeTests
         result.Value.IsLastStage.Should().BeTrue();
     }
 
-    // ── Auto-arranque ────────────────────────────────────────────────────────────
+    // ── Lectura pura: la fachada ya NO auto-arranca ──────────────────────────────
+    // El auto-arranque (escritura) se movió a AutoStartTeamCommand. Aun con la sesión
+    // en curso y el equipo en orden 0, la fachada solo refleja el estado actual
+    // (Waiting) y NUNCA escribe en TeamService.
 
     [Fact]
-    public async Task GetCurrentStage_WhenSessionInProgressAndTeamAtZero_AutoAdvancesToStageOne()
+    public async Task GetCurrentStage_WhenSessionInProgressAndTeamAtZero_ReturnsWaiting_AndDoesNotWrite()
     {
+        var teamId = Guid.NewGuid();
+        SetupSession(inProgress: true);
+        SetupTeam(teamId, currentStageOrder: 0);
+        SetupStages(new StageInfo(Guid.NewGuid(), 1), new StageInfo(Guid.NewGuid(), 2));
+
+        var result = await _facade.GetCurrentStageAsync(Guid.NewGuid(), teamId, default);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Title.Should().Be("Waiting");
+        result.Value.CurrentStageOrder.Should().Be(0);
+        // La fachada es lectura pura: no avanza al equipo ni carga el detalle de etapa.
+        _teamClientMock.Verify(
+            c => c.ForceAdvanceTeamAsync(It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        _stageClientMock.Verify(
+            c => c.GetStageWithOptionsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task GetCurrentStage_WhenTeamAlreadyAtStageOne_ReturnsThatStage()
+    {
+        // Tras el auto-arranque (hecho por el comando), el equipo llega aquí en orden 1
+        // y la fachada simplemente refleja esa etapa.
         var teamId = Guid.NewGuid();
         var stage1Id = Guid.NewGuid();
         SetupSession(inProgress: true);
-        SetupTeam(teamId, currentStageOrder: 0);
+        SetupTeam(teamId, currentStageOrder: 1);
         SetupStages(new StageInfo(stage1Id, 1), new StageInfo(Guid.NewGuid(), 2));
-        _teamClientMock
-            .Setup(c => c.ForceAdvanceTeamAsync(teamId, 1, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((StageTransitionResult?)null);
         _stageClientMock
             .Setup(c => c.GetStageWithOptionsAsync(stage1Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new StageWithOptionsInfo(
@@ -188,8 +212,8 @@ public class ParticipantStageFacadeTests
         result.Value.StageId.Should().Be(stage1Id);
         result.Value.CurrentStageOrder.Should().Be(1);
         _teamClientMock.Verify(
-            c => c.ForceAdvanceTeamAsync(teamId, 1, It.IsAny<CancellationToken>()),
-            Times.Once);
+            c => c.ForceAdvanceTeamAsync(It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     // ── Camino feliz ─────────────────────────────────────────────────────────────

@@ -9,12 +9,17 @@ using SessionService.Domain.Sessions;
 /// Implementación del patrón Facade. Coordina los subsistemas necesarios para
 /// armar la vista de la etapa actual de un participante:
 ///   1. Repositorio de sesiones  → valida que la sesión exista y expone su estado.
-///   2. TeamService              → trae el equipo, su orden de etapa y auto-arranca.
+///   2. TeamService              → trae el equipo y su orden de etapa.
 ///   3. StageService             → lista las etapas de la misión y carga la etapa
 ///                                 actual con sus opciones.
 /// El cliente (el handler de MediatR) solo conoce este punto de entrada único; no
-/// necesita saber en qué orden se llaman los servicios, cómo se resuelven los
-/// estados "Waiting"/"Completed", ni cómo se oculta el campo <c>IsCorrect</c>.
+/// necesita saber en qué orden se llaman los servicios ni cómo se resuelven los
+/// estados "Waiting"/"Completed".
+///
+/// Es LECTURA PURA: el auto-arranque del equipo (escritura) ya no vive aquí, lo
+/// hace <c>AutoStartTeamCommand</c> antes de invocar este query. El modelado/saneo
+/// del DTO (ocultar <c>IsCorrect</c>, coordenadas solo en TreasureHunt) está en
+/// <see cref="ParticipantStageMapper"/>.
 /// </summary>
 public class ParticipantStageFacade : IParticipantStageFacade
 {
@@ -47,85 +52,39 @@ public class ParticipantStageFacade : IParticipantStageFacade
         if (team is null)
             return Result.Failure<ParticipantStageDto>(SessionErrors.TeamNotFound);
 
+        // Lectura pura: el auto-arranque (escritura) lo hace AutoStartTeamCommand antes
+        // de este query, así que aquí solo se refleja el estado actual del equipo.
         var currentStageOrder = team.CurrentStageOrder;
 
-        // 3. Auto-start: session is InProgress but team hasn't been assigned a stage yet
-        if (session.Status == SessionStatus.InProgress && currentStageOrder == 0)
-        {
-            await _teamClient.ForceAdvanceTeamAsync(teamId, 1, ct);
-            currentStageOrder = 1;
-        }
-
-        // 4. Get all stages for the mission
+        // 3. Get all stages for the mission
         var stages = await _stageClient.GetStagesByMissionAsync(session.MissionId, ct);
         if (stages.Count == 0)
             return Result.Failure<ParticipantStageDto>(SessionErrors.NotFound);
 
         var maxOrder = stages.Max(s => s.Order);
+        var sessionStatus = session.Status.ToString();
 
-        // 5. Team not yet started or session still pending
+        // 4. Team not yet started (order 0): sentinel "Waiting"
         if (currentStageOrder == 0)
-        {
-            return Result.Success(new ParticipantStageDto(
-                Guid.Empty,
-                "Waiting",
-                "Waiting",
-                0,
-                null,
-                [],
-                session.Status.ToString(),
-                0,
-                false));
-        }
+            return Result.Success(ParticipantStageMapper.Waiting(sessionStatus));
 
-        // 6. Team has finished all stages (sentinel: currentStageOrder > maxOrder)
+        // 5. Team has finished all stages (sentinel: currentStageOrder > maxOrder)
         if (currentStageOrder > maxOrder)
-        {
-            return Result.Success(new ParticipantStageDto(
-                Guid.Empty,
-                "Completed",
-                "Completed",
-                currentStageOrder,
-                null,
-                [],
-                session.Status.ToString(),
-                currentStageOrder,
-                true));
-        }
+            return Result.Success(ParticipantStageMapper.Completed(sessionStatus, currentStageOrder));
 
-        // 7. Find the current stage record by order
+        // 6. Find the current stage record by order
         var stageRef = stages.FirstOrDefault(s => s.Order == currentStageOrder);
         if (stageRef is null)
             return Result.Failure<ParticipantStageDto>(SessionErrors.NotFound);
 
-        // 8. Fetch full stage details with options
+        // 7. Fetch full stage details with options
         var stageDetails = await _stageClient.GetStageWithOptionsAsync(stageRef.Id, ct);
         if (stageDetails is null)
             return Result.Failure<ParticipantStageDto>(SessionErrors.NotFound);
 
-        // 9. Strip IsCorrect — participants only get Id + Text
-        var options = stageDetails.Options
-            .Select(o => new ParticipantOptionDto(o.Id, o.Text))
-            .ToList();
-
+        // 8. Shape the participant view (hide IsCorrect, gate coordinates by stage type)
         bool isLastStage = currentStageOrder == maxOrder;
-
-        // For TreasureHunt stages, expose only Latitude/Longitude (the QrCode stays server-side)
-        bool isTreasureHunt = string.Equals(stageDetails.Type, "TreasureHunt", StringComparison.OrdinalIgnoreCase);
-        double? latitude = isTreasureHunt ? stageDetails.Latitude : null;
-        double? longitude = isTreasureHunt ? stageDetails.Longitude : null;
-
-        return Result.Success(new ParticipantStageDto(
-            stageDetails.Id,
-            stageDetails.Title,
-            stageDetails.Type,
-            stageDetails.Order,
-            stageDetails.Question,
-            options,
-            session.Status.ToString(),
-            currentStageOrder,
-            isLastStage,
-            latitude,
-            longitude));
+        return Result.Success(
+            ParticipantStageMapper.FromStage(stageDetails, sessionStatus, currentStageOrder, isLastStage));
     }
 }
