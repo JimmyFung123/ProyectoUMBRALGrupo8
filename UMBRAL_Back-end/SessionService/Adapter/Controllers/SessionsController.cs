@@ -3,6 +3,7 @@ namespace SessionService.Adapter.Controllers;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SessionService.Application.Sessions.Commands.AutoStartTeam;
 using SessionService.Application.Sessions.Commands.BroadcastOperatorMessage;
 using SessionService.Application.Sessions.Commands.CancelSession;
 using SessionService.Application.Sessions.Commands.CreateSession;
@@ -316,6 +317,10 @@ public class SessionsController : ControllerBase
         Guid teamId,
         CancellationToken cancellationToken)
     {
+        // El auto-arranque del equipo es una ESCRITURA: vive en el lado de comandos.
+        // Se ejecuta (idempotente, best-effort) antes del query, que es lectura pura.
+        await _sender.Send(new AutoStartTeamCommand(id, teamId), cancellationToken);
+
         var result = await _sender.Send(new GetParticipantStageQuery(id, teamId), cancellationToken);
         if (result.IsFailure)
         {
