@@ -18,6 +18,9 @@
     <PackageReference Include="FluentAssertions" Version="7.0.0" />
     <!-- HU-24: needed by RankingProjectorTests to spin up an in-memory TeamsDbContext. -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.0" />
+    <!-- Proxy: real IMemoryCache for CachedStageServiceProxyTests (Tests is a plain SDK,
+         so it doesn't inherit the ASP.NET shared framework that ships this assembly). -->
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.5" />
   </ItemGroup>
 
   <ItemGroup>

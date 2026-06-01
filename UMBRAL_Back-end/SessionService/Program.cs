@@ -1,5 +1,6 @@
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Facade;
 using SessionService.Application.Statistics;
@@ -92,11 +93,22 @@ builder.Services.AddHttpClient<IClueServiceClient, ClueServiceClient>(client =>
     client.BaseAddress = new Uri(url);
 });
 
-builder.Services.AddHttpClient<IStageServiceClient, StageServiceClient>(client =>
+// GoF Proxy: el StageServiceClient real se registra con su HttpClient tipado, pero
+// IStageServiceClient se expone como un CachedStageServiceProxy que lo envuelve y cachea
+// GetStageWithOptionsAsync. AddMemoryCache registra IMemoryCache como singleton, así la
+// caché se comparte entre peticiones/equipos (única forma de que sirva de algo). Los
+// consumidores (fachada, handlers de evidencia, GetReleasedClues, estructura del Composite)
+// siguen pidiendo IStageServiceClient sin enterarse de la caché.
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient<StageServiceClient>(client =>
 {
     var url = builder.Configuration["StageServiceUrl"] ?? "http://localhost:5093/";
     client.BaseAddress = new Uri(url);
 });
+builder.Services.AddScoped<IStageServiceClient>(sp =>
+    new CachedStageServiceProxy(
+        sp.GetRequiredService<StageServiceClient>(),
+        sp.GetRequiredService<IMemoryCache>()));
 
 // ── HU-27: sync-health aggregator — typed clients to every downstream service
 //          plus the local EF-backed reader for SessionService's own projections
