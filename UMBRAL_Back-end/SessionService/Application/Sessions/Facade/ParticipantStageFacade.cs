@@ -62,36 +62,15 @@ public class ParticipantStageFacade : IParticipantStageFacade
             return Result.Failure<ParticipantStageDto>(SessionErrors.NotFound);
 
         var maxOrder = stages.Max(s => s.Order);
+        var sessionStatus = session.Status.ToString();
 
         // 5. Team not yet started or session still pending
         if (currentStageOrder == 0)
-        {
-            return Result.Success(new ParticipantStageDto(
-                Guid.Empty,
-                "Waiting",
-                "Waiting",
-                0,
-                null,
-                [],
-                session.Status.ToString(),
-                0,
-                false));
-        }
+            return Result.Success(ParticipantStageMapper.Waiting(sessionStatus));
 
         // 6. Team has finished all stages (sentinel: currentStageOrder > maxOrder)
         if (currentStageOrder > maxOrder)
-        {
-            return Result.Success(new ParticipantStageDto(
-                Guid.Empty,
-                "Completed",
-                "Completed",
-                currentStageOrder,
-                null,
-                [],
-                session.Status.ToString(),
-                currentStageOrder,
-                true));
-        }
+            return Result.Success(ParticipantStageMapper.Completed(sessionStatus, currentStageOrder));
 
         // 7. Find the current stage record by order
         var stageRef = stages.FirstOrDefault(s => s.Order == currentStageOrder);
@@ -103,29 +82,9 @@ public class ParticipantStageFacade : IParticipantStageFacade
         if (stageDetails is null)
             return Result.Failure<ParticipantStageDto>(SessionErrors.NotFound);
 
-        // 9. Strip IsCorrect — participants only get Id + Text
-        var options = stageDetails.Options
-            .Select(o => new ParticipantOptionDto(o.Id, o.Text))
-            .ToList();
-
+        // 9. Shape the participant view (hide IsCorrect, gate coordinates by stage type)
         bool isLastStage = currentStageOrder == maxOrder;
-
-        // For TreasureHunt stages, expose only Latitude/Longitude (the QrCode stays server-side)
-        bool isTreasureHunt = string.Equals(stageDetails.Type, "TreasureHunt", StringComparison.OrdinalIgnoreCase);
-        double? latitude = isTreasureHunt ? stageDetails.Latitude : null;
-        double? longitude = isTreasureHunt ? stageDetails.Longitude : null;
-
-        return Result.Success(new ParticipantStageDto(
-            stageDetails.Id,
-            stageDetails.Title,
-            stageDetails.Type,
-            stageDetails.Order,
-            stageDetails.Question,
-            options,
-            session.Status.ToString(),
-            currentStageOrder,
-            isLastStage,
-            latitude,
-            longitude));
+        return Result.Success(
+            ParticipantStageMapper.FromStage(stageDetails, sessionStatus, currentStageOrder, isLastStage));
     }
 }
