@@ -10,6 +10,12 @@ namespace SessionService.Application.Missions.Composite;
 /// uniformly (e.g. ask any node for its <see cref="TotalScore"/> or walk it
 /// with an <see cref="IMissionComponentVisitor"/>), without knowing whether
 /// the node is a leaf or a composite.
+///
+/// "Safe Composite" variant: child-mutation (<c>Add</c>/<c>Remove</c>) is NOT on
+/// this shared abstraction, because leaves cannot honour it. The supported
+/// operation lives on <see cref="CompositeMissionComponent"/>; leaves keep only a
+/// throwing default (<see cref="MissionComponentBase"/>). So every member declared
+/// here is fully substitutable for any node (none throws for some subtype) — LSP-safe.
 /// </summary>
 public interface IMissionComponent
 {
@@ -22,12 +28,6 @@ public interface IMissionComponent
 
     /// <summary>Child components. Empty for leaves (clues).</summary>
     IReadOnlyList<IMissionComponent> Children { get; }
-
-    /// <summary>Composite operation: add a child. Leaves throw <see cref="NotSupportedException"/>.</summary>
-    void Add(IMissionComponent child);
-
-    /// <summary>Composite operation: remove a child. Leaves throw <see cref="NotSupportedException"/>.</summary>
-    void Remove(IMissionComponent child);
 
     /// <summary>Recursive aggregate score of this node and its whole sub-tree.</summary>
     int TotalScore();
