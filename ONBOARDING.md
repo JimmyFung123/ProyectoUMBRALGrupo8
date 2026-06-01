@@ -282,6 +282,11 @@ y `MissionSummaryVisitor` recorre el árbol una sola vez para sacar el resumen. 
 real: **`GET /api/missions/{id}/structure`** (operador) devuelve el árbol completo con su
 resumen (cantidad de etapas/pistas, puntaje total, etapas sin pistas).
 
+> **Variante Composite seguro (LSP/ISP).** `Add`/`Remove` **no** están en la interfaz
+> `IMissionComponent`: viven solo en `CompositeMissionComponent` (impl real) y como default
+> que lanza en `MissionComponentBase` (para hojas). Así ningún miembro de la abstracción
+> compartida lanza para algún subtipo y todo nodo es 100% sustituible.
+
 ```bash
 # Demo (requiere token de operador)
 curl -H "Authorization: Bearer <token>" \
@@ -292,10 +297,14 @@ curl -H "Authorization: Bearer <token>" \
 Responder *qué etapa juega ahora* un equipo exige orquestar tres subsistemas (repositorio de
 sesiones + TeamService + StageService) más reglas de auto-arranque, estados centinela
 (`Waiting`/`Completed`) y ocultar la respuesta correcta. `IParticipantStageFacade` expone un
-único método `GetCurrentStageAsync(sessionId, teamId)` que esconde toda esa orquestación y el
-mapeo seguro (oculta `IsCorrect`, expone coordenadas solo en `TreasureHunt`). El handler
-`GetParticipantStageQueryHandler` ahora **solo delega** en la fachada. Caso de uso real:
-**`GET /api/sessions/{id}/participant-stage/{teamId}`** (participante).
+único método `GetCurrentStageAsync(sessionId, teamId)` que esconde toda esa orquestación. El
+handler `GetParticipantStageQueryHandler` ahora **solo delega** en la fachada. Caso de uso
+real: **`GET /api/sessions/{id}/participant-stage/{teamId}`** (participante).
+
+> **SRP.** El *modelado/saneo* de la vista (ocultar `IsCorrect`, exponer coordenadas solo en
+> `TreasureHunt`, centinelas `Waiting`/`Completed`) se extrajo a `ParticipantStageMapper`
+> (puro, sin dependencias). La fachada queda solo con la orquestación y la decisión de estado;
+> el mapper decide *cómo* se muestra. Una razón de cambio por clase.
 
 ```bash
 # Demo (participante, sin token)
@@ -321,6 +330,32 @@ envuelve (con `AddMemoryCache()`, singleton → la caché se comparte entre peti
 curl http://localhost:5092/api/sessions/<sessionId>/participant-stage/<teamId>
 curl http://localhost:5092/api/sessions/<sessionId>/participant-stage/<teamId>
 ```
+
+### Revisión SOLID (Composite, Facade, Proxy + SessionService)
+
+Revisión de SRP/OCP/LSP/ISP/DIP sobre los tres patrones estructurales. Resumen:
+
+- **DIP — bien.** Fachada, handlers y consumidores del proxy dependen de abstracciones
+  (`ISessionRepository`, `ITeamServiceClient`, `IStageServiceClient`, `IParticipantStageFacade`);
+  el proxy se inyecta como decorador y nadie ve la concreción cacheada.
+- **LSP del Proxy — bien.** `CachedStageServiceProxy` no fortalece precondiciones ni debilita
+  postcondiciones: mismas formas, **no cachea `null`** (fallo HTTP no pegajoso) y pasa
+  `GetStagesByMissionAsync` directo. La única diferencia es staleness ≤30 s, que el contrato
+  no prohíbe y es el propósito del proxy.
+
+Refactors aplicados (commits `[Refactor]`):
+
+| # | Principio | Cambio |
+|---|---|---|
+| C1 | LSP/ISP | `Add`/`Remove` fuera de `IMissionComponent` → Composite seguro (ver arriba) |
+| F1 | SRP | `ParticipantStageMapper` extraído de `ParticipantStageFacade` (ver arriba) |
+
+Hallazgos **señalados** (no cambiados por ser deliberados / limítrofes con sobre-ingeniería):
+
+- **F2 (SRP/CQRS):** `GetCurrentStageAsync` ejecuta una escritura (`ForceAdvanceTeamAsync`,
+  auto-arranque) dentro de un query. Recomendación: mover el auto-arranque al lado de comandos.
+- **C2 (SRP):** `GetMissionStructureQueryHandler` valida + ensambla el árbol + proyecta a DTO
+  (con `OfType<StageComponent>()`). Recomendación: extraer un `MissionStructureTreeBuilder`.
 
 ---
 
