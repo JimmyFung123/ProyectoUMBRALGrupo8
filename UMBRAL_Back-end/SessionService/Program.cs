@@ -1,6 +1,7 @@
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using SessionService.Application.Missions.Queries.GetMissionStructure;
 using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Facade;
 using SessionService.Application.Statistics;
@@ -46,6 +47,10 @@ builder.Services.AddScoped<ISessionEventRepository, SessionEventRepository>();
 // resolver la etapa actual de un participante (usado por GetParticipantStage).
 builder.Services.AddScoped<IParticipantStageFacade, ParticipantStageFacade>();
 builder.Services.AddScoped<IMissionLookupRepository, MissionLookupRepository>();
+
+// Builder del arbol Composite de la estructura de misiones (extraido del handler por SRP:
+// cruza StageService + ClueService para armar Mission -> Stages -> Clues).
+builder.Services.AddScoped<IMissionStructureTreeBuilder, MissionStructureTreeBuilder>();
 
 // ── HU-25: analytics fact table + dashboard read model ──────────────────────
 // Write side is hit by gameplay handlers (one INSERT per stage transition).

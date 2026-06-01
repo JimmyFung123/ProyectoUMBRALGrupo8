@@ -2,32 +2,27 @@ namespace SessionService.Application.Missions.Queries.GetMissionStructure;
 
 using MediatR;
 using SessionService.Application.Missions.Composite;
-using SessionService.Application.Sessions;
 using SessionService.Domain.Common;
 using SessionService.Domain.MissionLookup;
 
 /// <summary>
-/// Assembles a mission's full structure into a Composite tree
-/// (<see cref="MissionComponent"/> → <see cref="StageComponent"/> →
-/// <see cref="ClueComponent"/>) by pulling stage data from StageService and
-/// clue data from ClueService, then walks it once with a
-/// <see cref="MissionSummaryVisitor"/> to compute the aggregated summary.
+/// Resuelve el preview de estructura de una misión: valida que la misión exista,
+/// delega el ensamblado del árbol Composite (Mission → Stages → Clues) en
+/// <see cref="IMissionStructureTreeBuilder"/>, lo recorre una vez con un
+/// <see cref="MissionSummaryVisitor"/> para el resumen agregado y proyecta el DTO.
 /// </summary>
 public class GetMissionStructureQueryHandler
     : IRequestHandler<GetMissionStructureQuery, Result<MissionStructureDto>>
 {
     private readonly IMissionLookupRepository _missionLookup;
-    private readonly IStageServiceClient _stageClient;
-    private readonly IClueServiceClient _clueClient;
+    private readonly IMissionStructureTreeBuilder _treeBuilder;
 
     public GetMissionStructureQueryHandler(
         IMissionLookupRepository missionLookup,
-        IStageServiceClient stageClient,
-        IClueServiceClient clueClient)
+        IMissionStructureTreeBuilder treeBuilder)
     {
         _missionLookup = missionLookup;
-        _stageClient = stageClient;
-        _clueClient = clueClient;
+        _treeBuilder = treeBuilder;
     }
 
     public async Task<Result<MissionStructureDto>> Handle(
@@ -38,24 +33,8 @@ public class GetMissionStructureQueryHandler
         if (lookup is null)
             return Result.Failure<MissionStructureDto>(MissionStructureErrors.MissionNotFound);
 
-        // 2. Build the Composite tree: Mission (root) → Stages → Clues.
-        var mission = new MissionComponent(lookup.Id, lookup.Name, lookup.Difficulty, lookup.Status);
-
-        var stages = await _stageClient.GetStagesByMissionAsync(request.MissionId, cancellationToken);
-        foreach (var stageRef in stages.OrderBy(s => s.Order))
-        {
-            var detail = await _stageClient.GetStageWithOptionsAsync(stageRef.Id, cancellationToken);
-
-            var stageComponent = detail is not null
-                ? new StageComponent(detail.Id, detail.Title, detail.Type, detail.Order, detail.BaseScore)
-                : new StageComponent(stageRef.Id, $"Etapa {stageRef.Order}", stageRef.Type, stageRef.Order, 0);
-
-            var clues = await _clueClient.GetCluesByStageAsync(stageRef.Id, cancellationToken);
-            foreach (var clue in clues.OrderBy(c => c.Order))
-                stageComponent.Add(new ClueComponent(clue.Id, clue.Order, clue.Content));
-
-            mission.Add(stageComponent);
-        }
+        // 2. Assemble the Composite tree from StageService + ClueService (delegated).
+        var mission = await _treeBuilder.BuildAsync(lookup, cancellationToken);
 
         // 3. One traversal computes the whole summary (Visitor pattern).
         var summaryVisitor = new MissionSummaryVisitor();
