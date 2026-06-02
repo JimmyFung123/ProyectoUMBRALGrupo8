@@ -1,9 +1,7 @@
 namespace SessionService.Application.Sessions;
 
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using SessionService.Domain.Sessions;
-using SessionService.Infrastructure.Hubs;
 
 /// <summary>
 /// Processes automatic clue release for all InProgress sessions.
@@ -16,7 +14,7 @@ public class ClueAutoReleaseService
     private readonly IStageServiceClient _stageClient;
     private readonly IClueServiceClient _clueClient;
     private readonly ISessionEventRepository _eventRepository;
-    private readonly IHubContext<SessionHub> _hub;
+    private readonly ISessionNotifier _notifier;
     private readonly ILogger<ClueAutoReleaseService> _logger;
 
     public ClueAutoReleaseService(
@@ -25,7 +23,7 @@ public class ClueAutoReleaseService
         IStageServiceClient stageClient,
         IClueServiceClient clueClient,
         ISessionEventRepository eventRepository,
-        IHubContext<SessionHub> hub,
+        ISessionNotifier notifier,
         ILogger<ClueAutoReleaseService> logger)
     {
         _sessionRepository = sessionRepository;
@@ -33,7 +31,7 @@ public class ClueAutoReleaseService
         _stageClient = stageClient;
         _clueClient = clueClient;
         _eventRepository = eventRepository;
-        _hub = hub;
+        _notifier = notifier;
         _logger = logger;
     }
 
@@ -102,18 +100,11 @@ public class ClueAutoReleaseService
                 ct);
             await _eventRepository.SaveChangesAsync(ct);
 
-            await _hub.Clients.Group(session.Id.ToString())
-                .SendAsync("ClueReleased", new
-                {
-                    sessionId        = session.Id,
-                    teamId           = team.Id,
-                    clueContent      = nextClue.Content,
-                    clueLatitude     = nextClue.Latitude,
-                    clueLongitude    = nextClue.Longitude,
-                    clueRadiusMeters = nextClue.RadiusMeters,
-                    clueNumber,
-                    isAutomatic      = true,
-                }, ct);
+            await _notifier.NotifyClueReleasedAsync(
+                session.Id, team.Id,
+                nextClue.Content, nextClue.Latitude, nextClue.Longitude, nextClue.RadiusMeters,
+                clueNumber, isAutomatic: true,
+                ct);
         }
     }
 }

@@ -147,6 +147,8 @@ builder.Services.AddScoped<ClueAutoReleaseService>();
 builder.Services.AddHostedService<ClueAutoReleaseWorker>();
 
 // ── SignalR ───────────────────────────────────────────────────────────────────
+// ISessionNotifier decouples Application handlers from SignalR infrastructure.
+// The concrete implementation lives in Infrastructure and is invisible to the Application layer.
 // Tighter ping schedule than the default (15 s keep-alive / 30 s client timeout)
 // so the participant front shows the "Reconectando…" badge within ~6 s of a
 // network drop instead of feeling frozen for half a minute. The 3 s / 6 s ratio
@@ -157,6 +159,7 @@ builder.Services.AddSignalR(options =>
     options.KeepAliveInterval = TimeSpan.FromSeconds(3);
     options.ClientTimeoutInterval = TimeSpan.FromSeconds(6);
 });
+builder.Services.AddScoped<ISessionNotifier, SignalRSessionNotifier>();
 
 // ── Keycloak JWT auth (HU-23) ─────────────────────────────────────────────────
 // Optional: endpoints stay public unless decorated with [Authorize]. When a
