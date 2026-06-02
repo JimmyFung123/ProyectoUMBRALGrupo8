@@ -1,5 +1,6 @@
 namespace UserService.Application.Users;
 
+using UserService.Domain.Common;
 using UserService.Domain.Users;
 
 /// <summary>
@@ -21,12 +22,12 @@ public interface IKeycloakAdminClient
     Task<KeycloakUser?> GetByIdAsync(Guid userId, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Creates a user in the realm with a temporary password. Returns the new
-    /// user's id. Throws <see cref="KeycloakConflictException"/> if Keycloak
-    /// rejects the request as 409 Conflict (race condition on email
-    /// uniqueness — the handler also pre-checks via FindByEmailAsync).
+    /// Creates a user in the realm with a temporary password.
+    /// Returns <see cref="Result{Guid}"/> with the new user's id on success,
+    /// or <see cref="UserErrors.EmailAlreadyInUse"/> if Keycloak rejects the
+    /// request as 409 Conflict (race condition on email uniqueness).
     /// </summary>
-    Task<Guid> CreateUserAsync(
+    Task<Result<Guid>> CreateUserAsync(
         string email,
         string firstName,
         string lastName,
@@ -55,10 +56,3 @@ public record KeycloakUser(
     string LastName,
     bool Enabled,
     UserRole? Role);
-
-/// <summary>Thrown when Keycloak responds 409 Conflict (typically duplicate
-/// email). The Application layer maps it to <see cref="UserErrors.EmailAlreadyInUse"/>.</summary>
-public class KeycloakConflictException : Exception
-{
-    public KeycloakConflictException(string message) : base(message) { }
-}
