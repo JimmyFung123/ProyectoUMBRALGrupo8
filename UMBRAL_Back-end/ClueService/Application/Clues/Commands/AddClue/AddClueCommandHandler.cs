@@ -1,6 +1,6 @@
 namespace ClueService.Application.Clues.Commands.AddClue;
-using MassTransit;
 using MediatR;
+using ClueService.Application;
 using ClueService.Domain.Clues;
 using ClueService.Domain.Common;
 using ClueService.Domain.StageLookup;
@@ -10,9 +10,9 @@ public class AddClueCommandHandler : IRequestHandler<AddClueCommand, Result<Guid
 {
     private readonly IClueRepository _clueRepository;
     private readonly IStageLookupRepository _stageLookupRepository;
-    private readonly IPublishEndpoint _bus;
+    private readonly IIntegrationEventBus _bus;
 
-    public AddClueCommandHandler(IClueRepository clueRepository, IStageLookupRepository stageLookupRepository, IPublishEndpoint bus)
+    public AddClueCommandHandler(IClueRepository clueRepository, IStageLookupRepository stageLookupRepository, IIntegrationEventBus bus)
     {
         _clueRepository = clueRepository;
         _stageLookupRepository = stageLookupRepository;
@@ -44,7 +44,7 @@ public class AddClueCommandHandler : IRequestHandler<AddClueCommand, Result<Guid
         await _clueRepository.AddAsync(clue, cancellationToken);
         await _clueRepository.SaveChangesAsync(cancellationToken);
 
-        await _bus.Publish(
+        await _bus.PublishAsync(
             new ClueAddedIntegrationEvent(
                 clue.Id, clue.StageId, clue.MissionId,
                 clue.Content, clue.Latitude, clue.Longitude, clue.RadiusMeters,

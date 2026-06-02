@@ -9,9 +9,11 @@ using SessionService.Application.SyncHealth;
 using SessionService.Domain.MissionLookup;
 using SessionService.Domain.Sessions;
 using SessionService.Domain.Statistics;
+using SessionService.Application;
 using SessionService.Infrastructure.BackgroundServices;
 using SessionService.Infrastructure.ExternalClients;
 using SessionService.Infrastructure.Hubs;
+using SessionService.Infrastructure.Messaging;
 using SessionService.Infrastructure.Messaging.Consumers;
 using SessionService.Infrastructure.Persistence;
 using SessionService.Infrastructure.Persistence.Repositories;
@@ -160,6 +162,7 @@ builder.Services.AddSignalR(options =>
     options.ClientTimeoutInterval = TimeSpan.FromSeconds(6);
 });
 builder.Services.AddScoped<ISessionNotifier, SignalRSessionNotifier>();
+builder.Services.AddScoped<IIntegrationEventBus, MassTransitIntegrationEventBus>();
 
 // ── Keycloak JWT auth (HU-23) ─────────────────────────────────────────────────
 // Optional: endpoints stay public unless decorated with [Authorize]. When a
