@@ -24,4 +24,7 @@ public static class MissionErrors
 
     public static readonly Error NoStages =
         new("Mission.NoStages", "Mission must have at least one stage to be activated.");
+
+    public static readonly Error InvalidDifficulty =
+        new("Mission.InvalidDifficulty", "Invalid difficulty level. Valid values: Easy, Medium, Hard.");
 }

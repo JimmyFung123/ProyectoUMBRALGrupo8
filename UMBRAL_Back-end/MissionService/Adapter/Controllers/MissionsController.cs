@@ -7,7 +7,6 @@ using UMBRAL_Back_end.Application.Missions.Commands.CreateMission;
 using UMBRAL_Back_end.Application.Missions.Commands.UpdateMission;
 using UMBRAL_Back_end.Application.Missions.Queries.GetMissionById;
 using UMBRAL_Back_end.Application.Missions.Queries.GetMissions;
-using UMBRAL_Back_end.Domain.Missions;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -69,6 +68,6 @@ public class MissionsController : ControllerBase
 
 // ── Request records ───────────────────────────────────────────────────────────
 
-public record CreateMissionRequest(string Name, string Description, DifficultyLevel Difficulty, int MaxDuration);
-public record UpdateMissionRequest(string Name, string Description, DifficultyLevel Difficulty, int MaxDuration);
+public record CreateMissionRequest(string Name, string Description, string Difficulty, int MaxDuration);
+public record UpdateMissionRequest(string Name, string Description, string Difficulty, int MaxDuration);
 public record ChangeStatusRequest(bool Activate);

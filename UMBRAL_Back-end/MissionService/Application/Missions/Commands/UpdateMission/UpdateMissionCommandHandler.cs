@@ -33,9 +33,12 @@ public class UpdateMissionCommandHandler : IRequestHandler<UpdateMissionCommand,
         if (nameConflict)
             return Result.Failure(MissionErrors.DuplicateName);
 
+        if (!Enum.TryParse<DifficultyLevel>(request.Difficulty, ignoreCase: true, out var difficulty))
+            return Result.Failure(MissionErrors.InvalidDifficulty);
+
         bool hasActiveSessions = await _sessionServiceClient.HasActiveSessionsAsync(request.MissionId, cancellationToken);
 
-        var updateResult = mission.Update(request.Name, request.Description, request.Difficulty, request.MaxDuration, hasActiveSessions);
+        var updateResult = mission.Update(request.Name, request.Description, difficulty, request.MaxDuration, hasActiveSessions);
         if (updateResult.IsFailure)
             return updateResult;
 

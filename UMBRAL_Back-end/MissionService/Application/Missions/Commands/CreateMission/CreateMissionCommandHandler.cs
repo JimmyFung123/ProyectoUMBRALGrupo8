@@ -22,7 +22,10 @@ public class CreateMissionCommandHandler : IRequestHandler<CreateMissionCommand,
         if (await _repository.ExistsWithNameAsync(request.Name, cancellationToken: cancellationToken))
             return Result.Failure<Guid>(MissionErrors.DuplicateName);
 
-        var missionResult = Mission.Create(request.Name, request.Description, request.Difficulty, request.MaxDuration);
+        if (!Enum.TryParse<DifficultyLevel>(request.Difficulty, ignoreCase: true, out var difficulty))
+            return Result.Failure<Guid>(MissionErrors.InvalidDifficulty);
+
+        var missionResult = Mission.Create(request.Name, request.Description, difficulty, request.MaxDuration);
         if (missionResult.IsFailure)
             return Result.Failure<Guid>(missionResult.Error);
 
