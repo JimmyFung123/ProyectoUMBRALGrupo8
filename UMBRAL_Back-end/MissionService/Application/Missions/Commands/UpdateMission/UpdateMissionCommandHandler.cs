@@ -1,28 +1,24 @@
 namespace UMBRAL_Back_end.Application.Missions.Commands.UpdateMission;
 
-using MassTransit;
 using MediatR;
 using UMBRAL.Contracts.Events;
+using UMBRAL_Back_end.Application;
 using UMBRAL_Back_end.Application.Missions;
 using UMBRAL_Back_end.Domain.Common;
 using UMBRAL_Back_end.Domain.Missions;
-using UMBRAL_Back_end.Domain.Missions.Events;
 
 public class UpdateMissionCommandHandler : IRequestHandler<UpdateMissionCommand, Result>
 {
     private readonly IMissionRepository _repository;
-    private readonly IPublisher _publisher;
-    private readonly IPublishEndpoint _bus;
+    private readonly IIntegrationEventBus _bus;
     private readonly ISessionServiceClient _sessionServiceClient;
 
     public UpdateMissionCommandHandler(
         IMissionRepository repository,
-        IPublisher publisher,
-        IPublishEndpoint bus,
+        IIntegrationEventBus bus,
         ISessionServiceClient sessionServiceClient)
     {
         _repository = repository;
-        _publisher = publisher;
         _bus = bus;
         _sessionServiceClient = sessionServiceClient;
     }
@@ -37,23 +33,21 @@ public class UpdateMissionCommandHandler : IRequestHandler<UpdateMissionCommand,
         if (nameConflict)
             return Result.Failure(MissionErrors.DuplicateName);
 
+        if (!Enum.TryParse<DifficultyLevel>(request.Difficulty, ignoreCase: true, out var difficulty))
+            return Result.Failure(MissionErrors.InvalidDifficulty);
+
         bool hasActiveSessions = await _sessionServiceClient.HasActiveSessionsAsync(request.MissionId, cancellationToken);
 
-        var updateResult = mission.Update(request.Name, request.Description, request.Difficulty, request.MaxDuration, hasActiveSessions);
+        var updateResult = mission.Update(request.Name, request.Description, difficulty, request.MaxDuration, hasActiveSessions);
         if (updateResult.IsFailure)
             return updateResult;
 
         await _repository.UpdateAsync(mission, cancellationToken);
         await _repository.SaveChangesAsync(cancellationToken);
 
-        // In-process domain event
-        await _publisher.Publish(
-            new MissionUpdatedEvent(mission.Id, mission.Name, mission.Difficulty.ToString(), mission.MaxDuration, mission.UpdatedAt!.Value),
-            cancellationToken);
-
         // Integration event — SessionService updates its MissionLookup replica
         // (specifically the Difficulty field used by IScoringStrategy)
-        await _bus.Publish(
+        await _bus.PublishAsync(
             new MissionUpdatedIntegrationEvent(mission.Id, mission.Name, mission.Difficulty.ToString(), DateTime.UtcNow),
             cancellationToken);
 

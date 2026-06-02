@@ -1,7 +1,9 @@
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using ClueService.Application;
 using ClueService.Domain.Clues;
 using ClueService.Domain.StageLookup;
+using ClueService.Infrastructure.Messaging;
 using ClueService.Infrastructure.Messaging.Consumers;
 using ClueService.Infrastructure.Persistence;
 using ClueService.Infrastructure.Persistence.Repositories;
@@ -23,6 +25,7 @@ builder.Services.AddMediatR(cfg =>
 
 builder.Services.AddScoped<IClueRepository, ClueRepository>();
 builder.Services.AddScoped<IStageLookupRepository, StageLookupRepository>();
+builder.Services.AddScoped<IIntegrationEventBus, MassTransitIntegrationEventBus>();
 
 // HU-27 — InternalSyncHealthController calls StageService over HTTP to rebuild
 // the StageLookup projection on manual reproject.

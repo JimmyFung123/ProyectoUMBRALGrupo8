@@ -1,7 +1,7 @@
 namespace StageService.Application.Stages.Commands.RemoveStage;
 
-using MassTransit;
 using MediatR;
+using StageService.Application;
 using StageService.Domain.Common;
 using StageService.Domain.MissionLookup;
 using StageService.Domain.Stages;
@@ -11,9 +11,9 @@ public class RemoveStageCommandHandler : IRequestHandler<RemoveStageCommand, Res
 {
     private readonly IStageRepository _stageRepository;
     private readonly IMissionLookupRepository _missionLookupRepository;
-    private readonly IPublishEndpoint _bus;
+    private readonly IIntegrationEventBus _bus;
 
-    public RemoveStageCommandHandler(IStageRepository stageRepository, IMissionLookupRepository missionLookupRepository, IPublishEndpoint bus)
+    public RemoveStageCommandHandler(IStageRepository stageRepository, IMissionLookupRepository missionLookupRepository, IIntegrationEventBus bus)
     {
         _stageRepository = stageRepository;
         _missionLookupRepository = missionLookupRepository;
@@ -32,7 +32,7 @@ public class RemoveStageCommandHandler : IRequestHandler<RemoveStageCommand, Res
         await _stageRepository.DeleteAsync(stage, cancellationToken);
         await _stageRepository.SaveChangesAsync(cancellationToken);
 
-        await _bus.Publish(new StageRemovedIntegrationEvent(stage.Id, request.MissionId, DateTime.UtcNow), cancellationToken);
+        await _bus.PublishAsync(new StageRemovedIntegrationEvent(stage.Id, request.MissionId, DateTime.UtcNow), cancellationToken);
 
         return Result.Success(true);
     }

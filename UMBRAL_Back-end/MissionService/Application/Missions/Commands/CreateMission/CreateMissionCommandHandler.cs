@@ -1,22 +1,19 @@
 namespace UMBRAL_Back_end.Application.Missions.Commands.CreateMission;
 
-using MassTransit;
 using MediatR;
 using UMBRAL.Contracts.Events;
+using UMBRAL_Back_end.Application;
 using UMBRAL_Back_end.Domain.Common;
 using UMBRAL_Back_end.Domain.Missions;
-using UMBRAL_Back_end.Domain.Missions.Events;
 
 public class CreateMissionCommandHandler : IRequestHandler<CreateMissionCommand, Result<Guid>>
 {
     private readonly IMissionRepository _repository;
-    private readonly IPublisher _publisher;
-    private readonly IPublishEndpoint _bus;
+    private readonly IIntegrationEventBus _bus;
 
-    public CreateMissionCommandHandler(IMissionRepository repository, IPublisher publisher, IPublishEndpoint bus)
+    public CreateMissionCommandHandler(IMissionRepository repository, IIntegrationEventBus bus)
     {
         _repository = repository;
-        _publisher = publisher;
         _bus = bus;
     }
 
@@ -25,7 +22,10 @@ public class CreateMissionCommandHandler : IRequestHandler<CreateMissionCommand,
         if (await _repository.ExistsWithNameAsync(request.Name, cancellationToken: cancellationToken))
             return Result.Failure<Guid>(MissionErrors.DuplicateName);
 
-        var missionResult = Mission.Create(request.Name, request.Description, request.Difficulty, request.MaxDuration);
+        if (!Enum.TryParse<DifficultyLevel>(request.Difficulty, ignoreCase: true, out var difficulty))
+            return Result.Failure<Guid>(MissionErrors.InvalidDifficulty);
+
+        var missionResult = Mission.Create(request.Name, request.Description, difficulty, request.MaxDuration);
         if (missionResult.IsFailure)
             return Result.Failure<Guid>(missionResult.Error);
 
@@ -34,13 +34,8 @@ public class CreateMissionCommandHandler : IRequestHandler<CreateMissionCommand,
         await _repository.AddAsync(mission, cancellationToken);
         await _repository.SaveChangesAsync(cancellationToken);
 
-        // In-process domain event (MediatR)
-        await _publisher.Publish(
-            new MissionCreatedEvent(mission.Id, mission.Name, mission.Difficulty.ToString(), mission.MaxDuration, mission.CreatedAt),
-            cancellationToken);
-
-        // Integration event → RabbitMQ (MassTransit) — consumed by SessionService
-        await _bus.Publish(
+        // Integration event → RabbitMQ — consumed by SessionService
+        await _bus.PublishAsync(
             new MissionCreatedIntegrationEvent(mission.Id, mission.Name, "Inactive", mission.CreatedAt),
             cancellationToken);
 

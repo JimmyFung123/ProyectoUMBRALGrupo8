@@ -1,7 +1,9 @@
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using StageService.Application;
 using StageService.Domain.MissionLookup;
 using StageService.Domain.Stages;
+using StageService.Infrastructure.Messaging;
 using StageService.Infrastructure.Messaging.Consumers;
 using StageService.Infrastructure.Persistence;
 using StageService.Infrastructure.Persistence.Repositories;
@@ -23,6 +25,7 @@ builder.Services.AddMediatR(cfg =>
 
 builder.Services.AddScoped<IStageRepository, StageRepository>();
 builder.Services.AddScoped<IMissionLookupRepository, MissionLookupRepository>();
+builder.Services.AddScoped<IIntegrationEventBus, MassTransitIntegrationEventBus>();
 
 // HU-27 — the InternalSyncHealthController calls MissionService over HTTP to
 // re-seed MissionsLookup when an admin triggers a manual reproject.

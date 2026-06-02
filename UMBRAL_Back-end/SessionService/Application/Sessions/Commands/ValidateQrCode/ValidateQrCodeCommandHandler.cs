@@ -1,12 +1,10 @@
 namespace SessionService.Application.Sessions.Commands.ValidateQrCode;
 
-using Microsoft.AspNetCore.SignalR;
 using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Commands.Evidence;
 using SessionService.Domain.Common;
 using SessionService.Domain.Sessions;
 using SessionService.Domain.Statistics;
-using SessionService.Infrastructure.Hubs;
 
 /// <summary>
 /// Concrete Template Method for QR-code evidence (HU-19).
@@ -23,8 +21,8 @@ public class ValidateQrCodeCommandHandler
         IStageServiceClient stageClient,
         IStageCompletionRecordRepository statsRepository,
         ISessionEventRepository eventRepository,
-        IHubContext<SessionHub> hub)
-        : base(sessionRepository, teamClient, stageClient, statsRepository, eventRepository, hub)
+        ISessionNotifier notifier)
+        : base(sessionRepository, teamClient, stageClient, statsRepository, eventRepository, notifier)
     { }
 
     // ── Command field accessors ───────────────────────────────────────────────
