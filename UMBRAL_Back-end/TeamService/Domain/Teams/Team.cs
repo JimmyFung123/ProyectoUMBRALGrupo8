@@ -56,13 +56,13 @@ public class Team
 
     private Team() { }
 
-    public static Team Create(Guid sessionId, string name)
+    public static Team Create(Guid sessionId, TeamName name)
     {
         return new Team
         {
             Id = Guid.NewGuid(),
             SessionId = sessionId,
-            Name = name.Trim(),
+            Name = name.Value,
             InviteCode = TeamCode.Generate().Value,
             MemberCount = 1,
             IsConnected = false,

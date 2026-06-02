@@ -65,9 +65,3 @@ public class MissionsController : ControllerBase
         return result.IsSuccess ? NoContent() : BadRequest(result.Error);
     }
 }
-
-// ── Request records ───────────────────────────────────────────────────────────
-
-public record CreateMissionRequest(string Name, string Description, string Difficulty, int MaxDuration);
-public record UpdateMissionRequest(string Name, string Description, string Difficulty, int MaxDuration);
-public record ChangeStatusRequest(bool Activate);
