@@ -1,7 +1,7 @@
 namespace SessionService.Application.Sessions.Commands.CancelSession;
 
-using MassTransit;
 using MediatR;
+using SessionService.Application;
 using SessionService.Domain.Common;
 using SessionService.Domain.Sessions;
 using UMBRAL.Contracts.Events;
@@ -10,16 +10,16 @@ public class CancelSessionCommandHandler : IRequestHandler<CancelSessionCommand,
 {
     private readonly ISessionRepository _sessionRepository;
     private readonly ISessionEventRepository _eventRepository;
-    private readonly IPublishEndpoint _publishEndpoint;
+    private readonly IIntegrationEventBus _bus;
 
     public CancelSessionCommandHandler(
         ISessionRepository sessionRepository,
         ISessionEventRepository eventRepository,
-        IPublishEndpoint publishEndpoint)
+        IIntegrationEventBus bus)
     {
         _sessionRepository = sessionRepository;
         _eventRepository = eventRepository;
-        _publishEndpoint = publishEndpoint;
+        _bus = bus;
     }
 
     public async Task<Result<bool>> Handle(CancelSessionCommand request, CancellationToken cancellationToken)
@@ -46,7 +46,7 @@ public class CancelSessionCommandHandler : IRequestHandler<CancelSessionCommand,
         await _eventRepository.AddAsync(auditEvent, cancellationToken);
         await _eventRepository.SaveChangesAsync(cancellationToken);
 
-        await _publishEndpoint.Publish(
+        await _bus.PublishAsync(
             new SessionCancelledIntegrationEvent(request.SessionId, DateTime.UtcNow),
             cancellationToken);
 

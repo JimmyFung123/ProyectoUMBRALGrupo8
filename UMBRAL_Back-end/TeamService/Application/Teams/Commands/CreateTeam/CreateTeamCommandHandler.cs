@@ -22,7 +22,7 @@ public class CreateTeamCommandHandler : IRequestHandler<CreateTeamCommand, Resul
         if (nameResult.IsFailure)
             return Result.Failure<CreateTeamResult>(nameResult.Error);
 
-        var team = Team.Create(request.SessionId, nameResult.Value.Value);
+        var team = Team.Create(request.SessionId, nameResult.Value);
         await _repo.AddAsync(team, cancellationToken);
 
         // HU-24: keep the ranking read model in sync within the same transaction.

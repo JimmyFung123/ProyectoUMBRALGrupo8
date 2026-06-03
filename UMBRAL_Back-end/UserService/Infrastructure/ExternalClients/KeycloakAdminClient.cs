@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Configuration;
 using UserService.Application.Users;
+using UserService.Domain.Common;
 using UserService.Domain.Users;
 
 /// <summary>
@@ -192,7 +193,7 @@ public class KeycloakAdminClient : IKeycloakAdminClient
         return null;
     }
 
-    public async Task<Guid> CreateUserAsync(
+    public async Task<Result<Guid>> CreateUserAsync(
         string email, string firstName, string lastName,
         string temporaryPassword, UserRole role,
         CancellationToken cancellationToken)
@@ -216,7 +217,7 @@ public class KeycloakAdminClient : IKeycloakAdminClient
         using var resp = await _http.SendAsync(req, cancellationToken);
 
         if (resp.StatusCode == HttpStatusCode.Conflict)
-            throw new KeycloakConflictException("Keycloak rejected the user as duplicate.");
+            return Result.Failure<Guid>(UserErrors.EmailAlreadyInUse);
 
         resp.EnsureSuccessStatusCode();
 
@@ -228,7 +229,7 @@ public class KeycloakAdminClient : IKeycloakAdminClient
         // Asignar el rol UMBRAL acto seguido. Si esto falla, el usuario queda
         // sin rol — el admin verá "Sin rol" en la UI y podrá corregir.
         await AssignRoleAsync(id, role, cancellationToken);
-        return id;
+        return Result.Success(id);
     }
 
     public async Task ChangeRoleAsync(Guid userId, UserRole newRole, CancellationToken cancellationToken)

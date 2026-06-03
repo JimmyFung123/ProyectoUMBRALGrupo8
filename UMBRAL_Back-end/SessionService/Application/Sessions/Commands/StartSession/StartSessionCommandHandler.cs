@@ -1,28 +1,27 @@
 namespace SessionService.Application.Sessions.Commands.StartSession;
 
 using MediatR;
-using Microsoft.AspNetCore.SignalR;
+using SessionService.Application.Sessions;
 using SessionService.Domain.Common;
 using SessionService.Domain.Sessions;
-using SessionService.Infrastructure.Hubs;
 
 public class StartSessionCommandHandler : IRequestHandler<StartSessionCommand, Result<bool>>
 {
     private readonly ISessionRepository _sessionRepository;
     private readonly ITeamServiceClient _teamServiceClient;
     private readonly ISessionEventRepository _eventRepository;
-    private readonly IHubContext<SessionHub> _hub;
+    private readonly ISessionNotifier _notifier;
 
     public StartSessionCommandHandler(
         ISessionRepository sessionRepository,
         ITeamServiceClient teamServiceClient,
         ISessionEventRepository eventRepository,
-        IHubContext<SessionHub> hub)
+        ISessionNotifier notifier)
     {
         _sessionRepository = sessionRepository;
         _teamServiceClient = teamServiceClient;
         _eventRepository = eventRepository;
-        _hub = hub;
+        _notifier = notifier;
     }
 
     public async Task<Result<bool>> Handle(StartSessionCommand request, CancellationToken cancellationToken)
@@ -57,11 +56,7 @@ public class StartSessionCommandHandler : IRequestHandler<StartSessionCommand, R
         await _eventRepository.AddAsync(auditEvent, cancellationToken);
         await _eventRepository.SaveChangesAsync(cancellationToken);
 
-        await _hub.Clients
-            .Group(request.SessionId.ToString())
-            .SendAsync("SessionStateChanged",
-                new { SessionId = session.Id, NewStatus = session.Status.ToString() },
-                cancellationToken);
+        await _notifier.NotifyStateChangedAsync(session.Id, session.Status.ToString(), cancellationToken);
 
         return Result.Success(true);
     }

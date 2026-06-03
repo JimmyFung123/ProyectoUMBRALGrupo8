@@ -1,9 +1,11 @@
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using UMBRAL.Auth;
+using UMBRAL_Back_end.Application;
 using UMBRAL_Back_end.Application.Missions;
 using UMBRAL_Back_end.Domain.Missions;
 using UMBRAL_Back_end.Infrastructure.ExternalClients;
+using UMBRAL_Back_end.Infrastructure.Messaging;
 using UMBRAL_Back_end.Infrastructure.Messaging.Consumers;
 using UMBRAL_Back_end.Infrastructure.Persistence;
 using UMBRAL_Back_end.Infrastructure.Persistence.Repositories;
@@ -27,6 +29,7 @@ builder.Services.AddMediatR(cfg =>
 // Repositories
 builder.Services.AddScoped<IMissionRepository, MissionRepository>();
 builder.Services.AddScoped<IStageCountLookupRepository, StageCountLookupRepository>();
+builder.Services.AddScoped<IIntegrationEventBus, MassTransitIntegrationEventBus>();
 
 // HU-27 — InternalSyncHealthController calls StageService over HTTP to rebuild
 // the StageCountLookup projection on manual reproject.

@@ -30,4 +30,7 @@ public static class StageErrors
     /// <summary>HU-2: QR codes must be unique across all stages.</summary>
     public static readonly Error DuplicateQrCode =
         new("Stage.DuplicateQrCode", "This QR code is already assigned to another stage.");
+
+    public static readonly Error InvalidType =
+        new("Stage.InvalidType", "Unknown stage type. Valid values: Trivia, TreasureHunt.");
 }
