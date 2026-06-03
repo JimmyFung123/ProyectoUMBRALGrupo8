@@ -33,7 +33,7 @@ public class PenalizeTeamCommandHandlerTests
     [Fact]
     public async Task Handle_WhenReasonEmpty_ReturnsValidationError()
     {
-        var team = Team.Create(Guid.NewGuid(), "Alpha");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Alpha").Value);
         _repoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                  .ReturnsAsync(team);
 
@@ -48,7 +48,7 @@ public class PenalizeTeamCommandHandlerTests
     [Fact]
     public async Task Handle_WhenPointsZero_ReturnsValidationError()
     {
-        var team = Team.Create(Guid.NewGuid(), "Beta");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Beta").Value);
         _repoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                  .ReturnsAsync(team);
 
@@ -64,7 +64,7 @@ public class PenalizeTeamCommandHandlerTests
     public async Task Handle_ValidCommand_PenalizesAndSaves()
     {
         var sessionId = Guid.NewGuid();
-        var team = Team.Create(sessionId, "Gamma");
+        var team = Team.Create(sessionId, TeamName.Create("Gamma").Value);
         team.UpdateScore(100);
         _repoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                  .ReturnsAsync(team);

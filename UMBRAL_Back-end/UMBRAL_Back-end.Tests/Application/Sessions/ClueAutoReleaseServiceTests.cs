@@ -1,12 +1,10 @@
 namespace UMBRAL_Back_end.Tests.Application.Sessions;
 
 using FluentAssertions;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using SessionService.Application.Sessions;
 using SessionService.Domain.Sessions;
-using SessionService.Infrastructure.Hubs;
 using Xunit;
 
 public class ClueAutoReleaseServiceTests
@@ -16,23 +14,18 @@ public class ClueAutoReleaseServiceTests
     private readonly Mock<IStageServiceClient> _stageClientMock = new();
     private readonly Mock<IClueServiceClient> _clueClientMock = new();
     private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
-    private readonly Mock<IHubContext<SessionHub>> _hubMock = new();
+    private readonly Mock<ISessionNotifier> _notifierMock = new();
     private readonly ClueAutoReleaseService _service;
 
     public ClueAutoReleaseServiceTests()
     {
-        var clientsMock = new Mock<IHubClients>();
-        var proxyMock = new Mock<IClientProxy>();
-        clientsMock.Setup(c => c.Group(It.IsAny<string>())).Returns(proxyMock.Object);
-        _hubMock.Setup(h => h.Clients).Returns(clientsMock.Object);
-
         _service = new ClueAutoReleaseService(
             _sessionRepoMock.Object,
             _teamClientMock.Object,
             _stageClientMock.Object,
             _clueClientMock.Object,
             _eventRepoMock.Object,
-            _hubMock.Object,
+            _notifierMock.Object,
             NullLogger<ClueAutoReleaseService>.Instance);
     }
 
@@ -49,10 +42,10 @@ public class ClueAutoReleaseServiceTests
         _teamClientMock.Verify(t => t.GetTeamProgressAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    // ── Team has no auto-release configured ───────────────────────────────────
+    // ── Stage has no auto-release configured ─────────────────────────────────
 
     [Fact]
-    public async Task ProcessAsync_NoAutoReleaseOnClue_DoesNotRelease()
+    public async Task ProcessAsync_NoAutoReleaseOnStage_DoesNotRelease()
     {
         var session = CreateInProgressSession();
         var sessionId = session.Id;
@@ -64,12 +57,11 @@ public class ClueAutoReleaseServiceTests
         _teamClientMock.Setup(t => t.GetTeamProgressAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync([new TeamProgressItem(teamId, "Alpha", 1, 0, DateTime.UtcNow.AddMinutes(-10), false)]);
         _stageClientMock.Setup(s => s.GetStagesByMissionAsync(session.MissionId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync([new StageInfo(stageId, 1)]);
-        _clueClientMock.Setup(c => c.GetCluesByStageAsync(stageId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync([new ClueInfo(Guid.NewGuid(), 1, "Find the fountain", null, null, null, AutoReleaseAfterMinutes: null)]);
+            .ReturnsAsync([new StageInfo(stageId, 1, AutoReleaseTimeMinutes: null)]);
 
         await _service.ProcessAsync(default);
 
+        _clueClientMock.Verify(c => c.GetCluesByStageAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
         _teamClientMock.Verify(t => t.ReleaseClueAsync(It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<CancellationToken>(), It.IsAny<bool>()), Times.Never);
     }
 
@@ -87,9 +79,9 @@ public class ClueAutoReleaseServiceTests
         _teamClientMock.Setup(t => t.GetTeamProgressAsync(session.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync([new TeamProgressItem(teamId, "Beta", 1, 0, DateTime.UtcNow.AddMinutes(-1), false)]);
         _stageClientMock.Setup(s => s.GetStagesByMissionAsync(session.MissionId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync([new StageInfo(stageId, 1)]);
+            .ReturnsAsync([new StageInfo(stageId, 1, AutoReleaseTimeMinutes: 5)]);
         _clueClientMock.Setup(c => c.GetCluesByStageAsync(stageId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync([new ClueInfo(Guid.NewGuid(), 1, "Find it", null, null, null, AutoReleaseAfterMinutes: 5)]);
+            .ReturnsAsync([new ClueInfo(Guid.NewGuid(), 1, "Find it", null, null, null, AutoReleaseAfterMinutes: null)]);
 
         await _service.ProcessAsync(default);
 
@@ -111,16 +103,19 @@ public class ClueAutoReleaseServiceTests
         _teamClientMock.Setup(t => t.GetTeamProgressAsync(session.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync([new TeamProgressItem(teamId, "Gamma", 1, 0, DateTime.UtcNow.AddMinutes(-6), false)]);
         _stageClientMock.Setup(s => s.GetStagesByMissionAsync(session.MissionId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync([new StageInfo(stageId, 1)]);
+            .ReturnsAsync([new StageInfo(stageId, 1, AutoReleaseTimeMinutes: 5)]);
         _clueClientMock.Setup(c => c.GetCluesByStageAsync(stageId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync([new ClueInfo(clueId, 1, "Find the fountain", null, null, null, AutoReleaseAfterMinutes: 5)]);
+            .ReturnsAsync([new ClueInfo(clueId, 1, "Find the fountain", null, null, null, AutoReleaseAfterMinutes: null)]);
         _teamClientMock.Setup(t => t.ReleaseClueAsync(teamId, 1, It.IsAny<CancellationToken>(), true))
             .ReturnsAsync(1);
 
         await _service.ProcessAsync(default);
 
         _teamClientMock.Verify(t => t.ReleaseClueAsync(teamId, 1, It.IsAny<CancellationToken>(), true), Times.Once);
-        _hubMock.Verify(h => h.Clients.Group(session.Id.ToString()), Times.Once);
+        _notifierMock.Verify(n => n.NotifyClueReleasedAsync(
+            session.Id, teamId,
+            It.IsAny<string?>(), It.IsAny<double?>(), It.IsAny<double?>(), It.IsAny<int?>(),
+            1, true, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     // ── Team has no timer set (never entered stage) ────────────────────────────
@@ -160,7 +155,7 @@ public class ClueAutoReleaseServiceTests
         _teamClientMock.Setup(t => t.GetTeamProgressAsync(session.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync([new TeamProgressItem(teamId, "Epsilon", 1, 2, DateTime.UtcNow.AddMinutes(-10), false)]);
         _stageClientMock.Setup(s => s.GetStagesByMissionAsync(session.MissionId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync([new StageInfo(stageId, 1)]);
+            .ReturnsAsync([new StageInfo(stageId, 1, AutoReleaseTimeMinutes: 5)]);
         _clueClientMock.Setup(c => c.GetCluesByStageAsync(stageId, It.IsAny<CancellationToken>()))
             .ReturnsAsync([
                 new ClueInfo(Guid.NewGuid(), 1, "Clue 1", null, null, null, 5),

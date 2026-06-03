@@ -1,13 +1,11 @@
 namespace UMBRAL_Back_end.Tests.Application.Sessions;
 
 using FluentAssertions;
-using Microsoft.AspNetCore.SignalR;
 using Moq;
 using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Commands.ValidateQrCode;
 using SessionService.Domain.Sessions;
 using SessionService.Domain.Statistics;
-using SessionService.Infrastructure.Hubs;
 using Xunit;
 
 public class ValidateQrCodeCommandHandlerTests
@@ -17,23 +15,18 @@ public class ValidateQrCodeCommandHandlerTests
     private readonly Mock<IStageServiceClient> _stageClientMock = new();
     private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
     private readonly Mock<IStageCompletionRecordRepository> _statsRepoMock = new();
-    private readonly Mock<IHubContext<SessionHub>> _hubMock = new();
+    private readonly Mock<ISessionNotifier> _notifierMock = new();
     private readonly ValidateQrCodeCommandHandler _handler;
 
     public ValidateQrCodeCommandHandlerTests()
     {
-        var clientsMock = new Mock<IHubClients>();
-        var proxyMock = new Mock<IClientProxy>();
-        clientsMock.Setup(c => c.Group(It.IsAny<string>())).Returns(proxyMock.Object);
-        _hubMock.Setup(h => h.Clients).Returns(clientsMock.Object);
-
         _handler = new ValidateQrCodeCommandHandler(
             _sessionRepoMock.Object,
             _teamClientMock.Object,
             _stageClientMock.Object,
             _statsRepoMock.Object,
             _eventRepoMock.Object,
-            _hubMock.Object);
+            _notifierMock.Object);
     }
 
     // ── Session not found ─────────────────────────────────────────────────────
@@ -146,7 +139,10 @@ public class ValidateQrCodeCommandHandlerTests
         _teamClientMock.Verify(
             t => t.AnswerTriviaAsync(It.IsAny<Guid>(), It.IsAny<bool>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()),
             Times.Never);
-        _hubMock.Verify(h => h.Clients.Group(It.IsAny<string>()), Times.Never);
+        _notifierMock.Verify(n => n.NotifyStageCompletedAsync(
+            It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<string>(),
+            It.IsAny<bool>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<bool>(),
+            It.IsAny<CancellationToken>()), Times.Never);
         _eventRepoMock.Verify(
             r => r.AddAsync(It.IsAny<SessionEvent>(), It.IsAny<CancellationToken>()),
             Times.Once);
@@ -196,8 +192,10 @@ public class ValidateQrCodeCommandHandlerTests
         _teamClientMock.Verify(
             t => t.AnswerTriviaAsync(teamId, true, 75, 2, It.IsAny<CancellationToken>()),
             Times.Once);
-        // HU-28: handler now fans out two events (SessionStateChanged + StageCompleted).
-        _hubMock.Verify(h => h.Clients.Group(It.IsAny<string>()), Times.Exactly(2));
+        _notifierMock.Verify(n => n.NotifyStageCompletedAsync(
+            It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<string>(),
+            It.IsAny<bool>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<bool>(),
+            It.IsAny<CancellationToken>()), Times.Once);
         _eventRepoMock.Verify(
             r => r.AddAsync(It.IsAny<SessionEvent>(), It.IsAny<CancellationToken>()),
             Times.Once);

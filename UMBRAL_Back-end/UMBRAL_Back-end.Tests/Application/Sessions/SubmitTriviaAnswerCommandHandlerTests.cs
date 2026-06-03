@@ -1,14 +1,12 @@
 namespace UMBRAL_Back_end.Tests.Application.Sessions;
 
 using FluentAssertions;
-using Microsoft.AspNetCore.SignalR;
 using Moq;
 using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Commands.SubmitTriviaAnswer;
 using SessionService.Domain.MissionLookup;
 using SessionService.Domain.Sessions;
 using SessionService.Domain.Statistics;
-using SessionService.Infrastructure.Hubs;
 using Xunit;
 
 public class SubmitTriviaAnswerCommandHandlerTests
@@ -18,17 +16,12 @@ public class SubmitTriviaAnswerCommandHandlerTests
     private readonly Mock<IStageServiceClient> _stageClientMock = new();
     private readonly Mock<IStageCompletionRecordRepository> _statsRepoMock = new();
     private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
-    private readonly Mock<IHubContext<SessionHub>> _hubMock = new();
+    private readonly Mock<ISessionNotifier> _notifierMock = new();
     private readonly Mock<IMissionLookupRepository> _missionLookupRepoMock = new();
     private readonly SubmitTriviaAnswerCommandHandler _handler;
 
     public SubmitTriviaAnswerCommandHandlerTests()
     {
-        var clientsMock = new Mock<IHubClients>();
-        var proxyMock = new Mock<IClientProxy>();
-        clientsMock.Setup(c => c.Group(It.IsAny<string>())).Returns(proxyMock.Object);
-        _hubMock.Setup(h => h.Clients).Returns(clientsMock.Object);
-
         // Default: null lookup → ScoringStrategyFactory defaults to MediumScoringStrategy
         _missionLookupRepoMock
             .Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
@@ -40,7 +33,7 @@ public class SubmitTriviaAnswerCommandHandlerTests
             _stageClientMock.Object,
             _statsRepoMock.Object,
             _eventRepoMock.Object,
-            _hubMock.Object,
+            _notifierMock.Object,
             _missionLookupRepoMock.Object);
     }
 
@@ -145,9 +138,10 @@ public class SubmitTriviaAnswerCommandHandlerTests
         result.Value.NewScore.Should().Be(150);
         _teamClientMock.Verify(t => t.AnswerTriviaAsync(
             It.IsAny<Guid>(), true, 50, 2, It.IsAny<CancellationToken>()), Times.Once);
-        // HU-28: handler now fans out two events (SessionStateChanged for the
-        // operator dashboard, StageCompleted for participant feedback).
-        _hubMock.Verify(h => h.Clients.Group(It.IsAny<string>()), Times.Exactly(2));
+        _notifierMock.Verify(n => n.NotifyStageCompletedAsync(
+            It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<string>(),
+            It.IsAny<bool>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<bool>(),
+            It.IsAny<CancellationToken>()), Times.Once);
 
         // HU-25: a Trivia/WasCorrect=true record must be appended to the fact table.
         _statsRepoMock.Verify(
@@ -197,8 +191,7 @@ public class SubmitTriviaAnswerCommandHandlerTests
         _teamClientMock.Verify(t => t.AnswerTriviaAsync(
             It.IsAny<Guid>(), false, -25, It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Once);
 
-        // HU-25: an incorrect-answer record still gets recorded — it's the
-        // input for the effectiveness percentage.
+        // HU-25: an incorrect-answer record still gets recorded.
         _statsRepoMock.Verify(
             r => r.AddAsync(
                 It.Is<StageCompletionRecord>(rec =>

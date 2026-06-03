@@ -30,7 +30,7 @@ public class JoinTeamCommandHandlerTests
     [Fact]
     public async Task Handle_ValidCode_JoinsAndIncreasesMemberCount()
     {
-        var team = Team.Create(Guid.NewGuid(), "Los Genios"); // MemberCount = 1
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Los Genios").Value); // MemberCount = 1
         _repoMock.Setup(r => r.GetByInviteCodeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                  .ReturnsAsync(team);
 
@@ -47,7 +47,7 @@ public class JoinTeamCommandHandlerTests
     [Fact]
     public async Task Handle_SecondJoin_MemberCountReachesThree()
     {
-        var team = Team.Create(Guid.NewGuid(), "Los Tres");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Los Tres").Value);
         team.Join(); // MemberCount = 2
         _repoMock.Setup(r => r.GetByInviteCodeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                  .ReturnsAsync(team);

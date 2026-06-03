@@ -1,8 +1,8 @@
 namespace UMBRAL_Back_end.Tests.Application.Clues;
 
 using FluentAssertions;
-using MassTransit;
 using Moq;
+using ClueService.Application;
 using ClueService.Application.Clues.Commands.RemoveClue;
 using ClueService.Domain.Clues;
 using UMBRAL.Contracts.Events;
@@ -11,7 +11,7 @@ using Xunit;
 public class RemoveClueCommandHandlerTests
 {
     private readonly Mock<IClueRepository> _clueRepoMock = new();
-    private readonly Mock<IPublishEndpoint> _busMock = new();
+    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly RemoveClueCommandHandler _handler;
 
     public RemoveClueCommandHandlerTests()
@@ -56,7 +56,7 @@ public class RemoveClueCommandHandlerTests
         _clueRepoMock.Verify(r => r.DeleteAsync(clue, It.IsAny<CancellationToken>()), Times.Once);
         _clueRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         _busMock.Verify(
-            b => b.Publish(It.IsAny<ClueRemovedIntegrationEvent>(), It.IsAny<CancellationToken>()),
+            b => b.PublishAsync(It.IsAny<ClueRemovedIntegrationEvent>(), It.IsAny<CancellationToken>()),
             Times.Once);
     }
 }

@@ -1,12 +1,10 @@
 namespace UMBRAL_Back_end.Tests.Application.Sessions;
 
 using FluentAssertions;
-using Microsoft.AspNetCore.SignalR;
 using Moq;
 using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Commands.StartSession;
 using SessionService.Domain.Sessions;
-using SessionService.Infrastructure.Hubs;
 using Xunit;
 
 public class StartSessionCommandHandlerTests
@@ -14,21 +12,16 @@ public class StartSessionCommandHandlerTests
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
     private readonly Mock<ITeamServiceClient> _teamClientMock = new();
     private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
-    private readonly Mock<IHubContext<SessionHub>> _hubMock = new();
+    private readonly Mock<ISessionNotifier> _notifierMock = new();
     private readonly StartSessionCommandHandler _handler;
 
     public StartSessionCommandHandlerTests()
     {
-        var clientsMock = new Mock<IHubClients>();
-        var proxyMock = new Mock<IClientProxy>();
-        clientsMock.Setup(c => c.Group(It.IsAny<string>())).Returns(proxyMock.Object);
-        _hubMock.Setup(h => h.Clients).Returns(clientsMock.Object);
-
         _handler = new StartSessionCommandHandler(
             _sessionRepoMock.Object,
             _teamClientMock.Object,
             _eventRepoMock.Object,
-            _hubMock.Object);
+            _notifierMock.Object);
     }
 
     // ── Session not found ─────────────────────────────────────────────────────
@@ -183,8 +176,8 @@ public class StartSessionCommandHandlerTests
     [Fact]
     public async Task Handle_WhenPendingAndAllTeamsHaveEnoughMembers_StartsAndBroadcasts()
     {
-        var sessionId = Guid.NewGuid();
         var session = Session.Create(Guid.NewGuid(), "Sesión a iniciar").Value;
+        var sessionId = session.Id;
 
         _sessionRepoMock
             .Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
@@ -202,7 +195,7 @@ public class StartSessionCommandHandlerTests
         result.IsSuccess.Should().BeTrue();
         session.Status.Should().Be(SessionStatus.InProgress);
         _sessionRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _hubMock.Verify(h => h.Clients.Group(sessionId.ToString()), Times.Once);
+        _notifierMock.Verify(n => n.NotifyStateChangedAsync(sessionId, It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
         _eventRepoMock.Verify(
             r => r.AddAsync(It.Is<SessionEvent>(e => e.Description.Contains("iniciada")), It.IsAny<CancellationToken>()),
             Times.Once);

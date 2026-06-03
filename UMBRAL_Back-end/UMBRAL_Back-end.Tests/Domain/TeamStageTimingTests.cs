@@ -17,7 +17,7 @@ public class TeamStageTimingTests
     [Fact]
     public void NewTeam_HasNoCurrentStageStartedAt()
     {
-        var team = Team.Create(Guid.NewGuid(), "Alpha");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Alpha").Value);
 
         team.CurrentStageStartedAt.Should().BeNull();
     }
@@ -25,7 +25,7 @@ public class TeamStageTimingTests
     [Fact]
     public void UpdateProgress_WhenEnteringFirstStage_StampsCurrentStageStartedAt()
     {
-        var team = Team.Create(Guid.NewGuid(), "Alpha");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Alpha").Value);
 
         var before = DateTime.UtcNow;
         team.UpdateProgress(stageOrder: 1, cluesCurrentStage: 0, totalClues: 3);
@@ -39,7 +39,7 @@ public class TeamStageTimingTests
     [Fact]
     public void UpdateProgress_OnSameStageOrder_DoesNotResetCurrentStageStartedAt()
     {
-        var team = Team.Create(Guid.NewGuid(), "Alpha");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Alpha").Value);
         team.UpdateProgress(1, 0, 3);
         var firstTimestamp = team.CurrentStageStartedAt;
 
@@ -54,7 +54,7 @@ public class TeamStageTimingTests
     [Fact]
     public void AnswerTrivia_ReturnsElapsedSecondsForTheStageJustLeft()
     {
-        var team = Team.Create(Guid.NewGuid(), "Alpha");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Alpha").Value);
         // Manually stamp the stage start in the past so the elapsed math is testable.
         SetCurrentStageStartedAt(team, DateTime.UtcNow.AddSeconds(-90));
 
@@ -68,7 +68,7 @@ public class TeamStageTimingTests
     [Fact]
     public void AnswerTrivia_AdvancesStage_AndResetsCurrentStageStartedAtToNow()
     {
-        var team = Team.Create(Guid.NewGuid(), "Alpha");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Alpha").Value);
         SetCurrentStageStartedAt(team, DateTime.UtcNow.AddSeconds(-30));
 
         var before = DateTime.UtcNow;
@@ -84,7 +84,7 @@ public class TeamStageTimingTests
     public void AnswerTrivia_WhenStageStartIsNull_ElapsedSecondsIsZero()
     {
         // Defensive case for pre-HU-25 rows that never had the column populated.
-        var team = Team.Create(Guid.NewGuid(), "Alpha");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Alpha").Value);
         // CurrentStageStartedAt is null at this point.
 
         var result = team.AnswerTrivia(isCorrect: true, scoreChange: 50, nextStageOrder: 1);
@@ -97,7 +97,7 @@ public class TeamStageTimingTests
     [Fact]
     public void ForceAdvance_ReturnsElapsedSecondsForTheSkippedStage()
     {
-        var team = Team.Create(Guid.NewGuid(), "Beta");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Beta").Value);
         team.UpdateProgress(1, 0, 3); // currentStageOrder = 1
         SetCurrentStageStartedAt(team, DateTime.UtcNow.AddSeconds(-120));
 
@@ -110,7 +110,7 @@ public class TeamStageTimingTests
     [Fact]
     public void ForceAdvance_DoesNotChangeScore_ButRoundsElapsedSeconds()
     {
-        var team = Team.Create(Guid.NewGuid(), "Beta");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Beta").Value);
         team.UpdateProgress(1, 0, 3);
         team.UpdateScore(200);
         SetCurrentStageStartedAt(team, DateTime.UtcNow.AddSeconds(-45));
@@ -124,7 +124,7 @@ public class TeamStageTimingTests
     [Fact]
     public void ForceAdvance_FailsValidation_ElapsedNotComputed()
     {
-        var team = Team.Create(Guid.NewGuid(), "Beta");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Beta").Value);
         team.UpdateProgress(2, 0, 3); // already on stage 2
 
         var result = team.ForceAdvance(2); // same order → InvalidNextStage
@@ -141,7 +141,7 @@ public class TeamStageTimingTests
     {
         // Defensive: if the clock skewed forward between writes, we still
         // produce a sensible analytics row (0 seconds) instead of a negative value.
-        var team = Team.Create(Guid.NewGuid(), "Alpha");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Alpha").Value);
         SetCurrentStageStartedAt(team, DateTime.UtcNow.AddSeconds(10));
 
         var result = team.AnswerTrivia(isCorrect: true, scoreChange: 10, nextStageOrder: 2);

@@ -1,8 +1,8 @@
 namespace UMBRAL_Back_end.Tests.Application.Sessions;
 
 using FluentAssertions;
-using MassTransit;
 using Moq;
+using SessionService.Application;
 using SessionService.Application.Sessions.Commands.CancelSession;
 using SessionService.Domain.Sessions;
 using UMBRAL.Contracts.Events;
@@ -12,7 +12,7 @@ public class CancelSessionCommandHandlerTests
 {
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
     private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
-    private readonly Mock<IPublishEndpoint> _publishEndpointMock = new();
+    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly CancelSessionCommandHandler _handler;
 
     public CancelSessionCommandHandlerTests()
@@ -20,7 +20,7 @@ public class CancelSessionCommandHandlerTests
         _handler = new CancelSessionCommandHandler(
             _sessionRepoMock.Object,
             _eventRepoMock.Object,
-            _publishEndpointMock.Object);
+            _busMock.Object);
     }
 
     // ── Sesión no encontrada ──────────────────────────────────────────────────
@@ -60,8 +60,8 @@ public class CancelSessionCommandHandlerTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be(SessionErrors.CannotCancelNonPendingSession);
-        _publishEndpointMock.Verify(
-            p => p.Publish(It.IsAny<SessionCancelledIntegrationEvent>(), It.IsAny<CancellationToken>()),
+        _busMock.Verify(
+            b => b.PublishAsync(It.IsAny<SessionCancelledIntegrationEvent>(), It.IsAny<CancellationToken>()),
             Times.Never);
         _sessionRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -83,8 +83,8 @@ public class CancelSessionCommandHandlerTests
         result.IsSuccess.Should().BeTrue();
         session.Status.Should().Be(SessionStatus.Cancelled);
         _sessionRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _publishEndpointMock.Verify(
-            p => p.Publish(It.IsAny<SessionCancelledIntegrationEvent>(), It.IsAny<CancellationToken>()),
+        _busMock.Verify(
+            b => b.PublishAsync(It.IsAny<SessionCancelledIntegrationEvent>(), It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -107,8 +107,8 @@ public class CancelSessionCommandHandlerTests
             .Callback(() => callOrder.Add("SaveChanges"))
             .Returns(Task.CompletedTask);
 
-        _publishEndpointMock
-            .Setup(p => p.Publish(It.IsAny<SessionCancelledIntegrationEvent>(), It.IsAny<CancellationToken>()))
+        _busMock
+            .Setup(b => b.PublishAsync(It.IsAny<SessionCancelledIntegrationEvent>(), It.IsAny<CancellationToken>()))
             .Callback(() => callOrder.Add("Publish"))
             .Returns(Task.CompletedTask);
 

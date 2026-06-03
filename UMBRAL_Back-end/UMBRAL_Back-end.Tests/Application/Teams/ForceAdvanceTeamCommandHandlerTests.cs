@@ -33,7 +33,7 @@ public class ForceAdvanceTeamCommandHandlerTests
     [Fact]
     public async Task Handle_WhenNextStageSameAsCurrent_ReturnsInvalidNextStageError()
     {
-        var team = Team.Create(Guid.NewGuid(), "Alpha");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Alpha").Value);
         team.UpdateProgress(2, 0, 3);
         _repoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                  .ReturnsAsync(team);
@@ -50,7 +50,7 @@ public class ForceAdvanceTeamCommandHandlerTests
     public async Task Handle_ValidAdvance_AdvancesAndSaves()
     {
         var sessionId = Guid.NewGuid();
-        var team = Team.Create(sessionId, "Beta");
+        var team = Team.Create(sessionId, TeamName.Create("Beta").Value);
         team.UpdateProgress(1, 2, 3);
         team.UpdateScore(100);
         _repoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))

@@ -30,7 +30,7 @@ public class RankingProjectorTests
         int score,
         DateTime? lastStageCompletedAt = null)
     {
-        var team = Team.Create(sessionId, name);
+        var team = Team.Create(sessionId, TeamName.Create(name).Value);
         team.UpdateScore(score);
         if (lastStageCompletedAt.HasValue)
         {
@@ -192,7 +192,7 @@ public class RankingProjectorTests
         SeedTeam(ctx, sessionId, "Existing", 100);
         await ctx.SaveChangesAsync();
 
-        var newcomer = Team.Create(sessionId, "Newcomer");
+        var newcomer = Team.Create(sessionId, TeamName.Create("Newcomer").Value);
         ctx.Teams.Add(newcomer); // tracked as Added, not yet saved
         // Note: SaveChanges is deliberately NOT called yet — mirrors the real
         // handler flow where mutate → project → SaveChanges happens in one go.

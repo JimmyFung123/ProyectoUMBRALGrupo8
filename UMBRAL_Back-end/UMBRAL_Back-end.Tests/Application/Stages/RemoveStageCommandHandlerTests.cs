@@ -1,8 +1,8 @@
 namespace UMBRAL_Back_end.Tests.Application.Stages;
 
 using FluentAssertions;
-using MassTransit;
 using Moq;
+using StageService.Application;
 using StageService.Application.Stages.Commands.RemoveStage;
 using StageService.Domain.MissionLookup;
 using StageService.Domain.Stages;
@@ -13,7 +13,7 @@ public class RemoveStageCommandHandlerTests
 {
     private readonly Mock<IStageRepository> _stageRepoMock = new();
     private readonly Mock<IMissionLookupRepository> _missionLookupMock = new();
-    private readonly Mock<IPublishEndpoint> _busMock = new();
+    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly RemoveStageCommandHandler _handler;
 
     public RemoveStageCommandHandlerTests()
@@ -89,7 +89,7 @@ public class RemoveStageCommandHandlerTests
         _stageRepoMock.Verify(r => r.DeleteAsync(stage, It.IsAny<CancellationToken>()), Times.Once);
         _stageRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         _busMock.Verify(
-            b => b.Publish(It.IsAny<StageRemovedIntegrationEvent>(), It.IsAny<CancellationToken>()),
+            b => b.PublishAsync(It.IsAny<StageRemovedIntegrationEvent>(), It.IsAny<CancellationToken>()),
             Times.Once);
     }
 }

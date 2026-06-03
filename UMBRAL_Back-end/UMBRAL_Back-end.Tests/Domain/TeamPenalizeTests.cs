@@ -9,7 +9,7 @@ public class TeamPenalizeTests
     [Fact]
     public void Penalize_ValidPointsAndReason_SubtractsFromScore()
     {
-        var team = Team.Create(Guid.NewGuid(), "Alpha");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Alpha").Value);
         team.UpdateScore(100);
 
         var result = team.Penalize(30, "Unsporting behavior");
@@ -22,7 +22,7 @@ public class TeamPenalizeTests
     [Fact]
     public void Penalize_MoreThanScore_ScoreGoesNegative()
     {
-        var team = Team.Create(Guid.NewGuid(), "Beta");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Beta").Value);
         team.UpdateScore(10);
 
         var result = team.Penalize(50, "Major infraction");
@@ -35,7 +35,7 @@ public class TeamPenalizeTests
     [Fact]
     public void Penalize_ZeroPoints_ReturnsError()
     {
-        var team = Team.Create(Guid.NewGuid(), "Gamma");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Gamma").Value);
         var result = team.Penalize(0, "Some reason");
 
         result.IsFailure.Should().BeTrue();
@@ -46,7 +46,7 @@ public class TeamPenalizeTests
     [Fact]
     public void Penalize_NegativePoints_ReturnsError()
     {
-        var team = Team.Create(Guid.NewGuid(), "Delta");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Delta").Value);
         var result = team.Penalize(-5, "Some reason");
 
         result.IsFailure.Should().BeTrue();
@@ -56,7 +56,7 @@ public class TeamPenalizeTests
     [Fact]
     public void Penalize_EmptyReason_ReturnsError()
     {
-        var team = Team.Create(Guid.NewGuid(), "Epsilon");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Epsilon").Value);
         team.UpdateScore(50);
 
         var result = team.Penalize(10, "  ");
@@ -69,7 +69,7 @@ public class TeamPenalizeTests
     [Fact]
     public void Penalize_NullReason_ReturnsError()
     {
-        var team = Team.Create(Guid.NewGuid(), "Zeta");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Zeta").Value);
         team.UpdateScore(50);
 
         var result = team.Penalize(10, null!);

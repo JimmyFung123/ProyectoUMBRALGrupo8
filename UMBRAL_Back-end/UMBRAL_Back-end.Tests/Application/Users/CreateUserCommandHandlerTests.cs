@@ -4,6 +4,7 @@ using FluentAssertions;
 using Moq;
 using UserService.Application.Users;
 using UserService.Application.Users.Commands.CreateUser;
+using UserService.Domain.Common;
 using UserService.Domain.Users;
 using Xunit;
 
@@ -99,13 +100,13 @@ public class CreateUserCommandHandlerTests
     [Fact]
     public async Task Handle_WhenKeycloakRacesOnUniqueEmail_ReturnsEmailAlreadyInUse()
     {
-        // Pre-check passes but Keycloak rejects with Conflict — race condition.
+        // Pre-check passes but Keycloak returns conflict — race condition.
         _keycloak.Setup(k => k.FindByEmailAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                  .ReturnsAsync((KeycloakUser?)null);
         _keycloak.Setup(k => k.CreateUserAsync(
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
                 It.IsAny<string>(), It.IsAny<UserRole>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new KeycloakConflictException("dup"));
+            .ReturnsAsync(Result.Failure<Guid>(UserErrors.EmailAlreadyInUse));
 
         var result = await _handler.Handle(ValidCommand(), default);
 
@@ -124,7 +125,7 @@ public class CreateUserCommandHandlerTests
         _keycloak.Setup(k => k.CreateUserAsync(
                 "nuevo@umbral.local", "Nombre", "Apellido",
                 "Password123", UserRole.Operator, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(newId);
+            .ReturnsAsync(Result.Success(newId));
 
         var result = await _handler.Handle(ValidCommand(), default);
 
@@ -140,7 +141,7 @@ public class CreateUserCommandHandlerTests
         _keycloak.Setup(k => k.CreateUserAsync(
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
                 It.IsAny<string>(), It.IsAny<UserRole>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Guid.NewGuid());
+            .ReturnsAsync(Result.Success(Guid.NewGuid()));
 
         var cmd = ValidCommand() with { Email = "  USUARIO@Umbral.LOCAL  " };
         await _handler.Handle(cmd, default);

@@ -13,7 +13,7 @@ public class TeamTests
     {
         var sessionId = Guid.NewGuid();
 
-        var team = Team.Create(sessionId, "Equipo Alfa");
+        var team = Team.Create(sessionId, TeamName.Create("Equipo Alfa").Value);
 
         team.Id.Should().NotBeEmpty();
         team.SessionId.Should().Be(sessionId);
@@ -30,8 +30,8 @@ public class TeamTests
     {
         var sessionId = Guid.NewGuid();
 
-        var team1 = Team.Create(sessionId, "Equipo Alfa");
-        var team2 = Team.Create(sessionId, "Equipo Beta");
+        var team1 = Team.Create(sessionId, TeamName.Create("Equipo Alfa").Value);
+        var team2 = Team.Create(sessionId, TeamName.Create("Equipo Beta").Value);
 
         team1.Id.Should().NotBe(team2.Id);
     }
@@ -42,7 +42,7 @@ public class TeamTests
     [InlineData("  Los Invictos  ", "Los Invictos")]
     public void Create_TrimsWhitespaceFromName(string input, string expected)
     {
-        var team = Team.Create(Guid.NewGuid(), input);
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create(input).Value);
 
         team.Name.Should().Be(expected);
     }
@@ -52,7 +52,7 @@ public class TeamTests
     [Fact]
     public void SetConnected_ToTrue_MarkAsConnected()
     {
-        var team = Team.Create(Guid.NewGuid(), "Equipo Alfa");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Equipo Alfa").Value);
 
         team.SetConnected(true);
 
@@ -62,7 +62,7 @@ public class TeamTests
     [Fact]
     public void SetConnected_ToFalse_MarkAsDisconnected()
     {
-        var team = Team.Create(Guid.NewGuid(), "Equipo Alfa");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Equipo Alfa").Value);
         team.SetConnected(true);
 
         team.SetConnected(false);
@@ -73,7 +73,7 @@ public class TeamTests
     [Fact]
     public void SetConnected_CanToggleMultipleTimes()
     {
-        var team = Team.Create(Guid.NewGuid(), "Equipo Alfa");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Equipo Alfa").Value);
 
         team.SetConnected(true);
         team.IsConnected.Should().BeTrue();
@@ -90,7 +90,7 @@ public class TeamTests
     [Fact]
     public void UpdateProgress_SetsAllProgressFields()
     {
-        var team = Team.Create(Guid.NewGuid(), "Equipo Alfa");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Equipo Alfa").Value);
 
         team.UpdateProgress(stageOrder: 3, cluesCurrentStage: 2, totalClues: 5);
 
@@ -102,7 +102,7 @@ public class TeamTests
     [Fact]
     public void UpdateProgress_OverridesPreviousValues()
     {
-        var team = Team.Create(Guid.NewGuid(), "Equipo Alfa");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Equipo Alfa").Value);
         team.UpdateProgress(stageOrder: 1, cluesCurrentStage: 1, totalClues: 1);
 
         team.UpdateProgress(stageOrder: 4, cluesCurrentStage: 0, totalClues: 3);
@@ -117,7 +117,7 @@ public class TeamTests
     [Fact]
     public void UpdateScore_SetsScore()
     {
-        var team = Team.Create(Guid.NewGuid(), "Equipo Alfa");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Equipo Alfa").Value);
 
         team.UpdateScore(350);
 
@@ -127,7 +127,7 @@ public class TeamTests
     [Fact]
     public void UpdateScore_CanBeUpdatedMultipleTimes()
     {
-        var team = Team.Create(Guid.NewGuid(), "Equipo Alfa");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Equipo Alfa").Value);
 
         team.UpdateScore(100);
         team.UpdateScore(250);
@@ -139,7 +139,7 @@ public class TeamTests
     [Fact]
     public void UpdateScore_AcceptsZero()
     {
-        var team = Team.Create(Guid.NewGuid(), "Equipo Alfa");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Equipo Alfa").Value);
         team.UpdateScore(300);
 
         team.UpdateScore(0);

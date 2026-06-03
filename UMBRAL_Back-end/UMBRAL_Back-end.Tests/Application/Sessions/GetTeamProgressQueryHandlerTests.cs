@@ -39,15 +39,15 @@ public class GetTeamProgressQueryHandlerTests
     {
         var sessionId = Guid.NewGuid();
 
-        var teamA = Team.Create(sessionId, "Equipo Alfa");
+        var teamA = Team.Create(sessionId, TeamName.Create("Equipo Alfa").Value);
         teamA.UpdateScore(300);
         teamA.UpdateProgress(stageOrder: 3, cluesCurrentStage: 0, totalClues: 0);
 
-        var teamB = Team.Create(sessionId, "Equipo Beta");
+        var teamB = Team.Create(sessionId, TeamName.Create("Equipo Beta").Value);
         teamB.UpdateScore(150);
         teamB.UpdateProgress(stageOrder: 2, cluesCurrentStage: 1, totalClues: 0);
 
-        var teamC = Team.Create(sessionId, "Equipo Gamma");
+        var teamC = Team.Create(sessionId, TeamName.Create("Equipo Gamma").Value);
         teamC.UpdateScore(450);
         teamC.UpdateProgress(stageOrder: 4, cluesCurrentStage: 0, totalClues: 0);
 
@@ -68,13 +68,13 @@ public class GetTeamProgressQueryHandlerTests
     {
         var sessionId = Guid.NewGuid();
 
-        var teamA = Team.Create(sessionId, "Equipo Alfa");
+        var teamA = Team.Create(sessionId, TeamName.Create("Equipo Alfa").Value);
         teamA.UpdateScore(200);
 
-        var teamB = Team.Create(sessionId, "Equipo Beta");
+        var teamB = Team.Create(sessionId, TeamName.Create("Equipo Beta").Value);
         teamB.UpdateScore(200);
 
-        var teamC = Team.Create(sessionId, "Equipo Gamma");
+        var teamC = Team.Create(sessionId, TeamName.Create("Equipo Gamma").Value);
         teamC.UpdateScore(100);
 
         _teamRepoMock
@@ -96,7 +96,7 @@ public class GetTeamProgressQueryHandlerTests
     {
         var sessionId = Guid.NewGuid();
 
-        var team = Team.Create(sessionId, "Equipo Delta");
+        var team = Team.Create(sessionId, TeamName.Create("Equipo Delta").Value);
         team.SetConnected(true);
         team.UpdateScore(500);
         team.UpdateProgress(stageOrder: 2, cluesCurrentStage: 1, totalClues: 3);
@@ -121,7 +121,7 @@ public class GetTeamProgressQueryHandlerTests
     public async Task Handle_WhenOnlyOneTeam_ReturnsRankOne()
     {
         var sessionId = Guid.NewGuid();
-        var team = Team.Create(sessionId, "Equipo Solitario");
+        var team = Team.Create(sessionId, TeamName.Create("Equipo Solitario").Value);
         team.UpdateScore(100);
 
         _teamRepoMock
@@ -140,10 +140,10 @@ public class GetTeamProgressQueryHandlerTests
     {
         var sessionId = Guid.NewGuid();
 
-        var teamZ = Team.Create(sessionId, "Zorros");
+        var teamZ = Team.Create(sessionId, TeamName.Create("Zorros").Value);
         teamZ.UpdateScore(200);
 
-        var teamA = Team.Create(sessionId, "Águilas");
+        var teamA = Team.Create(sessionId, TeamName.Create("Águilas").Value);
         teamA.UpdateScore(200);
 
         _teamRepoMock
@@ -166,16 +166,16 @@ public class GetTeamProgressQueryHandlerTests
     {
         var sessionId = Guid.NewGuid();
 
-        var teamA = Team.Create(sessionId, "Equipo A");
+        var teamA = Team.Create(sessionId, TeamName.Create("Equipo A").Value);
         teamA.UpdateScore(300);
 
-        var teamB = Team.Create(sessionId, "Equipo B");
+        var teamB = Team.Create(sessionId, TeamName.Create("Equipo B").Value);
         teamB.UpdateScore(300);
 
-        var teamC = Team.Create(sessionId, "Equipo C");
+        var teamC = Team.Create(sessionId, TeamName.Create("Equipo C").Value);
         teamC.UpdateScore(300);
 
-        var teamD = Team.Create(sessionId, "Equipo D");
+        var teamD = Team.Create(sessionId, TeamName.Create("Equipo D").Value);
         teamD.UpdateScore(100);
 
         _teamRepoMock

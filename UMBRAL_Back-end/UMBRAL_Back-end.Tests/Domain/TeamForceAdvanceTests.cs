@@ -9,7 +9,7 @@ public class TeamForceAdvanceTests
     [Fact]
     public void ForceAdvance_ToNextStage_SetsStageOrderAndResetsClues()
     {
-        var team = Team.Create(Guid.NewGuid(), "Alpha");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Alpha").Value);
         team.UpdateProgress(1, 2, 5); // on stage 1, 2 clues received
 
         var result = team.ForceAdvance(2);
@@ -24,7 +24,7 @@ public class TeamForceAdvanceTests
     [Fact]
     public void ForceAdvance_DoesNotChangeScore()
     {
-        var team = Team.Create(Guid.NewGuid(), "Beta");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Beta").Value);
         team.UpdateScore(150);
         team.UpdateProgress(1, 0, 3);
 
@@ -36,7 +36,7 @@ public class TeamForceAdvanceTests
     [Fact]
     public void ForceAdvance_FromStageZero_ToStageOne_Succeeds()
     {
-        var team = Team.Create(Guid.NewGuid(), "Gamma");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Gamma").Value);
         // CurrentStageOrder starts at 0
 
         var result = team.ForceAdvance(1);
@@ -48,7 +48,7 @@ public class TeamForceAdvanceTests
     [Fact]
     public void ForceAdvance_SameStageOrder_ReturnsError()
     {
-        var team = Team.Create(Guid.NewGuid(), "Delta");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Delta").Value);
         team.UpdateProgress(2, 0, 3);
 
         var result = team.ForceAdvance(2); // same order
@@ -61,7 +61,7 @@ public class TeamForceAdvanceTests
     [Fact]
     public void ForceAdvance_LowerStageOrder_ReturnsError()
     {
-        var team = Team.Create(Guid.NewGuid(), "Epsilon");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Epsilon").Value);
         team.UpdateProgress(3, 0, 3);
 
         var result = team.ForceAdvance(1); // going backwards
