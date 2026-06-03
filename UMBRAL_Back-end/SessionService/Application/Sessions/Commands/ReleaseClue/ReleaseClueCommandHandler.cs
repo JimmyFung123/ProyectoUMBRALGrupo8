@@ -1,28 +1,27 @@
 namespace SessionService.Application.Sessions.Commands.ReleaseClue;
 
 using MediatR;
-using Microsoft.AspNetCore.SignalR;
+using SessionService.Application.Sessions;
 using SessionService.Domain.Common;
 using SessionService.Domain.Sessions;
-using SessionService.Infrastructure.Hubs;
 
 public class ReleaseClueCommandHandler : IRequestHandler<ReleaseClueCommand, Result<bool>>
 {
     private readonly ISessionRepository _sessionRepository;
     private readonly ITeamServiceClient _teamServiceClient;
     private readonly ISessionEventRepository _eventRepository;
-    private readonly IHubContext<SessionHub> _hub;
+    private readonly ISessionNotifier _notifier;
 
     public ReleaseClueCommandHandler(
         ISessionRepository sessionRepository,
         ITeamServiceClient teamServiceClient,
         ISessionEventRepository eventRepository,
-        IHubContext<SessionHub> hub)
+        ISessionNotifier notifier)
     {
         _sessionRepository = sessionRepository;
         _teamServiceClient = teamServiceClient;
         _eventRepository = eventRepository;
-        _hub = hub;
+        _notifier = notifier;
     }
 
     public async Task<Result<bool>> Handle(ReleaseClueCommand request, CancellationToken cancellationToken)
@@ -60,22 +59,11 @@ public class ReleaseClueCommandHandler : IRequestHandler<ReleaseClueCommand, Res
         await _eventRepository.AddAsync(auditEvent, cancellationToken);
         await _eventRepository.SaveChangesAsync(cancellationToken);
 
-        // Notify all connected participants in the session group
-        await _hub.Clients
-            .Group(request.SessionId.ToString())
-            .SendAsync("ClueReleased",
-                new
-                {
-                    SessionId      = request.SessionId,
-                    TeamId         = request.TeamId,
-                    ClueContent    = request.ClueContent,
-                    ClueLatitude   = request.ClueLatitude,
-                    ClueLongitude  = request.ClueLongitude,
-                    ClueRadiusMeters = request.ClueRadiusMeters,
-                    ClueNumber     = cluesReceived,
-                    IsAutomatic    = false,
-                },
-                cancellationToken);
+        await _notifier.NotifyClueReleasedAsync(
+            request.SessionId, request.TeamId,
+            request.ClueContent, request.ClueLatitude, request.ClueLongitude, request.ClueRadiusMeters,
+            cluesReceived, isAutomatic: false,
+            cancellationToken);
 
         return Result.Success(true);
     }

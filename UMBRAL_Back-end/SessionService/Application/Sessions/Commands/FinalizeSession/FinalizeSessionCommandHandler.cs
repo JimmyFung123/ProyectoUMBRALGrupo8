@@ -1,29 +1,28 @@
 namespace SessionService.Application.Sessions.Commands.FinalizeSession;
 
 using MediatR;
-using Microsoft.AspNetCore.SignalR;
+using SessionService.Application.Sessions;
 using SessionService.Domain.Common;
 using SessionService.Domain.Sessions;
 using SessionService.Domain.Statistics;
-using SessionService.Infrastructure.Hubs;
 
 public class FinalizeSessionCommandHandler : IRequestHandler<FinalizeSessionCommand, Result<bool>>
 {
     private readonly ISessionRepository _sessionRepository;
     private readonly ISessionEventRepository _eventRepository;
     private readonly IStageCompletionRecordRepository _statsRepository;
-    private readonly IHubContext<SessionHub> _hub;
+    private readonly ISessionNotifier _notifier;
 
     public FinalizeSessionCommandHandler(
         ISessionRepository sessionRepository,
         ISessionEventRepository eventRepository,
         IStageCompletionRecordRepository statsRepository,
-        IHubContext<SessionHub> hub)
+        ISessionNotifier notifier)
     {
         _sessionRepository = sessionRepository;
         _eventRepository = eventRepository;
         _statsRepository = statsRepository;
-        _hub = hub;
+        _notifier = notifier;
     }
 
     public async Task<Result<bool>> Handle(FinalizeSessionCommand request, CancellationToken cancellationToken)
@@ -53,11 +52,7 @@ public class FinalizeSessionCommandHandler : IRequestHandler<FinalizeSessionComm
         await _eventRepository.AddAsync(auditEvent, cancellationToken);
         await _eventRepository.SaveChangesAsync(cancellationToken);
 
-        await _hub.Clients
-            .Group(request.SessionId.ToString())
-            .SendAsync("SessionStateChanged",
-                new { SessionId = session.Id, NewStatus = session.Status.ToString() },
-                cancellationToken);
+        await _notifier.NotifyStateChangedAsync(session.Id, session.Status.ToString(), cancellationToken);
 
         return Result.Success(true);
     }

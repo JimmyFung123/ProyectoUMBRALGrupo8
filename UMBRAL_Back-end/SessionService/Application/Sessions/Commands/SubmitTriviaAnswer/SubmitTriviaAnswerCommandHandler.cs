@@ -1,6 +1,5 @@
 namespace SessionService.Application.Sessions.Commands.SubmitTriviaAnswer;
 
-using Microsoft.AspNetCore.SignalR;
 using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Commands.Evidence;
 using SessionService.Application.Sessions.Scoring;
@@ -8,7 +7,6 @@ using SessionService.Domain.Common;
 using SessionService.Domain.MissionLookup;
 using SessionService.Domain.Sessions;
 using SessionService.Domain.Statistics;
-using SessionService.Infrastructure.Hubs;
 
 /// <summary>
 /// Concrete Template Method for trivia-answer evidence (HU-18).
@@ -27,9 +25,9 @@ public class SubmitTriviaAnswerCommandHandler
         IStageServiceClient stageClient,
         IStageCompletionRecordRepository statsRepository,
         ISessionEventRepository eventRepository,
-        IHubContext<SessionHub> hub,
+        ISessionNotifier notifier,
         IMissionLookupRepository missionLookupRepository)
-        : base(sessionRepository, teamClient, stageClient, statsRepository, eventRepository, hub)
+        : base(sessionRepository, teamClient, stageClient, statsRepository, eventRepository, notifier)
     {
         _missionLookupRepository = missionLookupRepository;
     }

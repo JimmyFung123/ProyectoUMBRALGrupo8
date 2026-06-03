@@ -1,29 +1,27 @@
 namespace SessionService.Application.Sessions.Commands.PenalizeTeam;
 
 using MediatR;
-using Microsoft.AspNetCore.SignalR;
 using SessionService.Application.Sessions;
 using SessionService.Domain.Common;
 using SessionService.Domain.Sessions;
-using SessionService.Infrastructure.Hubs;
 
 public class PenalizeTeamCommandHandler : IRequestHandler<PenalizeTeamCommand, Result<int>>
 {
     private readonly ISessionRepository _sessionRepository;
     private readonly ITeamServiceClient _teamClient;
     private readonly ISessionEventRepository _eventRepository;
-    private readonly IHubContext<SessionHub> _hub;
+    private readonly ISessionNotifier _notifier;
 
     public PenalizeTeamCommandHandler(
         ISessionRepository sessionRepository,
         ITeamServiceClient teamClient,
         ISessionEventRepository eventRepository,
-        IHubContext<SessionHub> hub)
+        ISessionNotifier notifier)
     {
         _sessionRepository = sessionRepository;
         _teamClient = teamClient;
         _eventRepository = eventRepository;
-        _hub = hub;
+        _notifier = notifier;
     }
 
     public async Task<Result<int>> Handle(PenalizeTeamCommand request, CancellationToken cancellationToken)
@@ -56,31 +54,14 @@ public class PenalizeTeamCommandHandler : IRequestHandler<PenalizeTeamCommand, R
         await _eventRepository.AddAsync(auditEvent, cancellationToken);
         await _eventRepository.SaveChangesAsync(cancellationToken);
 
-        // Operator dashboard refresh (audit timeline, ranking, etc.)
-        await _hub.Clients
-            .Group(request.SessionId.ToString())
-            .SendAsync("SessionStateChanged", cancellationToken);
+        var actorName = string.IsNullOrWhiteSpace(request.OperatorName)
+            ? SessionEvent.SystemActor
+            : request.OperatorName!.Trim();
 
-        // HU-28: themed notification for the penalized team. Broadcast to the
-        // whole session group; the front filters by TeamId so only the
-        // affected participants alza the toast + vibration.
-        await _hub.Clients
-            .Group(request.SessionId.ToString())
-            .SendAsync(
-                "TeamPenalized",
-                new
-                {
-                    SessionId  = request.SessionId,
-                    TeamId     = request.TeamId,
-                    TeamName   = teamName,
-                    Points     = request.Points,
-                    Reason     = request.Reason,
-                    NewScore   = newScore,
-                    ActorName  = string.IsNullOrWhiteSpace(request.OperatorName)
-                        ? SessionEvent.SystemActor
-                        : request.OperatorName!.Trim(),
-                },
-                cancellationToken);
+        await _notifier.NotifyTeamPenalizedAsync(
+            request.SessionId, request.TeamId, teamName,
+            request.Points, request.Reason, newScore, actorName,
+            cancellationToken);
 
         return Result.Success(newScore);
     }

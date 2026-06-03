@@ -1,6 +1,6 @@
 namespace ClueService.Application.Clues.Commands.RemoveClue;
-using MassTransit;
 using MediatR;
+using ClueService.Application;
 using ClueService.Domain.Clues;
 using ClueService.Domain.Common;
 using UMBRAL.Contracts.Events;
@@ -8,9 +8,9 @@ using UMBRAL.Contracts.Events;
 public class RemoveClueCommandHandler : IRequestHandler<RemoveClueCommand, Result<bool>>
 {
     private readonly IClueRepository _clueRepository;
-    private readonly IPublishEndpoint _bus;
+    private readonly IIntegrationEventBus _bus;
 
-    public RemoveClueCommandHandler(IClueRepository clueRepository, IPublishEndpoint bus)
+    public RemoveClueCommandHandler(IClueRepository clueRepository, IIntegrationEventBus bus)
     {
         _clueRepository = clueRepository;
         _bus = bus;
@@ -24,7 +24,7 @@ public class RemoveClueCommandHandler : IRequestHandler<RemoveClueCommand, Resul
         await _clueRepository.DeleteAsync(clue, cancellationToken);
         await _clueRepository.SaveChangesAsync(cancellationToken);
 
-        await _bus.Publish(
+        await _bus.PublishAsync(
             new ClueRemovedIntegrationEvent(clue.Id, clue.StageId, clue.MissionId, DateTime.UtcNow),
             cancellationToken);
 
