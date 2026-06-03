@@ -1,12 +1,10 @@
 namespace UMBRAL_Back_end.Tests.Application.Sessions;
 
 using FluentAssertions;
-using Microsoft.AspNetCore.SignalR;
 using Moq;
 using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Commands.ReleaseClue;
 using SessionService.Domain.Sessions;
-using SessionService.Infrastructure.Hubs;
 using Xunit;
 
 public class ReleaseClueCommandHandlerTests
@@ -14,21 +12,16 @@ public class ReleaseClueCommandHandlerTests
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
     private readonly Mock<ITeamServiceClient> _teamClientMock = new();
     private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
-    private readonly Mock<IHubContext<SessionHub>> _hubMock = new();
+    private readonly Mock<ISessionNotifier> _notifierMock = new();
     private readonly ReleaseClueCommandHandler _handler;
 
     public ReleaseClueCommandHandlerTests()
     {
-        var clientsMock = new Mock<IHubClients>();
-        var proxyMock = new Mock<IClientProxy>();
-        clientsMock.Setup(c => c.Group(It.IsAny<string>())).Returns(proxyMock.Object);
-        _hubMock.Setup(h => h.Clients).Returns(clientsMock.Object);
-
         _handler = new ReleaseClueCommandHandler(
             _sessionRepoMock.Object,
             _teamClientMock.Object,
             _eventRepoMock.Object,
-            _hubMock.Object);
+            _notifierMock.Object);
     }
 
     private static ReleaseClueCommand MakeCommand(Guid sessionId, Guid teamId)
@@ -101,7 +94,10 @@ public class ReleaseClueCommandHandlerTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be(SessionErrors.AllCluesAlreadyReleased);
-        _hubMock.Verify(h => h.Clients, Times.Never);
+        _notifierMock.Verify(n => n.NotifyClueReleasedAsync(
+            It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string?>(),
+            It.IsAny<double?>(), It.IsAny<double?>(), It.IsAny<int?>(),
+            It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     // ── Happy path ────────────────────────────────────────────────────────────
@@ -123,7 +119,10 @@ public class ReleaseClueCommandHandlerTests
         var result = await _handler.Handle(cmd, default);
 
         result.IsSuccess.Should().BeTrue();
-        _hubMock.Verify(h => h.Clients.Group(cmd.SessionId.ToString()), Times.Once);
+        _notifierMock.Verify(n => n.NotifyClueReleasedAsync(
+            cmd.SessionId, cmd.TeamId, It.IsAny<string?>(),
+            It.IsAny<double?>(), It.IsAny<double?>(), It.IsAny<int?>(),
+            1, It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     // ── Validation order: NotFound before TeamService call ────────────────────

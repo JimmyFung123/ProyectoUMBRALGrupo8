@@ -1,8 +1,8 @@
 namespace UMBRAL_Back_end.Tests.Application.Stages;
 
 using FluentAssertions;
-using MassTransit;
 using Moq;
+using StageService.Application;
 using StageService.Application.Stages.Commands.AddStage;
 using StageService.Domain.MissionLookup;
 using StageService.Domain.Stages;
@@ -13,7 +13,7 @@ public class AddStageCommandHandlerTests
 {
     private readonly Mock<IStageRepository> _stageRepoMock = new();
     private readonly Mock<IMissionLookupRepository> _missionLookupMock = new();
-    private readonly Mock<IPublishEndpoint> _busMock = new();
+    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly AddStageCommandHandler _handler;
 
     public AddStageCommandHandlerTests()
@@ -79,7 +79,7 @@ public class AddStageCommandHandlerTests
 
         result.IsSuccess.Should().BeTrue();
         _busMock.Verify(
-            b => b.Publish(It.IsAny<StageAddedIntegrationEvent>(), It.IsAny<CancellationToken>()),
+            b => b.PublishAsync(It.IsAny<StageAddedIntegrationEvent>(), It.IsAny<CancellationToken>()),
             Times.Once);
     }
 

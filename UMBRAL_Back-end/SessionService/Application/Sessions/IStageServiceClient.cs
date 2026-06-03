@@ -11,7 +11,7 @@ public interface IStageServiceClient
     Task<StageWithOptionsInfo?> GetStageWithOptionsAsync(Guid stageId, CancellationToken ct);
 }
 
-public record StageInfo(Guid Id, int Order, string Type = "Trivia");
+public record StageInfo(Guid Id, int Order, string Type = "Trivia", int? AutoReleaseTimeMinutes = null);
 
 public record StageWithOptionsInfo(
     Guid Id,

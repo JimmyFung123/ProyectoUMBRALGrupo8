@@ -36,7 +36,7 @@ public class ReleaseClueToTeamCommandHandlerTests
     public async Task Handle_WhenAllCluesReleased_ReturnsExhaustedError()
     {
         var teamId = Guid.NewGuid();
-        var team = Team.Create(Guid.NewGuid(), "Equipo Alfa");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Equipo Alfa").Value);
 
         // Simulate team already having received all 2 clues
         team.ReceiveClue(2); // cluesReceived = 1
@@ -58,7 +58,7 @@ public class ReleaseClueToTeamCommandHandlerTests
     public async Task Handle_WhenCluesAvailable_IncrementsAndSaves()
     {
         var teamId = Guid.NewGuid();
-        var team = Team.Create(Guid.NewGuid(), "Equipo Beta");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Equipo Beta").Value);
 
         _repoMock.Setup(r => r.GetByIdAsync(teamId, It.IsAny<CancellationToken>()))
                  .ReturnsAsync(team);
@@ -77,7 +77,7 @@ public class ReleaseClueToTeamCommandHandlerTests
     public async Task Handle_MultipleReleases_IncrementsSequentially()
     {
         var teamId = Guid.NewGuid();
-        var team = Team.Create(Guid.NewGuid(), "Equipo Gamma");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Equipo Gamma").Value);
 
         _repoMock.Setup(r => r.GetByIdAsync(teamId, It.IsAny<CancellationToken>()))
                  .ReturnsAsync(team);
@@ -101,7 +101,7 @@ public class ReleaseClueToTeamCommandHandlerTests
     public async Task Handle_WhenOneClueRemaining_ReleasesLastOne()
     {
         var teamId = Guid.NewGuid();
-        var team = Team.Create(Guid.NewGuid(), "Equipo Delta");
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Equipo Delta").Value);
         team.ReceiveClue(2); // already has 1 of 2
 
         _repoMock.Setup(r => r.GetByIdAsync(teamId, It.IsAny<CancellationToken>()))

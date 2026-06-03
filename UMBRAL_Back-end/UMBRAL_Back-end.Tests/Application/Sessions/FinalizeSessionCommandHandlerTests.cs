@@ -1,12 +1,11 @@
 namespace UMBRAL_Back_end.Tests.Application.Sessions;
 
 using FluentAssertions;
-using Microsoft.AspNetCore.SignalR;
 using Moq;
+using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Commands.FinalizeSession;
 using SessionService.Domain.Sessions;
 using SessionService.Domain.Statistics;
-using SessionService.Infrastructure.Hubs;
 using Xunit;
 
 public class FinalizeSessionCommandHandlerTests
@@ -14,21 +13,16 @@ public class FinalizeSessionCommandHandlerTests
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
     private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
     private readonly Mock<IStageCompletionRecordRepository> _statsRepoMock = new();
-    private readonly Mock<IHubContext<SessionHub>> _hubMock = new();
+    private readonly Mock<ISessionNotifier> _notifierMock = new();
     private readonly FinalizeSessionCommandHandler _handler;
 
     public FinalizeSessionCommandHandlerTests()
     {
-        var clientsMock = new Mock<IHubClients>();
-        var proxyMock = new Mock<IClientProxy>();
-        clientsMock.Setup(c => c.Group(It.IsAny<string>())).Returns(proxyMock.Object);
-        _hubMock.Setup(h => h.Clients).Returns(clientsMock.Object);
-
         _handler = new FinalizeSessionCommandHandler(
             _sessionRepoMock.Object,
             _eventRepoMock.Object,
             _statsRepoMock.Object,
-            _hubMock.Object);
+            _notifierMock.Object);
     }
 
     // ── Session not found ─────────────────────────────────────────────────────
@@ -80,8 +74,8 @@ public class FinalizeSessionCommandHandlerTests
     [Fact]
     public async Task Handle_WhenSessionIsInProgress_FinalizesAndBroadcasts()
     {
-        var sessionId = Guid.NewGuid();
         var session = CreateSessionWithStatus(SessionStatus.InProgress);
+        var sessionId = session.Id;
 
         _sessionRepoMock
             .Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
@@ -92,7 +86,7 @@ public class FinalizeSessionCommandHandlerTests
         result.IsSuccess.Should().BeTrue();
         session.Status.Should().Be(SessionStatus.Completed);
         _sessionRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _hubMock.Verify(h => h.Clients.Group(sessionId.ToString()), Times.Once);
+        _notifierMock.Verify(n => n.NotifyStateChangedAsync(sessionId, It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
 
         // HU-25: every record of this session must be promoted to dashboard visibility.
         _statsRepoMock.Verify(
@@ -105,8 +99,8 @@ public class FinalizeSessionCommandHandlerTests
     [Fact]
     public async Task Handle_WhenSessionIsPaused_FinalizesAndBroadcasts()
     {
-        var sessionId = Guid.NewGuid();
         var session = CreateSessionWithStatus(SessionStatus.Paused);
+        var sessionId = session.Id;
 
         _sessionRepoMock
             .Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
@@ -117,7 +111,7 @@ public class FinalizeSessionCommandHandlerTests
         result.IsSuccess.Should().BeTrue();
         session.Status.Should().Be(SessionStatus.Completed);
         _sessionRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _hubMock.Verify(h => h.Clients.Group(sessionId.ToString()), Times.Once);
+        _notifierMock.Verify(n => n.NotifyStateChangedAsync(sessionId, It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     // ── Helper ────────────────────────────────────────────────────────────────

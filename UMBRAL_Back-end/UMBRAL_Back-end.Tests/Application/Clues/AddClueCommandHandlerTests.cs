@@ -1,8 +1,8 @@
 namespace UMBRAL_Back_end.Tests.Application.Clues;
 
 using FluentAssertions;
-using MassTransit;
 using Moq;
+using ClueService.Application;
 using ClueService.Application.Clues.Commands.AddClue;
 using ClueService.Domain.Clues;
 using ClueService.Domain.StageLookup;
@@ -13,7 +13,7 @@ public class AddClueCommandHandlerTests
 {
     private readonly Mock<IClueRepository> _clueRepoMock = new();
     private readonly Mock<IStageLookupRepository> _stageLookupMock = new();
-    private readonly Mock<IPublishEndpoint> _busMock = new();
+    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly AddClueCommandHandler _handler;
 
     public AddClueCommandHandlerTests()
@@ -90,7 +90,7 @@ public class AddClueCommandHandlerTests
             It.Is<Clue>(c => c.Order == 3 && c.Content == "Busca debajo del árbol" && c.StageType == "Trivia"),
             It.IsAny<CancellationToken>()), Times.Once);
         _busMock.Verify(
-            b => b.Publish(It.IsAny<ClueAddedIntegrationEvent>(), It.IsAny<CancellationToken>()),
+            b => b.PublishAsync(It.IsAny<ClueAddedIntegrationEvent>(), It.IsAny<CancellationToken>()),
             Times.Once);
     }
 

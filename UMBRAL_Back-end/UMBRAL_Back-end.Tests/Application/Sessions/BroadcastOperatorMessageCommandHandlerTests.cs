@@ -1,11 +1,10 @@
 namespace UMBRAL_Back_end.Tests.Application.Sessions;
 
 using FluentAssertions;
-using Microsoft.AspNetCore.SignalR;
 using Moq;
+using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Commands.BroadcastOperatorMessage;
 using SessionService.Domain.Sessions;
-using SessionService.Infrastructure.Hubs;
 using Xunit;
 
 /// <summary>
@@ -15,17 +14,13 @@ public class BroadcastOperatorMessageCommandHandlerTests
 {
     private readonly Mock<ISessionRepository> _sessionRepo = new();
     private readonly Mock<ISessionEventRepository> _eventRepo = new();
-    private readonly Mock<IHubContext<SessionHub>> _hub = new();
-    private readonly Mock<IClientProxy> _clientProxy = new();
-    private readonly Mock<IHubClients> _hubClients = new();
+    private readonly Mock<ISessionNotifier> _notifierMock = new();
     private readonly BroadcastOperatorMessageCommandHandler _handler;
 
     public BroadcastOperatorMessageCommandHandlerTests()
     {
-        _hubClients.Setup(c => c.Group(It.IsAny<string>())).Returns(_clientProxy.Object);
-        _hub.Setup(h => h.Clients).Returns(_hubClients.Object);
         _handler = new BroadcastOperatorMessageCommandHandler(
-            _sessionRepo.Object, _eventRepo.Object, _hub.Object);
+            _sessionRepo.Object, _eventRepo.Object, _notifierMock.Object);
     }
 
     private Session BuildSession(SessionStatus status)
@@ -132,14 +127,9 @@ public class BroadcastOperatorMessageCommandHandlerTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Message.Should().Be("¡Vamos equipos!"); // trimmed
 
-        // OperatorMessage and SessionStateChanged both went to the session group.
-        _hubClients.Verify(c => c.Group(session.Id.ToString()), Times.AtLeast(2));
-        _clientProxy.Verify(
-            p => p.SendCoreAsync("OperatorMessage", It.IsAny<object?[]>(), It.IsAny<CancellationToken>()),
-            Times.Once);
-        _clientProxy.Verify(
-            p => p.SendCoreAsync("SessionStateChanged", It.IsAny<object?[]>(), It.IsAny<CancellationToken>()),
-            Times.Once);
+        _notifierMock.Verify(n => n.NotifyOperatorMessageAsync(
+            session.Id, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTime>(),
+            It.IsAny<CancellationToken>()), Times.Once);
 
         // Audit row was persisted with the operator's name.
         _eventRepo.Verify(
@@ -166,9 +156,9 @@ public class BroadcastOperatorMessageCommandHandlerTests
             default);
 
         result.IsSuccess.Should().BeTrue();
-        _clientProxy.Verify(
-            p => p.SendCoreAsync("OperatorMessage", It.IsAny<object?[]>(), It.IsAny<CancellationToken>()),
-            Times.Once);
+        _notifierMock.Verify(n => n.NotifyOperatorMessageAsync(
+            session.Id, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTime>(),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
