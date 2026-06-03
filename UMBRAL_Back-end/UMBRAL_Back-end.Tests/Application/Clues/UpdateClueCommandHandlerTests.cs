@@ -24,7 +24,7 @@ public class UpdateClueCommandHandlerTests
             .ReturnsAsync((Clue?)null);
 
         var result = await _handler.Handle(
-            new UpdateClueCommand(clueId, 1, "x", null, null, null), default);
+            new UpdateClueCommand(clueId, 1, "x", null, null, null, null), default);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be(ClueErrors.NotFound);
@@ -41,7 +41,7 @@ public class UpdateClueCommandHandlerTests
             .ReturnsAsync(clue);
 
         var result = await _handler.Handle(
-            new UpdateClueCommand(clue.Id, 2, "Nueva", null, null, null), default);
+            new UpdateClueCommand(clue.Id, 2, "Nueva", null, null, null, null), default);
 
         result.IsSuccess.Should().BeTrue();
         clue.Content.Should().Be("Nueva");
@@ -60,7 +60,7 @@ public class UpdateClueCommandHandlerTests
             .ReturnsAsync(clue);
 
         var result = await _handler.Handle(
-            new UpdateClueCommand(clue.Id, 1, null, 10.5, -66.5, 30), default);
+            new UpdateClueCommand(clue.Id, 1, null, 10.5, -66.5, 30, null), default);
 
         result.IsSuccess.Should().BeTrue();
         clue.Latitude.Should().Be(10.5);
@@ -79,7 +79,7 @@ public class UpdateClueCommandHandlerTests
             .ReturnsAsync(clue);
 
         var result = await _handler.Handle(
-            new UpdateClueCommand(clue.Id, 1, null, null, null, null), default);
+            new UpdateClueCommand(clue.Id, 1, null, null, null, null, null), default);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be(ClueErrors.InvalidGeoData);
