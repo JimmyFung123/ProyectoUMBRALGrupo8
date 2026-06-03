@@ -1,10 +1,9 @@
 namespace SessionService.Application.Sessions.Commands.BroadcastOperatorMessage;
 
 using MediatR;
-using Microsoft.AspNetCore.SignalR;
+using SessionService.Application.Sessions;
 using SessionService.Domain.Common;
 using SessionService.Domain.Sessions;
-using SessionService.Infrastructure.Hubs;
 
 /// <summary>
 /// HU-28 — pushes an operator-authored message to every participant connected
@@ -21,16 +20,16 @@ public class BroadcastOperatorMessageCommandHandler
 
     private readonly ISessionRepository _sessionRepository;
     private readonly ISessionEventRepository _eventRepository;
-    private readonly IHubContext<SessionHub> _hub;
+    private readonly ISessionNotifier _notifier;
 
     public BroadcastOperatorMessageCommandHandler(
         ISessionRepository sessionRepository,
         ISessionEventRepository eventRepository,
-        IHubContext<SessionHub> hub)
+        ISessionNotifier notifier)
     {
         _sessionRepository = sessionRepository;
         _eventRepository = eventRepository;
-        _hub = hub;
+        _notifier = notifier;
     }
 
     public async Task<Result<BroadcastOperatorMessageResultDto>> Handle(
@@ -65,25 +64,8 @@ public class BroadcastOperatorMessageCommandHandler
         await _eventRepository.AddAsync(audit, cancellationToken);
         await _eventRepository.SaveChangesAsync(cancellationToken);
 
-        // Push to participants. Payload carries the actor so the toast can
-        // show "Prof. Ortega says: …" in real time.
-        await _hub.Clients
-            .Group(request.SessionId.ToString())
-            .SendAsync(
-                "OperatorMessage",
-                new
-                {
-                    SessionId  = request.SessionId,
-                    Message    = trimmed,
-                    ActorName  = actor,
-                    DeliveredAt = deliveredAt,
-                },
-                cancellationToken);
-
-        // Trigger dashboard refresh so the operator's audit timeline updates too.
-        await _hub.Clients
-            .Group(request.SessionId.ToString())
-            .SendAsync("SessionStateChanged", cancellationToken);
+        await _notifier.NotifyOperatorMessageAsync(
+            request.SessionId, trimmed, actor, deliveredAt, cancellationToken);
 
         return Result.Success(new BroadcastOperatorMessageResultDto(
             SessionId: request.SessionId,

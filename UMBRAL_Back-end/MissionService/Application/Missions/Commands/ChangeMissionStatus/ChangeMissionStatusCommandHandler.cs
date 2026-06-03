@@ -1,30 +1,26 @@
 namespace UMBRAL_Back_end.Application.Missions.Commands.ChangeMissionStatus;
 
-using MassTransit;
 using MediatR;
 using UMBRAL.Contracts.Events;
+using UMBRAL_Back_end.Application;
 using UMBRAL_Back_end.Application.Missions;
 using UMBRAL_Back_end.Domain.Common;
 using UMBRAL_Back_end.Domain.Missions;
-using UMBRAL_Back_end.Domain.Missions.Events;
 
 public class ChangeMissionStatusCommandHandler : IRequestHandler<ChangeMissionStatusCommand, Result>
 {
     private readonly IMissionRepository _repository;
-    private readonly IPublisher _publisher;
-    private readonly IPublishEndpoint _bus;
+    private readonly IIntegrationEventBus _bus;
     private readonly IStageCountLookupRepository _stageCountLookupRepository;
     private readonly ISessionServiceClient _sessionServiceClient;
 
     public ChangeMissionStatusCommandHandler(
         IMissionRepository repository,
-        IPublisher publisher,
-        IPublishEndpoint bus,
+        IIntegrationEventBus bus,
         IStageCountLookupRepository stageCountLookupRepository,
         ISessionServiceClient sessionServiceClient)
     {
         _repository = repository;
-        _publisher = publisher;
         _bus = bus;
         _stageCountLookupRepository = stageCountLookupRepository;
         _sessionServiceClient = sessionServiceClient;
@@ -58,24 +54,14 @@ public class ChangeMissionStatusCommandHandler : IRequestHandler<ChangeMissionSt
 
         if (request.Activate)
         {
-            // In-process domain event
-            // Stage count is owned by StageService — MissionService no longer tracks stages.
-            await _publisher.Publish(
-                new MissionActivatedEvent(mission.Id, mission.Name, 0, DateTime.UtcNow),
-                cancellationToken);
-
             // Integration event → RabbitMQ — SessionService updates its MissionLookup
-            await _bus.Publish(
+            await _bus.PublishAsync(
                 new MissionActivatedIntegrationEvent(mission.Id, mission.Name, DateTime.UtcNow, mission.Difficulty.ToString()),
                 cancellationToken);
         }
         else
         {
-            await _publisher.Publish(
-                new MissionDeactivatedEvent(mission.Id, mission.Name, DateTime.UtcNow),
-                cancellationToken);
-
-            await _bus.Publish(
+            await _bus.PublishAsync(
                 new MissionDeactivatedIntegrationEvent(mission.Id, mission.Name, DateTime.UtcNow),
                 cancellationToken);
         }

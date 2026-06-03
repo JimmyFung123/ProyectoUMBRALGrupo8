@@ -23,8 +23,10 @@ public class CreateUserCommandHandler : IRequestHandler<CreateUserCommand, Resul
             return Result.Failure<Guid>(nameResult.Error);
         var name = nameResult.Value;
 
-        if (string.IsNullOrWhiteSpace(request.TemporaryPassword) || request.TemporaryPassword.Length < 8)
-            return Result.Failure<Guid>(UserErrors.InvalidPassword);
+        var passwordResult = Password.Create(request.TemporaryPassword);
+        if (passwordResult.IsFailure)
+            return Result.Failure<Guid>(passwordResult.Error);
+        var password = passwordResult.Value;
 
         // ── HU-23 Criterio 1 / Flujo alterno: email único ────────────────────
         var existing = await _keycloak.FindByEmailAsync(email.Value, cancellationToken);
@@ -33,21 +35,15 @@ public class CreateUserCommandHandler : IRequestHandler<CreateUserCommand, Resul
 
         try
         {
-            var id = await _keycloak.CreateUserAsync(
+            // Race condition: Keycloak returns 409 if another admin created the same
+            // email between our pre-check and the POST. The Result handles it gracefully.
+            return await _keycloak.CreateUserAsync(
                 email.Value,
                 name.FirstName,
                 name.LastName,
-                request.TemporaryPassword,
+                password.Value,
                 request.Role,
                 cancellationToken);
-
-            return Result.Success(id);
-        }
-        catch (KeycloakConflictException)
-        {
-            // Race condition: another admin created the same email between
-            // our pre-check and the POST. Keycloak's 409 wins.
-            return Result.Failure<Guid>(UserErrors.EmailAlreadyInUse);
         }
         catch
         {

@@ -1,13 +1,11 @@
 namespace SessionService.Application.Sessions.Commands.Evidence;
 
 using MediatR;
-using Microsoft.AspNetCore.SignalR;
 using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Validation;
 using SessionService.Domain.Common;
 using SessionService.Domain.Sessions;
 using SessionService.Domain.Statistics;
-using SessionService.Infrastructure.Hubs;
 
 /// <summary>
 /// Template Method pattern — defines the invariant algorithm for processing
@@ -34,7 +32,7 @@ public abstract class EvidenceHandlerBase<TCommand, TResultDto>
     protected readonly IStageServiceClient StageClient;
     protected readonly IStageCompletionRecordRepository StatsRepository;
     protected readonly ISessionEventRepository EventRepository;
-    protected readonly IHubContext<SessionHub> Hub;
+    protected readonly ISessionNotifier Notifier;
 
     protected EvidenceHandlerBase(
         ISessionRepository sessionRepository,
@@ -42,14 +40,14 @@ public abstract class EvidenceHandlerBase<TCommand, TResultDto>
         IStageServiceClient stageClient,
         IStageCompletionRecordRepository statsRepository,
         ISessionEventRepository eventRepository,
-        IHubContext<SessionHub> hub)
+        ISessionNotifier notifier)
     {
         SessionRepository = sessionRepository;
         TeamClient        = teamClient;
         StageClient       = stageClient;
         StatsRepository   = statsRepository;
         EventRepository   = eventRepository;
-        Hub               = hub;
+        Notifier          = notifier;
     }
 
     // ── Validation chain (Chain of Responsibility) ────────────────────────────
@@ -173,31 +171,19 @@ public abstract class EvidenceHandlerBase<TCommand, TResultDto>
         return new StageNavigation(next, isLast);
     }
 
-    private async Task BroadcastAsync(
+    private Task BroadcastAsync(
         TCommand command, Session session, StageWithOptionsInfo stage,
         EvidenceOutcome evidence, StageTransitionResult transition,
         StageNavigation nav, CancellationToken ct)
-    {
-        var sessionId = GetSessionId(command);
-
-        await Hub.Clients
-            .Group(sessionId.ToString())
-            .SendAsync("SessionStateChanged", ct);
-
-        await Hub.Clients
-            .Group(sessionId.ToString())
-            .SendAsync("StageCompleted",
-                new
-                {
-                    SessionId      = sessionId,
-                    TeamId         = GetTeamId(command),
-                    StageOrder     = stage.Order,
-                    StageType      = GetStageType(),
-                    WasCorrect     = evidence.IsCorrect,
-                    PointsEarned   = evidence.ScoreChange,
-                    NewScore       = transition.NewScore,
-                    NextStageOrder = nav.NextStageOrder,
-                    IsLastStage    = nav.IsLastStage,
-                }, ct);
-    }
+        => Notifier.NotifyStageCompletedAsync(
+            sessionId:      GetSessionId(command),
+            teamId:         GetTeamId(command),
+            stageOrder:     stage.Order,
+            stageType:      GetStageType(),
+            wasCorrect:     evidence.IsCorrect,
+            pointsEarned:   evidence.ScoreChange,
+            newScore:       transition.NewScore,
+            nextStageOrder: nav.NextStageOrder,
+            isLastStage:    nav.IsLastStage,
+            ct:             ct);
 }

@@ -1,12 +1,10 @@
 namespace SessionService.Application.Sessions.Commands.ForceAdvanceTeam;
 
 using MediatR;
-using Microsoft.AspNetCore.SignalR;
 using SessionService.Application.Sessions;
 using SessionService.Domain.Common;
 using SessionService.Domain.Sessions;
 using SessionService.Domain.Statistics;
-using SessionService.Infrastructure.Hubs;
 
 public class ForceAdvanceTeamCommandHandler : IRequestHandler<ForceAdvanceTeamCommand, Result<bool>>
 {
@@ -15,7 +13,7 @@ public class ForceAdvanceTeamCommandHandler : IRequestHandler<ForceAdvanceTeamCo
     private readonly IStageServiceClient _stageClient;
     private readonly ISessionEventRepository _eventRepository;
     private readonly IStageCompletionRecordRepository _statsRepository;
-    private readonly IHubContext<SessionHub> _hub;
+    private readonly ISessionNotifier _notifier;
 
     public ForceAdvanceTeamCommandHandler(
         ISessionRepository sessionRepository,
@@ -23,14 +21,14 @@ public class ForceAdvanceTeamCommandHandler : IRequestHandler<ForceAdvanceTeamCo
         IStageServiceClient stageClient,
         ISessionEventRepository eventRepository,
         IStageCompletionRecordRepository statsRepository,
-        IHubContext<SessionHub> hub)
+        ISessionNotifier notifier)
     {
         _sessionRepository = sessionRepository;
         _teamClient = teamClient;
         _stageClient = stageClient;
         _eventRepository = eventRepository;
         _statsRepository = statsRepository;
-        _hub = hub;
+        _notifier = notifier;
     }
 
     public async Task<Result<bool>> Handle(ForceAdvanceTeamCommand request, CancellationToken cancellationToken)
@@ -91,9 +89,7 @@ public class ForceAdvanceTeamCommandHandler : IRequestHandler<ForceAdvanceTeamCo
         await _eventRepository.SaveChangesAsync(cancellationToken);
 
         // 7. Broadcast to refresh dashboard
-        await _hub.Clients
-            .Group(request.SessionId.ToString())
-            .SendAsync("SessionStateChanged", cancellationToken);
+        await _notifier.NotifyStateChangedAsync(request.SessionId, ct: cancellationToken);
 
         return Result.Success(true);
     }

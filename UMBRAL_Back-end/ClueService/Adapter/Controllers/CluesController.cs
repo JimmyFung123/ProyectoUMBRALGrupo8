@@ -1,11 +1,11 @@
 namespace ClueService.Adapter.Controllers;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using ClueService.Adapter.Extensions;
 using ClueService.Application.Clues.Commands.AddClue;
 using ClueService.Application.Clues.Commands.RemoveClue;
 using ClueService.Application.Clues.Commands.UpdateClue;
 using ClueService.Application.Clues.Queries.GetCluesByStage;
-using ClueService.Domain.Clues;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -35,13 +35,7 @@ public class CluesController : ControllerBase
                 request.AutoReleaseAfterMinutes),
             cancellationToken);
 
-        if (result.IsFailure)
-        {
-            return result.Error.Code == ClueErrors.StageNotFound.Code
-                ? NotFound(result.Error)
-                : BadRequest(result.Error);
-        }
-        return Ok(result.Value);
+        return result.ToHttpResult();
     }
 
     [HttpPut("{id:guid}")]
@@ -61,20 +55,14 @@ public class CluesController : ControllerBase
                 request.AutoReleaseAfterMinutes),
             cancellationToken);
 
-        if (result.IsFailure)
-        {
-            return result.Error.Code == ClueErrors.NotFound.Code
-                ? NotFound(result.Error)
-                : BadRequest(result.Error);
-        }
-        return NoContent();
+        return result.ToNoContentResult();
     }
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Remove(Guid id, CancellationToken cancellationToken)
     {
         var result = await _sender.Send(new RemoveClueCommand(id), cancellationToken);
-        return result.IsSuccess ? NoContent() : NotFound(result.Error);
+        return result.ToNoContentResult();
     }
 }
 
