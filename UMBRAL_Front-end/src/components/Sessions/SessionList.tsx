@@ -63,7 +63,7 @@ export function SessionList({ onViewDetail }: Props) {
         missionService.getAll(),
       ]);
       setSessions(s);
-      setMissions(m.filter(m => m.status === 'Active'));
+      setMissions(m);
     } catch {
       setError('No se pudieron cargar las sesiones. Intentá de nuevo.');
     } finally {
@@ -161,17 +161,17 @@ export function SessionList({ onViewDetail }: Props) {
         <form onSubmit={handleCreate}>
           <Stack gap={3}>
             <FormField label="Misión (activa)" htmlFor="session-mission" required hint={
-              missions.length === 0 ? 'No hay misiones activas. Activá una desde la pestaña Misiones primero.' : undefined
+              missions.filter(m => m.status === 'Active').length === 0 ? 'No hay misiones activas. Activá una desde la pestaña Misiones primero.' : undefined
             }>
               <Select
                 id="session-mission"
                 required
                 value={form.missionId}
                 onChange={e => setForm(f => ({ ...f, missionId: e.target.value }))}
-                disabled={missions.length === 0}
+                disabled={missions.filter(m => m.status === 'Active').length === 0}
               >
                 <option value="">— Seleccioná una misión —</option>
-                {missions.map(m => (
+                {missions.filter(m => m.status === 'Active').map(m => (
                   <option key={m.id} value={m.id}>{m.name}</option>
                 ))}
               </Select>
@@ -199,7 +199,7 @@ export function SessionList({ onViewDetail }: Props) {
             {createError && <Alert tone="danger">{createError}</Alert>}
 
             <div>
-              <Button type="submit" disabled={creating || missions.length === 0}>
+              <Button type="submit" disabled={creating || missions.filter(m => m.status === 'Active').length === 0}>
                 {creating ? 'Creando…' : 'Crear sesión'}
               </Button>
             </div>
