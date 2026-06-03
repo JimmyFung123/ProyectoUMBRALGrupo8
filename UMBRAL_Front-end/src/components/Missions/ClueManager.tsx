@@ -191,7 +191,6 @@ export function ClueManager({ missionId, stageId, stageType, isLocked }: Props) 
       payload.longitude = addGeo.longitude;
       payload.radiusMeters = addGeo.radiusMeters;
     }
-
     try {
       await clueService.addClue(missionId, stageId, payload);
       setAddContent('');
@@ -345,6 +344,11 @@ function ClueRow({
               : <em style={{ color: '#aaa' }}>Sin ubicación</em>)
           }
         </span>
+        {clue.autoReleaseAfterMinutes != null && (
+          <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem', color: '#7c3aed', background: '#ede9fe', borderRadius: 4, padding: '0.1rem 0.35rem' }}>
+            ⏱ {clue.autoReleaseAfterMinutes} min
+          </span>
+        )}
       </div>
       {!isLocked && (
         <div style={{ display: 'flex', gap: '0.35rem', marginLeft: '0.5rem', flexShrink: 0 }}>
@@ -404,7 +408,6 @@ function ClueEditForm({
       payload.longitude = geo.longitude;
       payload.radiusMeters = geo.radiusMeters;
     }
-
     try {
       await clueService.updateClue(missionId, stageId, clue.id, payload);
       onDone();

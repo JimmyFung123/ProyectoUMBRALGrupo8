@@ -14,6 +14,7 @@ export interface AddCluePayload {
   latitude?: number;
   longitude?: number;
   radiusMeters?: number;
+  autoReleaseAfterMinutes?: number;
 }
 
 export interface UpdateCluePayload {
@@ -22,4 +23,5 @@ export interface UpdateCluePayload {
   latitude?: number;
   longitude?: number;
   radiusMeters?: number;
+  autoReleaseAfterMinutes?: number;
 }

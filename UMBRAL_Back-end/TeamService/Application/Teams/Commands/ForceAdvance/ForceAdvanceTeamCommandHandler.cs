@@ -24,10 +24,13 @@ public class ForceAdvanceTeamCommandHandler : IRequestHandler<ForceAdvanceTeamCo
         var result = team.ForceAdvance(request.NextStageOrder);
         if (result.IsFailure) return result;
 
-        // HU-24: refresh the projection so CurrentStageOrder shows the new stage.
-        await _rankingProjector.RebuildAsync(team.SessionId, cancellationToken);
-
         await _repo.SaveChangesAsync(cancellationToken);
+
+        // HU-24: refresh the projection so CurrentStageOrder shows the new stage.
+        // Done AFTER SaveChanges so a projector failure never blocks the advance.
+        try { await _rankingProjector.RebuildAsync(team.SessionId, cancellationToken); }
+        catch { /* projection is best-effort — advance already persisted */ }
+
         return result;
     }
 }

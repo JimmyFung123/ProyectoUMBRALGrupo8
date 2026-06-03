@@ -58,31 +58,84 @@ public class ClueAutoReleaseService
             t.CurrentStageOrder > 0 &&
             t.ClueTimerResetAt.HasValue).ToList();
 
-        if (eligibleTeams.Count == 0) return;
+        if (eligibleTeams.Count == 0)
+        {
+            _logger.LogDebug(
+                "Session {SessionId}: no eligible teams (all at stage 0 or without ClueTimerResetAt). Total teams: {Total}",
+                session.Id, teams.Count);
+            return;
+        }
 
         var stages = await _stageClient.GetStagesByMissionAsync(session.MissionId, ct);
+        if (stages.Count == 0)
+        {
+            _logger.LogWarning(
+                "Session {SessionId}: GetStagesByMissionAsync returned 0 stages for mission {MissionId}. " +
+                "StageService may be unreachable or the mission has no stages.",
+                session.Id, session.MissionId);
+            return;
+        }
 
         foreach (var team in eligibleTeams)
         {
             var stage = stages.FirstOrDefault(s => s.Order == team.CurrentStageOrder);
-            if (stage is null) continue;
+            if (stage is null)
+            {
+                _logger.LogWarning(
+                    "Session {SessionId} / Team {TeamId}: no stage with Order={Order} found in mission {MissionId}. " +
+                    "Available orders: {Orders}",
+                    session.Id, team.Id, team.CurrentStageOrder, session.MissionId,
+                    string.Join(", ", stages.Select(s => s.Order)));
+                continue;
+            }
+
+            if (stage.AutoReleaseTimeMinutes is null)
+            {
+                _logger.LogDebug(
+                    "Session {SessionId} / Team {TeamId}: stage {StageId} has no AutoReleaseTimeMinutes configured.",
+                    session.Id, team.Id, stage.Id);
+                continue;
+            }
+
+            var elapsed = DateTime.UtcNow - team.ClueTimerResetAt!.Value;
+            if (elapsed.TotalMinutes < stage.AutoReleaseTimeMinutes.Value)
+            {
+                _logger.LogDebug(
+                    "Session {SessionId} / Team {TeamId}: timer not expired — elapsed {Elapsed:F1} min / threshold {Threshold} min.",
+                    session.Id, team.Id, elapsed.TotalMinutes, stage.AutoReleaseTimeMinutes.Value);
+                continue;
+            }
 
             var clues = await _clueClient.GetCluesByStageAsync(stage.Id, ct);
-            if (clues.Count == 0) continue;
+            if (clues.Count == 0)
+            {
+                _logger.LogDebug(
+                    "Session {SessionId} / Team {TeamId}: stage {StageId} has no clues configured.",
+                    session.Id, team.Id, stage.Id);
+                continue;
+            }
 
             // Next clue to release (0-based index)
             var nextClue = clues.ElementAtOrDefault(team.CluesReceivedCurrentStage);
-            if (nextClue is null) continue; // all clues already released
-            if (nextClue.AutoReleaseAfterMinutes is null) continue; // no auto-release configured
-
-            var elapsed = DateTime.UtcNow - team.ClueTimerResetAt!.Value;
-            if (elapsed.TotalMinutes < nextClue.AutoReleaseAfterMinutes.Value) continue;
+            if (nextClue is null)
+            {
+                _logger.LogDebug(
+                    "Session {SessionId} / Team {TeamId}: all {Count} clues already released.",
+                    session.Id, team.Id, clues.Count);
+                continue;
+            }
 
             // Release automatically
             var clueNumber = await _teamClient.ReleaseClueAsync(
                 team.Id, clues.Count, ct, isAutomatic: true);
 
-            if (clueNumber <= 0) continue; // exhausted or error
+            if (clueNumber <= 0)
+            {
+                _logger.LogWarning(
+                    "Session {SessionId} / Team {TeamId}: ReleaseClueAsync returned {Result} (all clues exhausted or HTTP error).",
+                    session.Id, team.Id, clueNumber);
+                continue;
+            }
 
             _logger.LogInformation(
                 "Auto-released clue {ClueNumber}/{Total} to team {TeamId} in session {SessionId}",

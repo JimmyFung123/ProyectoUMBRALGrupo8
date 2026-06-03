@@ -57,7 +57,8 @@ public class CluesController : ControllerBase
                 request.Content,
                 request.Latitude,
                 request.Longitude,
-                request.RadiusMeters),
+                request.RadiusMeters,
+                request.AutoReleaseAfterMinutes),
             cancellationToken);
 
         if (result.IsFailure)
@@ -91,4 +92,5 @@ public record UpdateClueRequest(
     string? Content = null,
     double? Latitude = null,
     double? Longitude = null,
-    int? RadiusMeters = null);
+    int? RadiusMeters = null,
+    int? AutoReleaseAfterMinutes = null);

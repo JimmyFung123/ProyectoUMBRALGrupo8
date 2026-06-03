@@ -20,6 +20,7 @@ public class UpdateClueCommandHandler : IRequestHandler<UpdateClueCommand, Resul
         var update = clue.Update(request.Order, request.Content, request.Latitude, request.Longitude, request.RadiusMeters);
         if (update.IsFailure) return update;
 
+        clue.SetAutoRelease(request.AutoReleaseAfterMinutes);
         await _clueRepository.SaveChangesAsync(cancellationToken);
         return Result.Success(true);
     }

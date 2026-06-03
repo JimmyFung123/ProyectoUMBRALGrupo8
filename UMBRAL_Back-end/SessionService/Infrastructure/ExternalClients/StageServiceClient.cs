@@ -19,7 +19,7 @@ public class StageServiceClient : IStageServiceClient
             if (!response.IsSuccessStatusCode) return [];
             var json = await response.Content.ReadAsStringAsync(ct);
             var items = JsonSerializer.Deserialize<List<StageJsonItem>>(json, _jsonOptions) ?? [];
-            return items.Select(x => new StageInfo(x.Id, x.Order, x.Type ?? "Trivia")).ToList();
+            return items.Select(x => new StageInfo(x.Id, x.Order, x.Type ?? "Trivia", x.AutoReleaseTimeMinutes)).ToList();
         }
         catch { return []; }
     }
@@ -46,7 +46,7 @@ public class StageServiceClient : IStageServiceClient
         catch { return null; }
     }
 
-    private record StageJsonItem(Guid Id, int Order, string? Type);
+    private record StageJsonItem(Guid Id, int Order, string? Type, int? AutoReleaseTimeMinutes);
 
     private record OptionJsonItem(Guid Id, string Text, bool IsCorrect);
 

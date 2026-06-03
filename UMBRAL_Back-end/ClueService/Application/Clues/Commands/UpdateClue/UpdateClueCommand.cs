@@ -8,5 +8,6 @@ public record UpdateClueCommand(
     string? Content,
     double? Latitude,
     double? Longitude,
-    int? RadiusMeters
+    int? RadiusMeters,
+    int? AutoReleaseAfterMinutes
 ) : IRequest<Result<bool>>;
