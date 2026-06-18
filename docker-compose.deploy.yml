@@ -1,0 +1,207 @@
+# UMBRAL — Despliegue completo (override de docker-compose.yml)
+#
+# Levanta TODO en contenedores: infra (del archivo base) + 6 microservicios .NET
+# + los 2 front-ends. Uso:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.deploy.yml up -d --build
+#
+# Los valores vienen de .env (ver .env.example). Los defaults apuntan a localhost
+# para poder probar el stack completo en tu PC sin túnel. Para exponerlo, poné en
+# .env las URLs públicas (PUBLIC_*) y los orígenes CORS, y reconstruí los fronts.
+#
+# Red: estos servicios se unen a la red default del compose base, así que se ven
+# entre sí por nombre (postgres, rabbitmq, keycloak, mailpit).
+
+services:
+
+  # ── Keycloak: hostname fijo + backchannel dinámico ──────────────────────────
+  # Necesario para que el issuer (público) y el fetch interno de JWKS coexistan.
+  keycloak:
+    environment:
+      KC_HOSTNAME: ${PUBLIC_KEYCLOAK_URL:-http://localhost:18090}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+
+  # ── Microservicios .NET ─────────────────────────────────────────────────────
+  missionservice:
+    build:
+      context: ./UMBRAL_Back-end
+      dockerfile: MissionService/Dockerfile
+    image: umbral-missionservice:latest
+    restart: unless-stopped
+    ports: ["5091:8080"]
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=umbral_missions;Username=postgres;Password=${POSTGRES_PASSWORD:-12345}"
+      ConnectionStrings__RabbitMQ: "amqp://guest:guest@rabbitmq:5672/"
+      Keycloak__Authority: ${KEYCLOAK_AUTHORITY:-http://localhost:18090/realms/umbral}
+      Keycloak__MetadataAddress: ${KEYCLOAK_METADATA_ADDRESS:-http://keycloak:8080/realms/umbral/.well-known/openid-configuration}
+      Keycloak__RequireHttpsMetadata: ${KEYCLOAK_REQUIRE_HTTPS:-false}
+      Cors__AllowedOrigins__0: ${CORS_OPERADOR_ORIGIN:-http://localhost:5173}
+      Cors__AllowedOrigins__1: ${CORS_PARTICIPANTE_ORIGIN:-http://localhost:5174}
+      StageServiceUrl: "http://stageservice:8080/"
+      SessionServiceUrl: "http://sessionservice:8080/"
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+  stageservice:
+    build:
+      context: ./UMBRAL_Back-end
+      dockerfile: StageService/Dockerfile
+    image: umbral-stageservice:latest
+    restart: unless-stopped
+    ports: ["5093:8080"]
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=umbral_stages;Username=postgres;Password=${POSTGRES_PASSWORD:-12345}"
+      ConnectionStrings__RabbitMQ: "amqp://guest:guest@rabbitmq:5672/"
+      Keycloak__Authority: ${KEYCLOAK_AUTHORITY:-http://localhost:18090/realms/umbral}
+      Keycloak__MetadataAddress: ${KEYCLOAK_METADATA_ADDRESS:-http://keycloak:8080/realms/umbral/.well-known/openid-configuration}
+      Keycloak__RequireHttpsMetadata: ${KEYCLOAK_REQUIRE_HTTPS:-false}
+      Cors__AllowedOrigins__0: ${CORS_OPERADOR_ORIGIN:-http://localhost:5173}
+      Cors__AllowedOrigins__1: ${CORS_PARTICIPANTE_ORIGIN:-http://localhost:5174}
+      MissionServiceUrl: "http://missionservice:8080/"
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+  clueservice:
+    build:
+      context: ./UMBRAL_Back-end
+      dockerfile: ClueService/Dockerfile
+    image: umbral-clueservice:latest
+    restart: unless-stopped
+    ports: ["5094:8080"]
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=umbral_clues;Username=postgres;Password=${POSTGRES_PASSWORD:-12345}"
+      ConnectionStrings__RabbitMQ: "amqp://guest:guest@rabbitmq:5672/"
+      Keycloak__Authority: ${KEYCLOAK_AUTHORITY:-http://localhost:18090/realms/umbral}
+      Keycloak__MetadataAddress: ${KEYCLOAK_METADATA_ADDRESS:-http://keycloak:8080/realms/umbral/.well-known/openid-configuration}
+      Keycloak__RequireHttpsMetadata: ${KEYCLOAK_REQUIRE_HTTPS:-false}
+      Cors__AllowedOrigins__0: ${CORS_OPERADOR_ORIGIN:-http://localhost:5173}
+      Cors__AllowedOrigins__1: ${CORS_PARTICIPANTE_ORIGIN:-http://localhost:5174}
+      StageServiceUrl: "http://stageservice:8080/"
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+  teamservice:
+    build:
+      context: ./UMBRAL_Back-end
+      dockerfile: TeamService/Dockerfile
+    image: umbral-teamservice:latest
+    restart: unless-stopped
+    ports: ["5095:8080"]
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=umbral_teams;Username=postgres;Password=${POSTGRES_PASSWORD:-12345}"
+      ConnectionStrings__RabbitMQ: "amqp://guest:guest@rabbitmq:5672/"
+      Keycloak__Authority: ${KEYCLOAK_AUTHORITY:-http://localhost:18090/realms/umbral}
+      Keycloak__MetadataAddress: ${KEYCLOAK_METADATA_ADDRESS:-http://keycloak:8080/realms/umbral/.well-known/openid-configuration}
+      Keycloak__RequireHttpsMetadata: ${KEYCLOAK_REQUIRE_HTTPS:-false}
+      Cors__AllowedOrigins__0: ${CORS_OPERADOR_ORIGIN:-http://localhost:5173}
+      Cors__AllowedOrigins__1: ${CORS_PARTICIPANTE_ORIGIN:-http://localhost:5174}
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+  sessionservice:
+    build:
+      context: ./UMBRAL_Back-end
+      dockerfile: SessionService/Dockerfile
+    image: umbral-sessionservice:latest
+    restart: unless-stopped
+    ports: ["5092:8080"]
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=umbral_sessions;Username=postgres;Password=${POSTGRES_PASSWORD:-12345}"
+      ConnectionStrings__RabbitMQ: "amqp://guest:guest@rabbitmq:5672/"
+      Keycloak__Authority: ${KEYCLOAK_AUTHORITY:-http://localhost:18090/realms/umbral}
+      Keycloak__MetadataAddress: ${KEYCLOAK_METADATA_ADDRESS:-http://keycloak:8080/realms/umbral/.well-known/openid-configuration}
+      Keycloak__RequireHttpsMetadata: ${KEYCLOAK_REQUIRE_HTTPS:-false}
+      Cors__AllowedOrigins__0: ${CORS_OPERADOR_ORIGIN:-http://localhost:5173}
+      Cors__AllowedOrigins__1: ${CORS_PARTICIPANTE_ORIGIN:-http://localhost:5174}
+      TeamServiceUrl: "http://teamservice:8080/"
+      ClueServiceUrl: "http://clueservice:8080/"
+      StageServiceUrl: "http://stageservice:8080/"
+      MissionServiceUrl: "http://missionservice:8080/"
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+
+  userservice:
+    build:
+      context: ./UMBRAL_Back-end
+      dockerfile: UserService/Dockerfile
+    image: umbral-userservice:latest
+    restart: unless-stopped
+    ports: ["5096:8080"]
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      Keycloak__Authority: ${KEYCLOAK_AUTHORITY:-http://localhost:18090/realms/umbral}
+      Keycloak__MetadataAddress: ${KEYCLOAK_METADATA_ADDRESS:-http://keycloak:8080/realms/umbral/.well-known/openid-configuration}
+      Keycloak__RequireHttpsMetadata: ${KEYCLOAK_REQUIRE_HTTPS:-false}
+      Keycloak__Audience: account
+      Keycloak__AdminBaseUrl: ${KEYCLOAK_ADMIN_BASE_URL:-http://keycloak:8080}
+      Keycloak__Realm: umbral
+      Keycloak__AdminClientId: umbral-backend
+      Keycloak__AdminClientSecret: ${UMBRAL_BACKEND_SECRET:-umbral-backend-secret-change-me}
+      Cors__AllowedOrigins__0: ${CORS_OPERADOR_ORIGIN:-http://localhost:5173}
+      Cors__AllowedOrigins__1: ${CORS_PARTICIPANTE_ORIGIN:-http://localhost:5174}
+      Smtp__Host: ${SMTP_HOST:-mailpit}
+      Smtp__Port: ${SMTP_PORT:-1025}
+      Smtp__FromAddress: ${SMTP_FROM_ADDRESS:-no-reply@umbral.local}
+      Smtp__FromName: ${SMTP_FROM_NAME:-UMBRAL — Personal Operativo}
+      Smtp__UseStartTls: ${SMTP_USE_STARTTLS:-false}
+      Smtp__User: ${SMTP_USER:-}
+      Smtp__Password: ${SMTP_PASSWORD:-}
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  # ── Front-ends ──────────────────────────────────────────────────────────────
+  front-operador:
+    build:
+      context: ./UMBRAL_Front-end
+      dockerfile: Dockerfile
+      args:
+        VITE_KEYCLOAK_URL: ${PUBLIC_KEYCLOAK_URL:-http://localhost:18090}
+        VITE_KEYCLOAK_REALM: umbral
+        VITE_KEYCLOAK_CLIENT_ID: umbral-frontend
+        VITE_API_URL: ${PUBLIC_MISSION_API_URL:-http://localhost:5091/api}
+        VITE_SESSION_API_URL: ${PUBLIC_SESSION_API_URL:-http://localhost:5092/api}
+        VITE_SESSION_SIGNALR_URL: ${PUBLIC_SESSION_SIGNALR_URL:-http://localhost:5092/hubs/session}
+        VITE_STAGE_API_URL: ${PUBLIC_STAGE_API_URL:-http://localhost:5093/api}
+        VITE_CLUE_API_URL: ${PUBLIC_CLUE_API_URL:-http://localhost:5094/api}
+        VITE_TEAM_API_URL: ${PUBLIC_TEAM_API_URL:-http://localhost:5095/api}
+        VITE_USER_API_URL: ${PUBLIC_USER_API_URL:-http://localhost:5096/api}
+    image: umbral-front-operador:latest
+    restart: unless-stopped
+    ports: ["5173:80"]
+
+  front-participante:
+    build:
+      context: ./UMBRAL_Front-end_Participantes
+      dockerfile: Dockerfile
+    image: umbral-front-participante:latest
+    restart: unless-stopped
+    ports: ["5174:80"]
+    depends_on:
+      - sessionservice
+      - teamservice
+
+  # ── Túnel Cloudflare (acceso público gratis + HTTPS) ────────────────────────
+  # Opcional: solo arranca con  --profile tunnel.  Las rutas hostname→servicio se
+  # configuran en el dashboard de Cloudflare Zero Trust (ver DEPLOY.md). El token
+  # del túnel va en .env (CLOUDFLARE_TUNNEL_TOKEN). cloudflared está en la misma
+  # red, así que alcanza a los servicios por nombre (front-operador:80, etc.).
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: umbral-cloudflared
+    restart: unless-stopped
+    profiles: ["tunnel"]
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      - front-operador
+      - front-participante
+      - userservice
