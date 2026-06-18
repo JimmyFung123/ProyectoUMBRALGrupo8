@@ -44,7 +44,6 @@ public class UsersController : ControllerBase
                 request.Email,
                 request.FirstName,
                 request.LastName,
-                request.TemporaryPassword,
                 request.Role),
             cancellationToken);
 
@@ -103,7 +102,6 @@ public record CreateUserRequest(
     string Email,
     string FirstName,
     string LastName,
-    string TemporaryPassword,
     UserRole Role);
 
 public record ChangeRoleRequest(UserRole NewRole);

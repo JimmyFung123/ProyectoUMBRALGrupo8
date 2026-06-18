@@ -208,7 +208,10 @@ public class KeycloakAdminClient : IKeycloakAdminClient
             emailVerified = true,
             credentials = new[]
             {
-                new { type = "password", value = temporaryPassword, temporary = false },
+                // temporary = true ⇒ Keycloak añade la acción UPDATE_PASSWORD y
+                // obliga a cambiar la clave en el primer ingreso (la genera el
+                // sistema y se envía por correo; el usuario elige la suya).
+                new { type = "password", value = temporaryPassword, temporary = true },
             },
         };
 

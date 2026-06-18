@@ -18,23 +18,19 @@ interface Props {
 
 interface BackendError { code?: string; message?: string }
 
-const MIN_PASSWORD_LENGTH = 8;
-
 /**
  * HU-23 Criterio 1: registra un nuevo administrador u operador.
  *
- * Fix del bug reportado por el equipo: antes el botón "Crear usuario"
- * permanecía deshabilitado en silencio cuando la contraseña tenía < 8
- * caracteres, sin pista clara para el usuario. Ahora el botón siempre
- * intenta enviar y, si la validación local falla, muestra un mensaje
- * específico arriba del formulario. La regla del backend (email único,
- * 409 → "Este correo ya está en uso") se sigue respetando.
+ * El admin NO elige la contraseña: el sistema genera una clave temporal
+ * fuerte y se la envía al nuevo usuario por correo. La validación local
+ * muestra un mensaje específico arriba del formulario si falta algún campo;
+ * la regla del backend (email único, 409 → "Este correo ya está en uso") se
+ * sigue respetando.
  */
 export function CreateUserModal({ onClose, onCreated }: Props) {
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [temporaryPassword, setTemporaryPassword] = useState('');
   const [role, setRole] = useState<UserRole>('Operator');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,12 +45,8 @@ export function CreateUserModal({ onClose, onCreated }: Props) {
     const trimmedFirst = firstName.trim();
     const trimmedLast = lastName.trim();
 
-    if (!trimmedEmail || !trimmedFirst || !trimmedLast || !temporaryPassword) {
+    if (!trimmedEmail || !trimmedFirst || !trimmedLast) {
       setError('Todos los campos son obligatorios.');
-      return;
-    }
-    if (temporaryPassword.length < MIN_PASSWORD_LENGTH) {
-      setError(`La contraseña temporal debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`);
       return;
     }
 
@@ -66,7 +58,6 @@ export function CreateUserModal({ onClose, onCreated }: Props) {
         email: trimmedEmail.toLowerCase(),
         firstName: trimmedFirst,
         lastName: trimmedLast,
-        temporaryPassword,
         role,
       });
       await onCreated();
@@ -82,7 +73,7 @@ export function CreateUserModal({ onClose, onCreated }: Props) {
       open
       onClose={submitting ? () => undefined : onClose}
       title="➕ Nuevo usuario"
-      description="Se creará una cuenta en Keycloak. El usuario podrá ingresar con el correo y la contraseña temporal."
+      description="Se creará una cuenta en Keycloak. El sistema generará una contraseña temporal y se la enviará al usuario por correo; deberá cambiarla en su primer ingreso."
       size="md"
       footer={
         <>
@@ -129,22 +120,6 @@ export function CreateUserModal({ onClose, onCreated }: Props) {
               />
             </FormField>
           </div>
-
-          <FormField
-            label="Contraseña temporal"
-            htmlFor="create-pwd"
-            required
-            hint={`Mínimo ${MIN_PASSWORD_LENGTH} caracteres. El usuario podrá ingresar directamente con esta clave.`}
-          >
-            <TextInput
-              id="create-pwd"
-              type="text"
-              value={temporaryPassword}
-              onChange={e => setTemporaryPassword(e.target.value)}
-              placeholder="ej. Umbral2026!"
-              className="font-mono"
-            />
-          </FormField>
 
           <FormField label="Rol" htmlFor="create-role" required>
             <Select

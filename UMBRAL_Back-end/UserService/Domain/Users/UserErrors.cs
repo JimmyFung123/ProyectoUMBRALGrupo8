@@ -16,9 +16,6 @@ public static class UserErrors
     public static readonly Error InvalidName =
         new("User.InvalidName", "El nombre y el apellido son obligatorios.");
 
-    public static readonly Error InvalidPassword =
-        new("User.InvalidPassword", "La contraseña temporal debe tener al menos 8 caracteres.");
-
     public static readonly Error InvalidRole =
         new("User.InvalidRole", "Rol no soportado. Roles válidos: Admin u Operator.");
 
