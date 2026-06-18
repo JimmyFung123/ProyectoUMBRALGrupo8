@@ -49,11 +49,8 @@ builder.Services.AddMassTransit(x =>
 
 builder.Services.AddUmbralJwtAuth(builder.Configuration);
 
-builder.Services.AddCors(options =>
-    options.AddPolicy("AllowFrontend", policy =>
-        policy.WithOrigins("http://localhost:5173")
-              .AllowAnyHeader()
-              .AllowAnyMethod()));
+// CORS unificado (dev LAN + orígenes públicos desde Cors:AllowedOrigins).
+builder.Services.AddUmbralCors(builder.Configuration);
 
 var app = builder.Build();
 

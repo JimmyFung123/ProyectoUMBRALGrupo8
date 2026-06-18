@@ -171,23 +171,9 @@ builder.Services.AddScoped<IIntegrationEventBus, MassTransitIntegrationEventBus>
 builder.Services.AddUmbralJwtAuth(builder.Configuration);
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
-// Allows any LAN origin on Vite dev ports (5173/5174) so participants can connect
-// from phones on the same network. SetIsOriginAllowed is needed because we keep
-// AllowCredentials (SignalR), which is incompatible with AllowAnyOrigin.
-builder.Services.AddCors(options =>
-    options.AddPolicy("AllowFrontend", policy =>
-        policy.SetIsOriginAllowed(origin =>
-                {
-                    if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return false;
-                    if (uri.Port != 5173 && uri.Port != 5174) return false;
-                    return uri.IsLoopback
-                        || uri.Host.StartsWith("192.168.")
-                        || uri.Host.StartsWith("10.")
-                        || uri.Host.StartsWith("172.");
-                })
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials()));
+// Unificado (dev LAN + orígenes públicos desde Cors:AllowedOrigins). Mantiene
+// AllowCredentials, necesario para el hub SignalR.
+builder.Services.AddUmbralCors(builder.Configuration);
 
 var app = builder.Build();
 

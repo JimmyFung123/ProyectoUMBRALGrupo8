@@ -50,9 +50,20 @@ public static class UmbralAuthExtensions
             {
                 options.Authority = authority;
                 options.Audience  = audience;
-                // Dev environment runs Keycloak over plain HTTP. Set to true
-                // before deploying to production.
-                options.RequireHttpsMetadata = false;
+                // Keycloak en Docker: el navegador obtiene tokens con issuer =
+                // URL pública (p.ej. https://kc.dominio), pero los servicios deben
+                // bajar metadata/JWKS por la red interna. Si se define
+                // Keycloak__MetadataAddress, el fetch va por ahí mientras el
+                // issuer validado sigue siendo Authority. (Requiere en Keycloak
+                // KC_HOSTNAME fijo + KC_HOSTNAME_BACKCHANNEL_DYNAMIC=true.)
+                var metadataAddress = configuration["Keycloak:MetadataAddress"];
+                if (!string.IsNullOrWhiteSpace(metadataAddress))
+                    options.MetadataAddress = metadataAddress;
+                // Dev corre Keycloak por HTTP plano, así que por defecto es false.
+                // En prod (Keycloak detrás de HTTPS) ponelo en true con la env var
+                // Keycloak__RequireHttpsMetadata=true.
+                options.RequireHttpsMetadata =
+                    configuration.GetValue<bool?>("Keycloak:RequireHttpsMetadata") ?? false;
                 options.MapInboundClaims = false;
 
                 options.TokenValidationParameters = new TokenValidationParameters
@@ -110,5 +121,48 @@ public static class UmbralAuthExtensions
 
         services.AddAuthorization();
         return services;
+    }
+
+    /// <summary>Nombre de la política CORS que usan todos los servicios UMBRAL.</summary>
+    public const string CorsPolicy = "AllowFrontend";
+
+    /// <summary>
+    /// Registra una política CORS unificada para todos los servicios. Permite:
+    ///  • los orígenes públicos exactos listados en <c>Cors:AllowedOrigins</c>
+    ///    (prod: las URLs de los fronts detrás del túnel), y
+    ///  • cualquier loopback/LAN en los puertos de Vite (5173/5174), para que en
+    ///    dev los participantes entren desde el celular en la misma red.
+    /// Mantiene <c>AllowCredentials</c> (necesario para SignalR), por eso refleja
+    /// el origen concreto en vez de usar <c>AllowAnyOrigin</c>.
+    /// </summary>
+    public static IServiceCollection AddUmbralCors(this IServiceCollection services, IConfiguration configuration)
+    {
+        var configured = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+                         ?? Array.Empty<string>();
+
+        services.AddCors(options =>
+            options.AddPolicy(CorsPolicy, policy =>
+                policy.SetIsOriginAllowed(origin => IsAllowedOrigin(origin, configured))
+                      .AllowAnyHeader()
+                      .AllowAnyMethod()
+                      .AllowCredentials()));
+
+        return services;
+    }
+
+    private static bool IsAllowedOrigin(string origin, string[] configured)
+    {
+        // Prod: coincidencia exacta con un origen configurado.
+        foreach (var c in configured)
+            if (string.Equals(c, origin, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+        // Dev: loopback o IP privada en los puertos de Vite.
+        if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return false;
+        if (uri.Port != 5173 && uri.Port != 5174) return false;
+        return uri.IsLoopback
+            || uri.Host.StartsWith("192.168.")
+            || uri.Host.StartsWith("10.")
+            || uri.Host.StartsWith("172.");
     }
 }

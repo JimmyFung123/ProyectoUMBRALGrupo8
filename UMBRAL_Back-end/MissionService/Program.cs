@@ -62,12 +62,8 @@ builder.Services.AddMassTransit(x =>
 // Keycloak JWT auth (HU-23) — optional until [Authorize] is applied per-endpoint.
 builder.Services.AddUmbralJwtAuth(builder.Configuration);
 
-// CORS for the React dev server (Vite default port)
-builder.Services.AddCors(options =>
-    options.AddPolicy("AllowFrontend", policy =>
-        policy.WithOrigins("http://localhost:5173")
-              .AllowAnyHeader()
-              .AllowAnyMethod()));
+// CORS unificado (dev LAN + orígenes públicos desde Cors:AllowedOrigins).
+builder.Services.AddUmbralCors(builder.Configuration);
 
 var app = builder.Build();
 
