@@ -38,7 +38,7 @@ export function Alert({ tone = 'info', title, children, onDismiss, className, ic
       <span aria-hidden className="text-base leading-none mt-0.5">{icon ?? t.icon}</span>
       <div className="flex-1 min-w-0">
         {title && <div className="font-semibold leading-snug">{title}</div>}
-        {children && <div className={cn('leading-snug', title && 'mt-0.5')}>{children}</div>}
+        {children && <div className={cn('leading-snug', !!title && 'mt-0.5')}>{children}</div>}
       </div>
       {onDismiss && (
         <button
