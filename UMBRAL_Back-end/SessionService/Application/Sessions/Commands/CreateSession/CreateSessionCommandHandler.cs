@@ -1,24 +1,26 @@
 namespace SessionService.Application.Sessions.Commands.CreateSession;
 
 using MediatR;
+using SessionService.Application;
 using SessionService.Domain.Common;
 using SessionService.Domain.MissionLookup;
 using SessionService.Domain.Sessions;
+using UMBRAL.Contracts.Events;
 
 public class CreateSessionCommandHandler : IRequestHandler<CreateSessionCommand, Result<Guid>>
 {
     private readonly ISessionRepository _sessionRepository;
     private readonly IMissionLookupRepository _missionLookupRepository;
-    private readonly ISessionEventRepository _eventRepository;
+    private readonly IIntegrationEventBus _bus;
 
     public CreateSessionCommandHandler(
         ISessionRepository sessionRepository,
         IMissionLookupRepository missionLookupRepository,
-        ISessionEventRepository eventRepository)
+        IIntegrationEventBus bus)
     {
         _sessionRepository = sessionRepository;
         _missionLookupRepository = missionLookupRepository;
-        _eventRepository = eventRepository;
+        _bus = bus;
     }
 
     public async Task<Result<Guid>> Handle(CreateSessionCommand request, CancellationToken cancellationToken)
@@ -47,14 +49,15 @@ public class CreateSessionCommandHandler : IRequestHandler<CreateSessionCommand,
         await _sessionRepository.SaveChangesAsync(cancellationToken);
 
         // HU-26: command audit log entry — the first thing recorded for a session.
-        var auditEvent = SessionEvent.Create(
-            session.Id,
-            $"Se creó la sesión '{session.Name}'.",
-            actorName: request.OperatorName,
-            commandType: nameof(CreateSessionCommand),
-            outcome: SessionEvent.OutcomeSuccess);
-        await _eventRepository.AddAsync(auditEvent, cancellationToken);
-        await _eventRepository.SaveChangesAsync(cancellationToken);
+        await _bus.PublishAsync(
+            new SessionAuditIntegrationEvent(
+                session.Id,
+                $"Se creó la sesión '{session.Name}'.",
+                ActorName: request.OperatorName,
+                CommandType: nameof(CreateSessionCommand),
+                Outcome: SessionEvent.OutcomeSuccess,
+                DateTime.UtcNow),
+            cancellationToken);
 
         return Result.Success(session.Id);
     }

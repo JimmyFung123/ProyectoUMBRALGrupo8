@@ -2,17 +2,18 @@ namespace UMBRAL_Back_end.Tests.Application.Sessions;
 
 using FluentAssertions;
 using Moq;
+using SessionService.Application;
 using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Commands.StartSession;
 using SessionService.Domain.Sessions;
+using UMBRAL.Contracts.Events;
 using Xunit;
 
 public class StartSessionCommandHandlerTests
 {
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
     private readonly Mock<ITeamServiceClient> _teamClientMock = new();
-    private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
-    private readonly Mock<ISessionNotifier> _notifierMock = new();
+    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly StartSessionCommandHandler _handler;
 
     public StartSessionCommandHandlerTests()
@@ -20,8 +21,7 @@ public class StartSessionCommandHandlerTests
         _handler = new StartSessionCommandHandler(
             _sessionRepoMock.Object,
             _teamClientMock.Object,
-            _eventRepoMock.Object,
-            _notifierMock.Object);
+            _busMock.Object);
     }
 
     // ── Session not found ─────────────────────────────────────────────────────
@@ -195,9 +195,15 @@ public class StartSessionCommandHandlerTests
         result.IsSuccess.Should().BeTrue();
         session.Status.Should().Be(SessionStatus.InProgress);
         _sessionRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _notifierMock.Verify(n => n.NotifyStateChangedAsync(sessionId, It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
-        _eventRepoMock.Verify(
-            r => r.AddAsync(It.Is<SessionEvent>(e => e.Description.Contains("iniciada")), It.IsAny<CancellationToken>()),
+        _busMock.Verify(
+            b => b.PublishAsync(
+                It.Is<SessionStateChangedIntegrationEvent>(e => e.SessionId == sessionId),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+        _busMock.Verify(
+            b => b.PublishAsync(
+                It.Is<SessionAuditIntegrationEvent>(e => e.Description.Contains("iniciada")),
+                It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -217,10 +223,10 @@ public class StartSessionCommandHandlerTests
             .Setup(t => t.AllTeamsMeetMinimumMembersAsync(sessionId, 2, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        SessionEvent? captured = null;
-        _eventRepoMock
-            .Setup(r => r.AddAsync(It.IsAny<SessionEvent>(), It.IsAny<CancellationToken>()))
-            .Callback<SessionEvent, CancellationToken>((ev, _) => captured = ev);
+        SessionAuditIntegrationEvent? captured = null;
+        _busMock
+            .Setup(b => b.PublishAsync(It.IsAny<SessionAuditIntegrationEvent>(), It.IsAny<CancellationToken>()))
+            .Callback<SessionAuditIntegrationEvent, CancellationToken>((ev, _) => captured = ev);
 
         await _handler.Handle(new StartSessionCommand(sessionId, OperatorName: "Prof. Ortega"), default);
 

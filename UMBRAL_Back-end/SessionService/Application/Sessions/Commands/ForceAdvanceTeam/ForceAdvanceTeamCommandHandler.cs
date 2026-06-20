@@ -1,34 +1,33 @@
 namespace SessionService.Application.Sessions.Commands.ForceAdvanceTeam;
 
 using MediatR;
+using SessionService.Application;
 using SessionService.Application.Sessions;
 using SessionService.Domain.Common;
 using SessionService.Domain.Sessions;
 using SessionService.Domain.Statistics;
+using UMBRAL.Contracts.Events;
 
 public class ForceAdvanceTeamCommandHandler : IRequestHandler<ForceAdvanceTeamCommand, Result<bool>>
 {
     private readonly ISessionRepository _sessionRepository;
     private readonly ITeamServiceClient _teamClient;
     private readonly IStageServiceClient _stageClient;
-    private readonly ISessionEventRepository _eventRepository;
+    private readonly IIntegrationEventBus _bus;
     private readonly IStageCompletionRecordRepository _statsRepository;
-    private readonly ISessionNotifier _notifier;
 
     public ForceAdvanceTeamCommandHandler(
         ISessionRepository sessionRepository,
         ITeamServiceClient teamClient,
         IStageServiceClient stageClient,
-        ISessionEventRepository eventRepository,
-        IStageCompletionRecordRepository statsRepository,
-        ISessionNotifier notifier)
+        IIntegrationEventBus bus,
+        IStageCompletionRecordRepository statsRepository)
     {
         _sessionRepository = sessionRepository;
         _teamClient = teamClient;
         _stageClient = stageClient;
-        _eventRepository = eventRepository;
+        _bus = bus;
         _statsRepository = statsRepository;
-        _notifier = notifier;
     }
 
     public async Task<Result<bool>> Handle(ForceAdvanceTeamCommand request, CancellationToken cancellationToken)
@@ -79,17 +78,20 @@ public class ForceAdvanceTeamCommandHandler : IRequestHandler<ForceAdvanceTeamCo
         await _statsRepository.SaveChangesAsync(cancellationToken);
 
         // 6. Audit log (HU-22 / HU-26)
-        var auditEvent = SessionEvent.Create(
-            request.SessionId,
-            $"El operador forzó el avance del equipo '{team.Name}' de la etapa {team.CurrentStageOrder} a la etapa {nextOrder}.",
-            actorName: request.OperatorName,
-            commandType: nameof(ForceAdvanceTeamCommand),
-            outcome: SessionEvent.OutcomeSuccess);
-        await _eventRepository.AddAsync(auditEvent, cancellationToken);
-        await _eventRepository.SaveChangesAsync(cancellationToken);
+        await _bus.PublishAsync(
+            new SessionAuditIntegrationEvent(
+                request.SessionId,
+                $"El operador forzó el avance del equipo '{team.Name}' de la etapa {team.CurrentStageOrder} a la etapa {nextOrder}.",
+                ActorName: request.OperatorName,
+                CommandType: nameof(ForceAdvanceTeamCommand),
+                Outcome: SessionEvent.OutcomeSuccess,
+                DateTime.UtcNow),
+            cancellationToken);
 
         // 7. Broadcast to refresh dashboard
-        await _notifier.NotifyStateChangedAsync(request.SessionId, ct: cancellationToken);
+        await _bus.PublishAsync(
+            new SessionStateChangedIntegrationEvent(request.SessionId, NewStatus: null),
+            cancellationToken);
 
         return Result.Success(true);
     }

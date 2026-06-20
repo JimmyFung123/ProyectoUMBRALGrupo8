@@ -2,24 +2,24 @@ namespace UMBRAL_Back_end.Tests.Application.Sessions;
 
 using FluentAssertions;
 using Moq;
+using SessionService.Application;
 using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Commands.ResumeSession;
 using SessionService.Domain.Sessions;
+using UMBRAL.Contracts.Events;
 using Xunit;
 
 public class ResumeSessionCommandHandlerTests
 {
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
-    private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
-    private readonly Mock<ISessionNotifier> _notifierMock = new();
+    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly ResumeSessionCommandHandler _handler;
 
     public ResumeSessionCommandHandlerTests()
     {
         _handler = new ResumeSessionCommandHandler(
             _sessionRepoMock.Object,
-            _eventRepoMock.Object,
-            _notifierMock.Object);
+            _busMock.Object);
     }
 
     // ── Session not found ─────────────────────────────────────────────────────
@@ -79,7 +79,11 @@ public class ResumeSessionCommandHandlerTests
         result.IsSuccess.Should().BeTrue();
         session.Status.Should().Be(SessionStatus.InProgress);
         _sessionRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _notifierMock.Verify(n => n.NotifyStateChangedAsync(sessionId, It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
+        _busMock.Verify(
+            b => b.PublishAsync(
+                It.Is<SessionStateChangedIntegrationEvent>(e => e.SessionId == sessionId),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     // ── Helper ────────────────────────────────────────────────────────────────

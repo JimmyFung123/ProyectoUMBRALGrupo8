@@ -74,6 +74,16 @@ builder.Services.AddMassTransit(x =>
     x.AddConsumer<MissionActivatedConsumer>();
     x.AddConsumer<MissionDeactivatedConsumer>();
     x.AddConsumer<MissionUpdatedConsumer>();
+    x.AddConsumer<SessionAuditConsumer>();
+
+    // HU-22 alertas: SignalR notifications relayed asynchronously instead of
+    // calling ISessionNotifier in-process. A transient hub failure must never
+    // fail the operator-facing command that already succeeded.
+    x.AddConsumer<SessionStateChangedConsumer>();
+    x.AddConsumer<OperatorMessageBroadcastConsumer>();
+    x.AddConsumer<StageCompletedConsumer>();
+    x.AddConsumer<ClueReleasedConsumer>();
+    x.AddConsumer<TeamPenalizedConsumer>();
 
     x.UsingRabbitMq((ctx, cfg) =>
     {

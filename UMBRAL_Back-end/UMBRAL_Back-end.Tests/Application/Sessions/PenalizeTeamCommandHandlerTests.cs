@@ -2,17 +2,18 @@ namespace UMBRAL_Back_end.Tests.Application.Sessions;
 
 using FluentAssertions;
 using Moq;
+using SessionService.Application;
 using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Commands.PenalizeTeam;
 using SessionService.Domain.Sessions;
+using UMBRAL.Contracts.Events;
 using Xunit;
 
 public class PenalizeTeamCommandHandlerSessionTests
 {
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
     private readonly Mock<ITeamServiceClient> _teamClientMock = new();
-    private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
-    private readonly Mock<ISessionNotifier> _notifierMock = new();
+    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly PenalizeTeamCommandHandler _handler;
 
     public PenalizeTeamCommandHandlerSessionTests()
@@ -20,8 +21,7 @@ public class PenalizeTeamCommandHandlerSessionTests
         _handler = new PenalizeTeamCommandHandler(
             _sessionRepoMock.Object,
             _teamClientMock.Object,
-            _eventRepoMock.Object,
-            _notifierMock.Object);
+            _busMock.Object);
     }
 
     private static PenalizeTeamCommand MakeCommand(Guid sessionId, Guid teamId)
@@ -95,10 +95,13 @@ public class PenalizeTeamCommandHandlerSessionTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Be(80);
-        _notifierMock.Verify(n => n.NotifyTeamPenalizedAsync(
-            cmd.SessionId, cmd.TeamId, It.IsAny<string>(),
-            cmd.Points, cmd.Reason, 80, It.IsAny<string>(),
-            It.IsAny<CancellationToken>()), Times.Once);
+        _busMock.Verify(
+            b => b.PublishAsync(
+                It.Is<TeamPenalizedIntegrationEvent>(e =>
+                    e.SessionId == cmd.SessionId && e.TeamId == cmd.TeamId
+                    && e.Points == cmd.Points && e.Reason == cmd.Reason && e.NewScore == 80),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     // ── TeamService failure ────────────────────────────────────────────────────
@@ -118,10 +121,9 @@ public class PenalizeTeamCommandHandlerSessionTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be(SessionErrors.CannotPenalizeTeam);
-        _notifierMock.Verify(n => n.NotifyTeamPenalizedAsync(
-            It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(),
-            It.IsAny<int>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>(),
-            It.IsAny<CancellationToken>()), Times.Never);
+        _busMock.Verify(
+            b => b.PublishAsync(It.IsAny<TeamPenalizedIntegrationEvent>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     // ── Helper ────────────────────────────────────────────────────────────────

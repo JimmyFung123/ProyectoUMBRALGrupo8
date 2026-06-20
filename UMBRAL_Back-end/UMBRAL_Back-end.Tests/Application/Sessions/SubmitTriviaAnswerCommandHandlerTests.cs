@@ -2,11 +2,13 @@ namespace UMBRAL_Back_end.Tests.Application.Sessions;
 
 using FluentAssertions;
 using Moq;
+using SessionService.Application;
 using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Commands.SubmitTriviaAnswer;
 using SessionService.Domain.MissionLookup;
 using SessionService.Domain.Sessions;
 using SessionService.Domain.Statistics;
+using UMBRAL.Contracts.Events;
 using Xunit;
 
 public class SubmitTriviaAnswerCommandHandlerTests
@@ -15,8 +17,7 @@ public class SubmitTriviaAnswerCommandHandlerTests
     private readonly Mock<ITeamServiceClient> _teamClientMock = new();
     private readonly Mock<IStageServiceClient> _stageClientMock = new();
     private readonly Mock<IStageCompletionRecordRepository> _statsRepoMock = new();
-    private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
-    private readonly Mock<ISessionNotifier> _notifierMock = new();
+    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly Mock<IMissionLookupRepository> _missionLookupRepoMock = new();
     private readonly SubmitTriviaAnswerCommandHandler _handler;
 
@@ -32,8 +33,7 @@ public class SubmitTriviaAnswerCommandHandlerTests
             _teamClientMock.Object,
             _stageClientMock.Object,
             _statsRepoMock.Object,
-            _eventRepoMock.Object,
-            _notifierMock.Object,
+            _busMock.Object,
             _missionLookupRepoMock.Object);
     }
 
@@ -138,10 +138,9 @@ public class SubmitTriviaAnswerCommandHandlerTests
         result.Value.NewScore.Should().Be(150);
         _teamClientMock.Verify(t => t.AnswerTriviaAsync(
             It.IsAny<Guid>(), true, 50, 2, It.IsAny<CancellationToken>()), Times.Once);
-        _notifierMock.Verify(n => n.NotifyStageCompletedAsync(
-            It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<string>(),
-            It.IsAny<bool>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<bool>(),
-            It.IsAny<CancellationToken>()), Times.Once);
+        _busMock.Verify(
+            b => b.PublishAsync(It.IsAny<StageCompletedIntegrationEvent>(), It.IsAny<CancellationToken>()),
+            Times.Once);
 
         // HU-25: a Trivia/WasCorrect=true record must be appended to the fact table.
         _statsRepoMock.Verify(
@@ -226,10 +225,10 @@ public class SubmitTriviaAnswerCommandHandlerTests
         _teamClientMock.Setup(t => t.GetTeamByIdAsync(teamId, It.IsAny<CancellationToken>()))
                        .ReturnsAsync(new TeamInfoItem(teamId, "Alfa", 1));
 
-        SessionEvent? captured = null;
-        _eventRepoMock
-            .Setup(r => r.AddAsync(It.IsAny<SessionEvent>(), It.IsAny<CancellationToken>()))
-            .Callback<SessionEvent, CancellationToken>((e, _) => captured = e);
+        SessionAuditIntegrationEvent? captured = null;
+        _busMock
+            .Setup(b => b.PublishAsync(It.IsAny<SessionAuditIntegrationEvent>(), It.IsAny<CancellationToken>()))
+            .Callback<SessionAuditIntegrationEvent, CancellationToken>((e, _) => captured = e);
 
         var result = await _handler.Handle(
             new SubmitTriviaAnswerCommand(Guid.NewGuid(), teamId, stageId, correctOptionId),
@@ -266,10 +265,10 @@ public class SubmitTriviaAnswerCommandHandlerTests
         _teamClientMock.Setup(t => t.GetTeamByIdAsync(teamId, It.IsAny<CancellationToken>()))
                        .ReturnsAsync(new TeamInfoItem(teamId, "Beta", 1));
 
-        SessionEvent? captured = null;
-        _eventRepoMock
-            .Setup(r => r.AddAsync(It.IsAny<SessionEvent>(), It.IsAny<CancellationToken>()))
-            .Callback<SessionEvent, CancellationToken>((e, _) => captured = e);
+        SessionAuditIntegrationEvent? captured = null;
+        _busMock
+            .Setup(b => b.PublishAsync(It.IsAny<SessionAuditIntegrationEvent>(), It.IsAny<CancellationToken>()))
+            .Callback<SessionAuditIntegrationEvent, CancellationToken>((e, _) => captured = e);
 
         var result = await _handler.Handle(
             new SubmitTriviaAnswerCommand(Guid.NewGuid(), teamId, stageId, wrongOptionId),

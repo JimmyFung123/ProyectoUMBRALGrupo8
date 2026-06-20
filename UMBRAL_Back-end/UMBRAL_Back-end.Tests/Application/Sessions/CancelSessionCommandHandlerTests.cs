@@ -11,7 +11,6 @@ using Xunit;
 public class CancelSessionCommandHandlerTests
 {
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
-    private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
     private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly CancelSessionCommandHandler _handler;
 
@@ -19,7 +18,6 @@ public class CancelSessionCommandHandlerTests
     {
         _handler = new CancelSessionCommandHandler(
             _sessionRepoMock.Object,
-            _eventRepoMock.Object,
             _busMock.Object);
     }
 
@@ -85,6 +83,15 @@ public class CancelSessionCommandHandlerTests
         _sessionRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         _busMock.Verify(
             b => b.PublishAsync(It.IsAny<SessionCancelledIntegrationEvent>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+        _busMock.Verify(
+            b => b.PublishAsync(
+                It.Is<SessionAuditIntegrationEvent>(e =>
+                    e.SessionId == sessionId
+                    && e.Description == "La sesión fue cancelada."
+                    && e.CommandType == nameof(CancelSessionCommand)
+                    && e.Outcome == SessionEvent.OutcomeSuccess),
+                It.IsAny<CancellationToken>()),
             Times.Once);
     }
 

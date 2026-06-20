@@ -1,7 +1,9 @@
 namespace SessionService.Application.Sessions;
 
 using Microsoft.Extensions.Logging;
+using SessionService.Application;
 using SessionService.Domain.Sessions;
+using UMBRAL.Contracts.Events;
 
 /// <summary>
 /// Processes automatic clue release for all InProgress sessions.
@@ -13,8 +15,7 @@ public class ClueAutoReleaseService
     private readonly ITeamServiceClient _teamClient;
     private readonly IStageServiceClient _stageClient;
     private readonly IClueServiceClient _clueClient;
-    private readonly ISessionEventRepository _eventRepository;
-    private readonly ISessionNotifier _notifier;
+    private readonly IIntegrationEventBus _bus;
     private readonly ILogger<ClueAutoReleaseService> _logger;
 
     public ClueAutoReleaseService(
@@ -22,16 +23,14 @@ public class ClueAutoReleaseService
         ITeamServiceClient teamClient,
         IStageServiceClient stageClient,
         IClueServiceClient clueClient,
-        ISessionEventRepository eventRepository,
-        ISessionNotifier notifier,
+        IIntegrationEventBus bus,
         ILogger<ClueAutoReleaseService> logger)
     {
         _sessionRepository = sessionRepository;
         _teamClient = teamClient;
         _stageClient = stageClient;
         _clueClient = clueClient;
-        _eventRepository = eventRepository;
-        _notifier = notifier;
+        _bus = bus;
         _logger = logger;
     }
 
@@ -115,23 +114,26 @@ public class ClueAutoReleaseService
                 clueNumber, clues.Count, team.Id, session.Id);
 
             // HU-14 criterion 2 + HU-22 / HU-26: record on the audit timeline as "Sistema".
-            // SessionEvent.Create defaults actorName to "Sistema" when omitted.
+            // SessionEvent.Create defaults actorName to "Sistema" when omitted, so the
+            // integration event carries ActorName: null to preserve that same default.
             var auditMessage = nextClue.Content is not null
                 ? $"Pista #{clueNumber} liberada automáticamente al equipo '{team.Name}': \"{nextClue.Content}\"."
                 : $"Pista #{clueNumber} liberada automáticamente al equipo '{team.Name}': zona geográfica (radio {nextClue.RadiusMeters ?? 0}m).";
-            await _eventRepository.AddAsync(
-                SessionEvent.Create(
+            await _bus.PublishAsync(
+                new SessionAuditIntegrationEvent(
                     session.Id,
                     auditMessage,
-                    commandType: "AutoReleaseClue",
-                    outcome: SessionEvent.OutcomeSuccess),
+                    ActorName: null,
+                    CommandType: "AutoReleaseClue",
+                    Outcome: SessionEvent.OutcomeSuccess,
+                    DateTime.UtcNow),
                 ct);
-            await _eventRepository.SaveChangesAsync(ct);
 
-            await _notifier.NotifyClueReleasedAsync(
-                session.Id, team.Id,
-                nextClue.Content, nextClue.Latitude, nextClue.Longitude, nextClue.RadiusMeters,
-                clueNumber, isAutomatic: true,
+            await _bus.PublishAsync(
+                new ClueReleasedIntegrationEvent(
+                    session.Id, team.Id,
+                    nextClue.Content, nextClue.Latitude, nextClue.Longitude, nextClue.RadiusMeters,
+                    clueNumber, IsAutomatic: true),
                 ct);
         }
     }

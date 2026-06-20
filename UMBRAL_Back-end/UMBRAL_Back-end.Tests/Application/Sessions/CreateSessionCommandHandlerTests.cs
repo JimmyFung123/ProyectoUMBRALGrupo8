@@ -2,16 +2,18 @@ namespace UMBRAL_Back_end.Tests.Application.Sessions;
 
 using FluentAssertions;
 using Moq;
+using SessionService.Application;
 using SessionService.Application.Sessions.Commands.CreateSession;
 using SessionService.Domain.MissionLookup;
 using SessionService.Domain.Sessions;
+using UMBRAL.Contracts.Events;
 using Xunit;
 
 public class CreateSessionCommandHandlerTests
 {
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
     private readonly Mock<IMissionLookupRepository> _missionLookupMock = new();
-    private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
+    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly CreateSessionCommandHandler _handler;
 
     public CreateSessionCommandHandlerTests()
@@ -19,7 +21,7 @@ public class CreateSessionCommandHandlerTests
         _handler = new CreateSessionCommandHandler(
             _sessionRepoMock.Object,
             _missionLookupMock.Object,
-            _eventRepoMock.Object);
+            _busMock.Object);
     }
 
     [Fact]
@@ -102,10 +104,10 @@ public class CreateSessionCommandHandlerTests
             .Setup(r => r.GetByIdAsync(missionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(activeMission);
 
-        SessionEvent? captured = null;
-        _eventRepoMock
-            .Setup(r => r.AddAsync(It.IsAny<SessionEvent>(), It.IsAny<CancellationToken>()))
-            .Callback<SessionEvent, CancellationToken>((e, _) => captured = e);
+        SessionAuditIntegrationEvent? captured = null;
+        _busMock
+            .Setup(b => b.PublishAsync(It.IsAny<SessionAuditIntegrationEvent>(), It.IsAny<CancellationToken>()))
+            .Callback<SessionAuditIntegrationEvent, CancellationToken>((e, _) => captured = e);
 
         var result = await _handler.Handle(
             new CreateSessionCommand(missionId, "Ronda 1", null, "Prof. Ortega"),
@@ -117,7 +119,9 @@ public class CreateSessionCommandHandlerTests
         captured.CommandType.Should().Be(nameof(CreateSessionCommand));
         captured.Outcome.Should().Be(SessionEvent.OutcomeSuccess);
         captured.Description.Should().Contain("Ronda 1");
-        _eventRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _busMock.Verify(
+            b => b.PublishAsync(It.IsAny<SessionAuditIntegrationEvent>(), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Fact]

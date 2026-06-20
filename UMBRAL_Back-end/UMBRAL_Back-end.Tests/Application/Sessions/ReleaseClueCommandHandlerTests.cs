@@ -2,17 +2,18 @@ namespace UMBRAL_Back_end.Tests.Application.Sessions;
 
 using FluentAssertions;
 using Moq;
+using SessionService.Application;
 using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Commands.ReleaseClue;
 using SessionService.Domain.Sessions;
+using UMBRAL.Contracts.Events;
 using Xunit;
 
 public class ReleaseClueCommandHandlerTests
 {
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
     private readonly Mock<ITeamServiceClient> _teamClientMock = new();
-    private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
-    private readonly Mock<ISessionNotifier> _notifierMock = new();
+    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly ReleaseClueCommandHandler _handler;
 
     public ReleaseClueCommandHandlerTests()
@@ -20,8 +21,7 @@ public class ReleaseClueCommandHandlerTests
         _handler = new ReleaseClueCommandHandler(
             _sessionRepoMock.Object,
             _teamClientMock.Object,
-            _eventRepoMock.Object,
-            _notifierMock.Object);
+            _busMock.Object);
     }
 
     private static ReleaseClueCommand MakeCommand(Guid sessionId, Guid teamId)
@@ -94,10 +94,9 @@ public class ReleaseClueCommandHandlerTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be(SessionErrors.AllCluesAlreadyReleased);
-        _notifierMock.Verify(n => n.NotifyClueReleasedAsync(
-            It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string?>(),
-            It.IsAny<double?>(), It.IsAny<double?>(), It.IsAny<int?>(),
-            It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
+        _busMock.Verify(
+            b => b.PublishAsync(It.IsAny<ClueReleasedIntegrationEvent>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     // ── Happy path ────────────────────────────────────────────────────────────
@@ -119,10 +118,12 @@ public class ReleaseClueCommandHandlerTests
         var result = await _handler.Handle(cmd, default);
 
         result.IsSuccess.Should().BeTrue();
-        _notifierMock.Verify(n => n.NotifyClueReleasedAsync(
-            cmd.SessionId, cmd.TeamId, It.IsAny<string?>(),
-            It.IsAny<double?>(), It.IsAny<double?>(), It.IsAny<int?>(),
-            1, It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
+        _busMock.Verify(
+            b => b.PublishAsync(
+                It.Is<ClueReleasedIntegrationEvent>(e =>
+                    e.SessionId == cmd.SessionId && e.TeamId == cmd.TeamId && e.ClueNumber == 1),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     // ── Validation order: NotFound before TeamService call ────────────────────

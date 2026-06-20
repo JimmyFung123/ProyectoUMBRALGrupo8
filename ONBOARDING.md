@@ -368,6 +368,65 @@ queda en `Waiting` y que un 2º poll es idempotente.
 
 ---
 
+## Procesamiento asíncrono de eventos (MassTransit)
+
+Requisito no funcional: publicación y consumo de eventos asíncronos para **auditoría,
+recálculo de puntajes, alertas y consolidación del historial**. Solo dos de los cuatro
+casos terminaron migrados a publish/consume — los otros dos se quedaron síncronos
+**a propósito**, con evidencia concreta de por qué forzarlos habría sido una regresión.
+
+| Caso | Estado | Por qué |
+|---|---|---|
+| Auditoría (`SessionEvent`) | **Async** — `SessionAuditIntegrationEvent` → `SessionAuditConsumer` | Ningún invariante de consistencia lo protegía, y de hecho era un bug real: si el `SaveChanges` del audit log fallaba, el catch genérico devolvía 500 al operador aunque la acción principal ya se hubiera guardado con éxito. |
+| Alertas (SignalR, `ISessionNotifier`) | **Async** — 5 eventos tipados (`SessionStateChanged`, `OperatorMessageBroadcast`, `StageCompleted`, `ClueReleased`, `TeamPenalized`), uno por método de la interfaz, cada uno con su consumer | Mismo argumento que auditoría: la notificación era el último paso del handler — un fallo ahí devolvía 500 sobre una acción que ya había triunfado. |
+| Recálculo de puntajes (`IRankingProjector.RebuildAsync`) | **Síncrono, a propósito** | Documentado en la propia interfaz (HU-24/RB-08): la proyección de ranking comparte unidad de trabajo con el write del agregado `Team` para que nunca pueda quedar desincronizada *dentro del mismo request*. Async rompería eso: un jugador vería su puntaje actualizado pero el ranking todavía viejo, en la misma pantalla, casi al mismo tiempo. |
+| Consolidación de historial (`StageCompletionRecord`, HU-25) | **Síncrono, a propósito** | `FinalizeSessionCommandHandler` hace un flip de visibilidad (`MarkSessionIncludedAsync`) **una sola vez, sin reintentos**, sobre los registros que ya existen en ese momento. Si el insert por jugada fuera async, una jugada justo antes de finalizar podría llegar a la tabla *después* del flip y quedar invisible en el dashboard de analítica para siempre. |
+
+### Patrón usado en los dos casos migrados
+
+El Command Handler publica un evento tipado vía `IIntegrationEventBus` en vez de
+escribir/notificar directo; un `IConsumer<T>` nuevo en
+`SessionService/Infrastructure/Messaging/Consumers/` hace el trabajo real.
+
+```csharp
+// Antes (síncrono, en el handler)
+await _eventRepository.AddAsync(SessionEvent.Create(...), ct);
+await _eventRepository.SaveChangesAsync(ct);
+
+// Después (el handler solo publica)
+await _bus.PublishAsync(new SessionAuditIntegrationEvent(...), ct);
+
+// El consumer hace el trabajo real
+public class SessionAuditConsumer : IConsumer<SessionAuditIntegrationEvent>
+{
+    public async Task Consume(ConsumeContext<SessionAuditIntegrationEvent> context)
+    {
+        var auditEvent = SessionEvent.Create(context.Message.SessionId, ...);
+        await _eventRepository.AddAsync(auditEvent, context.CancellationToken);
+        await _eventRepository.SaveChangesAsync(context.CancellationToken);
+    }
+}
+```
+
+Auditoría usa un evento genérico (mismo shape que `SessionEvent`: `Description` +
+`CommandType` + `Outcome` aplican a cualquier acción). Alertas usa un evento tipado por
+método porque `ISessionNotifier` no tiene un shape común — cada notificación lleva datos
+distintos.
+
+### Cómo decidir si un caso es candidato a async
+
+Antes de mover un write/notify a publish/consume, buscar si hay una operación
+**posterior** que asuma que el write anterior ya terminó (orden estricto). Si existe,
+async lo rompe. Señales de alarma:
+
+- Un doc-comment que mencione "comparte SaveChanges", "misma unidad de trabajo" o similar.
+- Una operación de tipo "marcar/promover todo lo existente" que corre una sola vez, sin
+  segunda pasada (como `MarkSessionIncludedAsync`).
+- Un flujo donde el mismo cliente que dispara la escritura puede, un segundo después, leer
+  ese mismo dato por otro endpoint (riesgo de leer su propia escritura como "stale").
+
+---
+
 ## Cómo implementar una Historia de Usuario nueva
 
 Seguimos este flujo para cada HU:

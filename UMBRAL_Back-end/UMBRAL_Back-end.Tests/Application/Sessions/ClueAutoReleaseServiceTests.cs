@@ -3,8 +3,10 @@ namespace UMBRAL_Back_end.Tests.Application.Sessions;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using SessionService.Application;
 using SessionService.Application.Sessions;
 using SessionService.Domain.Sessions;
+using UMBRAL.Contracts.Events;
 using Xunit;
 
 public class ClueAutoReleaseServiceTests
@@ -13,8 +15,7 @@ public class ClueAutoReleaseServiceTests
     private readonly Mock<ITeamServiceClient> _teamClientMock = new();
     private readonly Mock<IStageServiceClient> _stageClientMock = new();
     private readonly Mock<IClueServiceClient> _clueClientMock = new();
-    private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
-    private readonly Mock<ISessionNotifier> _notifierMock = new();
+    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly ClueAutoReleaseService _service;
 
     public ClueAutoReleaseServiceTests()
@@ -24,8 +25,7 @@ public class ClueAutoReleaseServiceTests
             _teamClientMock.Object,
             _stageClientMock.Object,
             _clueClientMock.Object,
-            _eventRepoMock.Object,
-            _notifierMock.Object,
+            _busMock.Object,
             NullLogger<ClueAutoReleaseService>.Instance);
     }
 
@@ -112,10 +112,13 @@ public class ClueAutoReleaseServiceTests
         await _service.ProcessAsync(default);
 
         _teamClientMock.Verify(t => t.ReleaseClueAsync(teamId, 1, It.IsAny<CancellationToken>(), true), Times.Once);
-        _notifierMock.Verify(n => n.NotifyClueReleasedAsync(
-            session.Id, teamId,
-            It.IsAny<string?>(), It.IsAny<double?>(), It.IsAny<double?>(), It.IsAny<int?>(),
-            1, true, It.IsAny<CancellationToken>()), Times.Once);
+        _busMock.Verify(
+            b => b.PublishAsync(
+                It.Is<ClueReleasedIntegrationEvent>(e =>
+                    e.SessionId == session.Id && e.TeamId == teamId
+                    && e.ClueNumber == 1 && e.IsAutomatic == true),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     // ── Team has no timer set (never entered stage) ────────────────────────────

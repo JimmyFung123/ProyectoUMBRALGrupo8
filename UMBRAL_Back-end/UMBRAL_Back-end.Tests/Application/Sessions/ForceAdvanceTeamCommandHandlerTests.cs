@@ -2,10 +2,12 @@ namespace UMBRAL_Back_end.Tests.Application.Sessions;
 
 using FluentAssertions;
 using Moq;
+using SessionService.Application;
 using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Commands.ForceAdvanceTeam;
 using SessionService.Domain.Sessions;
 using SessionService.Domain.Statistics;
+using UMBRAL.Contracts.Events;
 using Xunit;
 
 public class ForceAdvanceTeamCommandHandlerTests
@@ -13,9 +15,8 @@ public class ForceAdvanceTeamCommandHandlerTests
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
     private readonly Mock<ITeamServiceClient> _teamClientMock = new();
     private readonly Mock<IStageServiceClient> _stageClientMock = new();
-    private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
+    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly Mock<IStageCompletionRecordRepository> _statsRepoMock = new();
-    private readonly Mock<ISessionNotifier> _notifierMock = new();
     private readonly ForceAdvanceTeamCommandHandler _handler;
 
     public ForceAdvanceTeamCommandHandlerTests()
@@ -24,9 +25,8 @@ public class ForceAdvanceTeamCommandHandlerTests
             _sessionRepoMock.Object,
             _teamClientMock.Object,
             _stageClientMock.Object,
-            _eventRepoMock.Object,
-            _statsRepoMock.Object,
-            _notifierMock.Object);
+            _busMock.Object,
+            _statsRepoMock.Object);
     }
 
     private static Session CreateSessionWithStatus(SessionStatus status)
@@ -130,9 +130,14 @@ public class ForceAdvanceTeamCommandHandlerTests
 
         result.IsSuccess.Should().BeTrue();
         _teamClientMock.Verify(t => t.ForceAdvanceTeamAsync(teamId, 2, It.IsAny<CancellationToken>()), Times.Once);
-        _eventRepoMock.Verify(e => e.AddAsync(It.IsAny<SessionEvent>(), It.IsAny<CancellationToken>()), Times.Once);
-        _eventRepoMock.Verify(e => e.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _notifierMock.Verify(n => n.NotifyStateChangedAsync(session.Id, It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
+        _busMock.Verify(
+            b => b.PublishAsync(It.IsAny<SessionAuditIntegrationEvent>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+        _busMock.Verify(
+            b => b.PublishAsync(
+                It.Is<SessionStateChangedIntegrationEvent>(e => e.SessionId == session.Id),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
 
         // HU-25: a force-advance row must be persisted with WasCorrect=null
         // and WasForceAdvance=true. The stage clock returned 120s.
