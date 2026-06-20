@@ -4,6 +4,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SessionService.Application.Missions.Queries.GetMissionStructure;
+using SessionService.Domain.Common;
 
 /// <summary>
 /// Operator-facing preview of a mission's full structure (stages → clues),
@@ -16,13 +17,31 @@ using SessionService.Application.Missions.Queries.GetMissionStructure;
 public class MissionStructureController : ControllerBase
 {
     private readonly ISender _sender;
+    private readonly ILogger<MissionStructureController> _logger;
 
-    public MissionStructureController(ISender sender) => _sender = sender;
+    public MissionStructureController(ISender sender, ILogger<MissionStructureController> logger)
+    {
+        _sender = sender;
+        _logger = logger;
+    }
 
     [HttpGet("{missionId:guid}/structure")]
     public async Task<IActionResult> GetStructure(Guid missionId, CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new GetMissionStructureQuery(missionId), cancellationToken);
-        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
+        try
+        {
+            var result = await _sender.Send(new GetMissionStructureQuery(missionId), cancellationToken);
+            return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(GetStructure), nameof(MissionStructureController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 }

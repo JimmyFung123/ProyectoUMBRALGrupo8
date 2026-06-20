@@ -3,6 +3,7 @@ namespace TeamService.Adapter.Controllers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TeamService.Application.Rankings;
+using TeamService.Domain.Common;
 using TeamService.Infrastructure.Persistence;
 
 /// <summary>
@@ -20,62 +21,80 @@ public class InternalSyncHealthController : ControllerBase
 {
     private readonly TeamsDbContext _context;
     private readonly IRankingProjector _projector;
+    private readonly ILogger<InternalSyncHealthController> _logger;
 
-    public InternalSyncHealthController(TeamsDbContext context, IRankingProjector projector)
+    public InternalSyncHealthController(
+        TeamsDbContext context,
+        IRankingProjector projector,
+        ILogger<InternalSyncHealthController> logger)
     {
         _context = context;
         _projector = projector;
+        _logger = logger;
     }
 
     [HttpGet]
     public async Task<IActionResult> Get(CancellationToken ct)
     {
-        var totalTeams = await _context.Teams.CountAsync(ct);
-        var totalProjections = await _context.RankingProjections.CountAsync(ct);
+        try
+        {
+            var totalTeams = await _context.Teams.CountAsync(ct);
+            var totalProjections = await _context.RankingProjections.CountAsync(ct);
 
-        // Per-session breakdown: every session that has at least one team OR at
-        // least one projection row, so the dashboard can surface sessions whose
-        // projection is leftover after a write-model wipe (and vice versa).
-        var teamCounts = await _context.Teams
-            .GroupBy(t => t.SessionId)
-            .Select(g => new { SessionId = g.Key, Count = g.Count() })
-            .ToListAsync(ct);
+            // Per-session breakdown: every session that has at least one team OR at
+            // least one projection row, so the dashboard can surface sessions whose
+            // projection is leftover after a write-model wipe (and vice versa).
+            var teamCounts = await _context.Teams
+                .GroupBy(t => t.SessionId)
+                .Select(g => new { SessionId = g.Key, Count = g.Count() })
+                .ToListAsync(ct);
 
-        var projectionData = await _context.RankingProjections
-            .GroupBy(p => p.SessionId)
-            .Select(g => new
-            {
-                SessionId = g.Key,
-                Count = g.Count(),
-                MaxUpdatedAt = g.Max(p => p.UpdatedAt)
-            })
-            .ToListAsync(ct);
+            var projectionData = await _context.RankingProjections
+                .GroupBy(p => p.SessionId)
+                .Select(g => new
+                {
+                    SessionId = g.Key,
+                    Count = g.Count(),
+                    MaxUpdatedAt = g.Max(p => p.UpdatedAt)
+                })
+                .ToListAsync(ct);
 
-        var sessionIds = teamCounts.Select(t => t.SessionId)
-            .Union(projectionData.Select(p => p.SessionId))
-            .ToList();
+            var sessionIds = teamCounts.Select(t => t.SessionId)
+                .Union(projectionData.Select(p => p.SessionId))
+                .ToList();
 
-        var teamsBySession = teamCounts.ToDictionary(t => t.SessionId, t => t.Count);
-        var projectionsBySession = projectionData.ToDictionary(p => p.SessionId);
+            var teamsBySession = teamCounts.ToDictionary(t => t.SessionId, t => t.Count);
+            var projectionsBySession = projectionData.ToDictionary(p => p.SessionId);
 
-        var sessions = sessionIds
-            .Select(sid =>
-            {
-                teamsBySession.TryGetValue(sid, out var teamCount);
-                projectionsBySession.TryGetValue(sid, out var proj);
-                return new RankingHealthSessionDto(
-                    SessionId: sid,
-                    TeamCount: teamCount,
-                    ProjectionCount: proj?.Count ?? 0,
-                    LastUpdatedAt: proj?.MaxUpdatedAt);
-            })
-            .OrderByDescending(s => s.LastUpdatedAt ?? DateTime.MinValue)
-            .ToList();
+            var sessions = sessionIds
+                .Select(sid =>
+                {
+                    teamsBySession.TryGetValue(sid, out var teamCount);
+                    projectionsBySession.TryGetValue(sid, out var proj);
+                    return new RankingHealthSessionDto(
+                        SessionId: sid,
+                        TeamCount: teamCount,
+                        ProjectionCount: proj?.Count ?? 0,
+                        LastUpdatedAt: proj?.MaxUpdatedAt);
+                })
+                .OrderByDescending(s => s.LastUpdatedAt ?? DateTime.MinValue)
+                .ToList();
 
-        return Ok(new TeamServiceSyncHealthDto(
-            TotalTeams: totalTeams,
-            TotalProjections: totalProjections,
-            Sessions: sessions));
+            return Ok(new TeamServiceSyncHealthDto(
+                TotalTeams: totalTeams,
+                TotalProjections: totalProjections,
+                Sessions: sessions));
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(Get), nameof(InternalSyncHealthController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     /// <summary>
@@ -86,18 +105,31 @@ public class InternalSyncHealthController : ControllerBase
     [HttpPost("ranking/{sessionId:guid}/reproject")]
     public async Task<IActionResult> ReprojectSessionRanking(Guid sessionId, CancellationToken ct)
     {
-        await _projector.RebuildAsync(sessionId, ct);
-        await _context.SaveChangesAsync(ct);
+        try
+        {
+            await _projector.RebuildAsync(sessionId, ct);
+            await _context.SaveChangesAsync(ct);
 
-        var teamCount = await _context.Teams.CountAsync(t => t.SessionId == sessionId, ct);
-        var projectionCount = await _context.RankingProjections.CountAsync(p => p.SessionId == sessionId, ct);
+            var teamCount = await _context.Teams.CountAsync(t => t.SessionId == sessionId, ct);
+            var projectionCount = await _context.RankingProjections.CountAsync(p => p.SessionId == sessionId, ct);
 
-        return Ok(new RankingReprojectResultDto(
-            ProjectionId: "ranking-projection",
-            SessionId: sessionId,
-            TeamCount: teamCount,
-            ProjectionCount: projectionCount,
-            CompletedAt: DateTime.UtcNow));
+            return Ok(new RankingReprojectResultDto(
+                ProjectionId: "ranking-projection",
+                SessionId: sessionId,
+                TeamCount: teamCount,
+                ProjectionCount: projectionCount,
+                CompletedAt: DateTime.UtcNow));
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(ReprojectSessionRanking), nameof(InternalSyncHealthController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 }
 

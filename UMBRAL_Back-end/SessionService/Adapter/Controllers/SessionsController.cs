@@ -26,6 +26,7 @@ using SessionService.Application.Sessions.Queries.GetSessionDashboard;
 using SessionService.Application.Sessions.Queries.GetSessionDetail;
 using SessionService.Application.Sessions.Queries.GetSessionRanking;
 using SessionService.Application.Sessions.Queries.GetSessions;
+using SessionService.Domain.Common;
 using SessionService.Domain.Sessions;
 using UMBRAL.Auth;
 
@@ -36,8 +37,13 @@ using UMBRAL.Auth;
 public class SessionsController : ControllerBase
 {
     private readonly ISender _sender;
+    private readonly ILogger<SessionsController> _logger;
 
-    public SessionsController(ISender sender) => _sender = sender;
+    public SessionsController(ISender sender, ILogger<SessionsController> logger)
+    {
+        _sender = sender;
+        _logger = logger;
+    }
 
     /// <summary>
     /// Returns the operator display name extracted from the JWT, used by the
@@ -52,8 +58,21 @@ public class SessionsController : ControllerBase
         [FromQuery] string? status,
         CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new GetSessionsQuery(missionId, status), cancellationToken);
-        return Ok(result);
+        try
+        {
+            var result = await _sender.Send(new GetSessionsQuery(missionId, status), cancellationToken);
+            return Ok(result);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(GetAll), nameof(SessionsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     /// <summary>Participant entry point: look up a session by its access code.</summary>
@@ -61,22 +80,61 @@ public class SessionsController : ControllerBase
     [AllowAnonymous] // HU-17: participantes anónimos
     public async Task<IActionResult> GetByCode(string code, CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new GetSessionByCodeQuery(code), cancellationToken);
-        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
+        try
+        {
+            var result = await _sender.Send(new GetSessionByCodeQuery(code), cancellationToken);
+            return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(GetByCode), nameof(SessionsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new GetSessionDetailQuery(id), cancellationToken);
-        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
+        try
+        {
+            var result = await _sender.Send(new GetSessionDetailQuery(id), cancellationToken);
+            return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(GetById), nameof(SessionsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     [HttpGet("{id:guid}/dashboard")]
     public async Task<IActionResult> GetDashboard(Guid id, CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new GetSessionDashboardQuery(id), cancellationToken);
-        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
+        try
+        {
+            var result = await _sender.Send(new GetSessionDashboardQuery(id), cancellationToken);
+            return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(GetDashboard), nameof(SessionsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     /// <summary>
@@ -88,8 +146,21 @@ public class SessionsController : ControllerBase
     [AllowAnonymous] // HU-21: visible para Admin, Operador y Participante
     public async Task<IActionResult> GetRanking(Guid id, CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new GetSessionRankingQuery(id), cancellationToken);
-        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
+        try
+        {
+            var result = await _sender.Send(new GetSessionRankingQuery(id), cancellationToken);
+            return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(GetRanking), nameof(SessionsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     /// <summary>
@@ -100,8 +171,21 @@ public class SessionsController : ControllerBase
     [HttpGet("{id:guid}/audit")]
     public async Task<IActionResult> GetAudit(Guid id, CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new GetSessionAuditQuery(id), cancellationToken);
-        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
+        try
+        {
+            var result = await _sender.Send(new GetSessionAuditQuery(id), cancellationToken);
+            return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(GetAudit), nameof(SessionsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     /// <summary>
@@ -114,23 +198,49 @@ public class SessionsController : ControllerBase
     [HttpGet("{id:guid}/audit-log")]
     public async Task<IActionResult> GetCommandAudit(Guid id, CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new GetSessionCommandAuditQuery(id), cancellationToken);
-        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
+        try
+        {
+            var result = await _sender.Send(new GetSessionCommandAuditQuery(id), cancellationToken);
+            return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(GetCommandAudit), nameof(SessionsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Cancel(Guid id, CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new CancelSessionCommand(id, GetOperatorName()), cancellationToken);
-
-        if (result.IsFailure)
+        try
         {
-            return result.Error.Code == SessionErrors.NotFound.Code
-                ? NotFound(result.Error)
-                : BadRequest(result.Error);
-        }
+            var result = await _sender.Send(new CancelSessionCommand(id, GetOperatorName()), cancellationToken);
 
-        return Ok(result.Value);
+            if (result.IsFailure)
+            {
+                return result.Error.Code == SessionErrors.NotFound.Code
+                    ? NotFound(result.Error)
+                    : BadRequest(result.Error);
+            }
+
+            return Ok(result.Value);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(Cancel), nameof(SessionsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     [HttpPut("{id:guid}")]
@@ -139,18 +249,31 @@ public class SessionsController : ControllerBase
         [FromBody] UpdateSessionRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(
-            new UpdateSessionCommand(id, request.Name, request.ScheduledAt, GetOperatorName()),
-            cancellationToken);
-
-        if (result.IsFailure)
+        try
         {
-            return result.Error.Code == SessionErrors.NotFound.Code
-                ? NotFound(result.Error)
-                : BadRequest(result.Error);
-        }
+            var result = await _sender.Send(
+                new UpdateSessionCommand(id, request.Name, request.ScheduledAt, GetOperatorName()),
+                cancellationToken);
 
-        return Ok(result.Value);
+            if (result.IsFailure)
+            {
+                return result.Error.Code == SessionErrors.NotFound.Code
+                    ? NotFound(result.Error)
+                    : BadRequest(result.Error);
+            }
+
+            return Ok(result.Value);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(Update), nameof(SessionsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     [HttpPost]
@@ -158,57 +281,122 @@ public class SessionsController : ControllerBase
         [FromBody] CreateSessionRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(
-            new CreateSessionCommand(request.MissionId, request.Name, request.ScheduledAt, GetOperatorName()),
-            cancellationToken);
+        try
+        {
+            var result = await _sender.Send(
+                new CreateSessionCommand(request.MissionId, request.Name, request.ScheduledAt, GetOperatorName()),
+                cancellationToken);
 
-        return result.IsSuccess
-            ? Ok(result.Value)
-            : BadRequest(result.Error);
+            return result.IsSuccess
+                ? Ok(result.Value)
+                : BadRequest(result.Error);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(Create), nameof(SessionsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     [HttpPatch("{id:guid}/start")]
     public async Task<IActionResult> Start(Guid id, CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new StartSessionCommand(id, GetOperatorName()), cancellationToken);
-        if (result.IsFailure)
-            return result.Error.Code == SessionErrors.NotFound.Code
-                ? NotFound(result.Error)
-                : BadRequest(result.Error);
-        return Ok(result.Value);
+        try
+        {
+            var result = await _sender.Send(new StartSessionCommand(id, GetOperatorName()), cancellationToken);
+            if (result.IsFailure)
+                return result.Error.Code == SessionErrors.NotFound.Code
+                    ? NotFound(result.Error)
+                    : BadRequest(result.Error);
+            return Ok(result.Value);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(Start), nameof(SessionsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     [HttpPatch("{id:guid}/pause")]
     public async Task<IActionResult> Pause(Guid id, CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new PauseSessionCommand(id, GetOperatorName()), cancellationToken);
-        if (result.IsFailure)
-            return result.Error.Code == SessionErrors.NotFound.Code
-                ? NotFound(result.Error)
-                : BadRequest(result.Error);
-        return Ok(result.Value);
+        try
+        {
+            var result = await _sender.Send(new PauseSessionCommand(id, GetOperatorName()), cancellationToken);
+            if (result.IsFailure)
+                return result.Error.Code == SessionErrors.NotFound.Code
+                    ? NotFound(result.Error)
+                    : BadRequest(result.Error);
+            return Ok(result.Value);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(Pause), nameof(SessionsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     [HttpPatch("{id:guid}/resume")]
     public async Task<IActionResult> Resume(Guid id, CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new ResumeSessionCommand(id, GetOperatorName()), cancellationToken);
-        if (result.IsFailure)
-            return result.Error.Code == SessionErrors.NotFound.Code
-                ? NotFound(result.Error)
-                : BadRequest(result.Error);
-        return Ok(result.Value);
+        try
+        {
+            var result = await _sender.Send(new ResumeSessionCommand(id, GetOperatorName()), cancellationToken);
+            if (result.IsFailure)
+                return result.Error.Code == SessionErrors.NotFound.Code
+                    ? NotFound(result.Error)
+                    : BadRequest(result.Error);
+            return Ok(result.Value);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(Resume), nameof(SessionsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     [HttpPatch("{id:guid}/finalize")]
     public async Task<IActionResult> Finalize(Guid id, CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new FinalizeSessionCommand(id, GetOperatorName()), cancellationToken);
-        if (result.IsFailure)
-            return result.Error.Code == SessionErrors.NotFound.Code
-                ? NotFound(result.Error)
-                : BadRequest(result.Error);
-        return Ok(result.Value);
+        try
+        {
+            var result = await _sender.Send(new FinalizeSessionCommand(id, GetOperatorName()), cancellationToken);
+            if (result.IsFailure)
+                return result.Error.Code == SessionErrors.NotFound.Code
+                    ? NotFound(result.Error)
+                    : BadRequest(result.Error);
+            return Ok(result.Value);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(Finalize), nameof(SessionsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     /// <summary>
@@ -221,17 +409,30 @@ public class SessionsController : ControllerBase
         [FromBody] BroadcastOperatorMessageRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(
-            new BroadcastOperatorMessageCommand(id, request.Message, GetOperatorName()),
-            cancellationToken);
-
-        if (result.IsFailure)
+        try
         {
-            return result.Error.Code == SessionErrors.NotFound.Code
-                ? NotFound(result.Error)
-                : BadRequest(result.Error);
+            var result = await _sender.Send(
+                new BroadcastOperatorMessageCommand(id, request.Message, GetOperatorName()),
+                cancellationToken);
+
+            if (result.IsFailure)
+            {
+                return result.Error.Code == SessionErrors.NotFound.Code
+                    ? NotFound(result.Error)
+                    : BadRequest(result.Error);
+            }
+            return Ok(result.Value);
         }
-        return Ok(result.Value);
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(BroadcastOperatorMessage), nameof(SessionsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     [HttpPost("{id:guid}/teams/{teamId:guid}/release-clue")]
@@ -241,28 +442,41 @@ public class SessionsController : ControllerBase
         [FromBody] ReleaseClueRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(
-            new ReleaseClueCommand(
-                id,
-                teamId,
-                request.TotalCluesForStage,
-                request.ClueContent,
-                request.ClueLatitude,
-                request.ClueLongitude,
-                request.ClueRadiusMeters,
-                GetOperatorName()),
-            cancellationToken);
-
-        if (result.IsFailure)
+        try
         {
-            if (result.Error.Code == SessionErrors.NotFound.Code)
-                return NotFound(result.Error);
-            if (result.Error.Code == SessionErrors.AllCluesAlreadyReleased.Code)
-                return Conflict(result.Error);
-            return BadRequest(result.Error);
-        }
+            var result = await _sender.Send(
+                new ReleaseClueCommand(
+                    id,
+                    teamId,
+                    request.TotalCluesForStage,
+                    request.ClueContent,
+                    request.ClueLatitude,
+                    request.ClueLongitude,
+                    request.ClueRadiusMeters,
+                    GetOperatorName()),
+                cancellationToken);
 
-        return Ok(result.Value);
+            if (result.IsFailure)
+            {
+                if (result.Error.Code == SessionErrors.NotFound.Code)
+                    return NotFound(result.Error);
+                if (result.Error.Code == SessionErrors.AllCluesAlreadyReleased.Code)
+                    return Conflict(result.Error);
+                return BadRequest(result.Error);
+            }
+
+            return Ok(result.Value);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(ReleaseClue), nameof(SessionsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     [HttpPost("{id:guid}/teams/{teamId:guid}/penalize")]
@@ -272,18 +486,31 @@ public class SessionsController : ControllerBase
         [FromBody] PenalizeTeamRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(
-            new PenalizeTeamCommand(id, teamId, request.Points, request.Reason, GetOperatorName()),
-            cancellationToken);
-
-        if (result.IsFailure)
+        try
         {
-            return result.Error.Code == SessionErrors.NotFound.Code
-                ? NotFound(result.Error)
-                : BadRequest(result.Error);
-        }
+            var result = await _sender.Send(
+                new PenalizeTeamCommand(id, teamId, request.Points, request.Reason, GetOperatorName()),
+                cancellationToken);
 
-        return Ok(new { newScore = result.Value });
+            if (result.IsFailure)
+            {
+                return result.Error.Code == SessionErrors.NotFound.Code
+                    ? NotFound(result.Error)
+                    : BadRequest(result.Error);
+            }
+
+            return Ok(new { newScore = result.Value });
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(PenalizeTeam), nameof(SessionsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     [HttpPost("{id:guid}/teams/{teamId:guid}/force-advance")]
@@ -292,18 +519,31 @@ public class SessionsController : ControllerBase
         Guid teamId,
         CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new ForceAdvanceTeamCommand(id, teamId, GetOperatorName()), cancellationToken);
-
-        if (result.IsFailure)
+        try
         {
-            if (result.Error.Code == SessionErrors.NotFound.Code)
-                return NotFound(result.Error);
-            if (result.Error.Code == SessionErrors.TeamAlreadyOnLastStage.Code)
-                return Conflict(result.Error);
-            return BadRequest(result.Error);
-        }
+            var result = await _sender.Send(new ForceAdvanceTeamCommand(id, teamId, GetOperatorName()), cancellationToken);
 
-        return Ok(result.Value);
+            if (result.IsFailure)
+            {
+                if (result.Error.Code == SessionErrors.NotFound.Code)
+                    return NotFound(result.Error);
+                if (result.Error.Code == SessionErrors.TeamAlreadyOnLastStage.Code)
+                    return Conflict(result.Error);
+                return BadRequest(result.Error);
+            }
+
+            return Ok(result.Value);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(ForceAdvanceTeam), nameof(SessionsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     /// <summary>
@@ -317,18 +557,31 @@ public class SessionsController : ControllerBase
         Guid teamId,
         CancellationToken cancellationToken)
     {
-        // El auto-arranque del equipo es una ESCRITURA: vive en el lado de comandos.
-        // Se ejecuta (idempotente, best-effort) antes del query, que es lectura pura.
-        await _sender.Send(new AutoStartTeamCommand(id, teamId), cancellationToken);
-
-        var result = await _sender.Send(new GetParticipantStageQuery(id, teamId), cancellationToken);
-        if (result.IsFailure)
+        try
         {
-            return result.Error.Code == SessionErrors.NotFound.Code
-                ? NotFound(result.Error)
-                : BadRequest(result.Error);
+            // El auto-arranque del equipo es una ESCRITURA: vive en el lado de comandos.
+            // Se ejecuta (idempotente, best-effort) antes del query, que es lectura pura.
+            await _sender.Send(new AutoStartTeamCommand(id, teamId), cancellationToken);
+
+            var result = await _sender.Send(new GetParticipantStageQuery(id, teamId), cancellationToken);
+            if (result.IsFailure)
+            {
+                return result.Error.Code == SessionErrors.NotFound.Code
+                    ? NotFound(result.Error)
+                    : BadRequest(result.Error);
+            }
+            return Ok(result.Value);
         }
-        return Ok(result.Value);
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(GetParticipantStage), nameof(SessionsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     /// <summary>
@@ -343,18 +596,31 @@ public class SessionsController : ControllerBase
         [FromBody] SubmitTriviaAnswerRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(
-            new SubmitTriviaAnswerCommand(id, teamId, request.StageId, request.OptionId),
-            cancellationToken);
-
-        if (result.IsFailure)
+        try
         {
-            return result.Error.Code == SessionErrors.NotFound.Code
-                ? NotFound(result.Error)
-                : BadRequest(result.Error);
-        }
+            var result = await _sender.Send(
+                new SubmitTriviaAnswerCommand(id, teamId, request.StageId, request.OptionId),
+                cancellationToken);
 
-        return Ok(result.Value);
+            if (result.IsFailure)
+            {
+                return result.Error.Code == SessionErrors.NotFound.Code
+                    ? NotFound(result.Error)
+                    : BadRequest(result.Error);
+            }
+
+            return Ok(result.Value);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(SubmitTriviaAnswer), nameof(SessionsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     /// <summary>
@@ -368,14 +634,27 @@ public class SessionsController : ControllerBase
         Guid teamId,
         CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new GetReleasedCluesQuery(id, teamId), cancellationToken);
-        if (result.IsFailure)
+        try
         {
-            return result.Error.Code == SessionErrors.NotFound.Code
-                ? NotFound(result.Error)
-                : BadRequest(result.Error);
+            var result = await _sender.Send(new GetReleasedCluesQuery(id, teamId), cancellationToken);
+            if (result.IsFailure)
+            {
+                return result.Error.Code == SessionErrors.NotFound.Code
+                    ? NotFound(result.Error)
+                    : BadRequest(result.Error);
+            }
+            return Ok(result.Value);
         }
-        return Ok(result.Value);
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(GetReleasedClues), nameof(SessionsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     /// <summary>
@@ -390,18 +669,31 @@ public class SessionsController : ControllerBase
         [FromBody] ValidateQrRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(
-            new ValidateQrCodeCommand(id, teamId, request.StageId, request.ScannedCode),
-            cancellationToken);
-
-        if (result.IsFailure)
+        try
         {
-            return result.Error.Code == SessionErrors.NotFound.Code
-                ? NotFound(result.Error)
-                : BadRequest(result.Error);
-        }
+            var result = await _sender.Send(
+                new ValidateQrCodeCommand(id, teamId, request.StageId, request.ScannedCode),
+                cancellationToken);
 
-        return Ok(result.Value);
+            if (result.IsFailure)
+            {
+                return result.Error.Code == SessionErrors.NotFound.Code
+                    ? NotFound(result.Error)
+                    : BadRequest(result.Error);
+            }
+
+            return Ok(result.Value);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(ValidateQr), nameof(SessionsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 }
 

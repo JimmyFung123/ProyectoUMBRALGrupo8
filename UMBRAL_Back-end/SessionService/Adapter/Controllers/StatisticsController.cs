@@ -4,6 +4,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SessionService.Application.Statistics.Queries.GetDashboardStatistics;
+using SessionService.Domain.Common;
 using UMBRAL.Auth;
 
 /// <summary>
@@ -18,8 +19,13 @@ using UMBRAL.Auth;
 public class StatisticsController : ControllerBase
 {
     private readonly ISender _sender;
+    private readonly ILogger<StatisticsController> _logger;
 
-    public StatisticsController(ISender sender) => _sender = sender;
+    public StatisticsController(ISender sender, ILogger<StatisticsController> logger)
+    {
+        _sender = sender;
+        _logger = logger;
+    }
 
     /// <summary>
     /// Returns the dashboard payload (average time per stage + answer
@@ -31,7 +37,20 @@ public class StatisticsController : ControllerBase
         [FromQuery] Guid? missionId,
         CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new GetDashboardStatisticsQuery(missionId), cancellationToken);
-        return Ok(result);
+        try
+        {
+            var result = await _sender.Send(new GetDashboardStatisticsQuery(missionId), cancellationToken);
+            return Ok(result);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(GetDashboard), nameof(StatisticsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 }

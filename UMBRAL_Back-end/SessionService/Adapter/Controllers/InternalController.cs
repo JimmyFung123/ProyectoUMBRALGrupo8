@@ -2,6 +2,7 @@ namespace SessionService.Adapter.Controllers;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SessionService.Domain.Common;
 using SessionService.Domain.Sessions;
 
 /// <summary>
@@ -16,7 +17,13 @@ using SessionService.Domain.Sessions;
 public class InternalController : ControllerBase
 {
     private readonly ISessionRepository _sessionRepository;
-    public InternalController(ISessionRepository sessionRepository) => _sessionRepository = sessionRepository;
+    private readonly ILogger<InternalController> _logger;
+
+    public InternalController(ISessionRepository sessionRepository, ILogger<InternalController> logger)
+    {
+        _sessionRepository = sessionRepository;
+        _logger = logger;
+    }
 
     /// <summary>
     /// RB-15 — Used by MissionService to check whether a mission has sessions
@@ -28,7 +35,20 @@ public class InternalController : ControllerBase
         [FromQuery] Guid missionId,
         CancellationToken cancellationToken)
     {
-        var hasActive = await _sessionRepository.HasNonTerminalSessionsAsync(missionId, cancellationToken);
-        return Ok(new { hasActiveSessions = hasActive });
+        try
+        {
+            var hasActive = await _sessionRepository.HasNonTerminalSessionsAsync(missionId, cancellationToken);
+            return Ok(new { hasActiveSessions = hasActive });
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(HasActiveSessions), nameof(InternalController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 }

@@ -11,6 +11,7 @@ using TeamService.Application.Teams.Commands.ReleaseClue;
 using TeamService.Application.Teams.Queries.GetSessionRanking;
 using TeamService.Application.Teams.Queries.GetTeamById;
 using TeamService.Application.Teams.Queries.GetTeamProgress;
+using TeamService.Domain.Common;
 using TeamService.Domain.Teams;
 
 [ApiController]
@@ -18,8 +19,13 @@ using TeamService.Domain.Teams;
 public class TeamsController : ControllerBase
 {
     private readonly ISender _sender;
+    private readonly ILogger<TeamsController> _logger;
 
-    public TeamsController(ISender sender) => _sender = sender;
+    public TeamsController(ISender sender, ILogger<TeamsController> logger)
+    {
+        _sender = sender;
+        _logger = logger;
+    }
 
     /// <summary>Creates a new team for a session. Called by the team leader.</summary>
     [HttpPost]
@@ -27,8 +33,21 @@ public class TeamsController : ControllerBase
         [FromBody] CreateTeamRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new CreateTeamCommand(request.SessionId, request.TeamName), cancellationToken);
-        return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Error);
+        try
+        {
+            var result = await _sender.Send(new CreateTeamCommand(request.SessionId, request.TeamName), cancellationToken);
+            return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Error);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(Create), nameof(TeamsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     /// <summary>Joins an existing team using the team's invite code.</summary>
@@ -37,12 +56,25 @@ public class TeamsController : ControllerBase
         string inviteCode,
         CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new JoinTeamCommand(inviteCode), cancellationToken);
-        if (result.IsFailure)
-            return result.Error.Code == TeamErrors.TeamNotFound.Code
-                ? NotFound(result.Error)
-                : BadRequest(result.Error);
-        return Ok(result.Value);
+        try
+        {
+            var result = await _sender.Send(new JoinTeamCommand(inviteCode), cancellationToken);
+            if (result.IsFailure)
+                return result.Error.Code == TeamErrors.TeamNotFound.Code
+                    ? NotFound(result.Error)
+                    : BadRequest(result.Error);
+            return Ok(result.Value);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(Join), nameof(TeamsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     /// <summary>Returns basic info for a single team by ID (used by participant waiting room).</summary>
@@ -51,8 +83,21 @@ public class TeamsController : ControllerBase
         Guid id,
         CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new GetTeamByIdQuery(id), cancellationToken);
-        return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
+        try
+        {
+            var result = await _sender.Send(new GetTeamByIdQuery(id), cancellationToken);
+            return result.IsSuccess ? Ok(result.Value) : NotFound(result.Error);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(GetById), nameof(TeamsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     /// <summary>
@@ -64,8 +109,21 @@ public class TeamsController : ControllerBase
         [FromQuery] Guid sessionId,
         CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new GetTeamProgressQuery(sessionId), cancellationToken);
-        return Ok(result);
+        try
+        {
+            var result = await _sender.Send(new GetTeamProgressQuery(sessionId), cancellationToken);
+            return Ok(result);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(GetTeamProgress), nameof(TeamsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     /// <summary>
@@ -78,8 +136,21 @@ public class TeamsController : ControllerBase
         [FromQuery] Guid sessionId,
         CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new GetSessionRankingQuery(sessionId), cancellationToken);
-        return Ok(result);
+        try
+        {
+            var result = await _sender.Send(new GetSessionRankingQuery(sessionId), cancellationToken);
+            return Ok(result);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(GetSessionRanking), nameof(TeamsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     /// <summary>
@@ -92,14 +163,27 @@ public class TeamsController : ControllerBase
         [FromBody] ReleaseClueRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new ReleaseClueCommand(id, request.TotalCluesForStage, request.IsAutomatic), cancellationToken);
-        if (result.IsFailure)
+        try
         {
-            return result.Error.Code == TeamErrors.NotFound.Code
-                ? NotFound(result.Error)
-                : Conflict(result.Error);
+            var result = await _sender.Send(new ReleaseClueCommand(id, request.TotalCluesForStage, request.IsAutomatic), cancellationToken);
+            if (result.IsFailure)
+            {
+                return result.Error.Code == TeamErrors.NotFound.Code
+                    ? NotFound(result.Error)
+                    : Conflict(result.Error);
+            }
+            return Ok(new { cluesReceived = result.Value });
         }
-        return Ok(new { cluesReceived = result.Value });
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(ReleaseClue), nameof(TeamsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     [HttpPost("{id:guid}/penalize")]
@@ -108,14 +192,27 @@ public class TeamsController : ControllerBase
         [FromBody] PenalizeTeamRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new PenalizeTeamCommand(id, request.Points, request.Reason), cancellationToken);
-        if (result.IsFailure)
+        try
         {
-            return result.Error.Code == TeamErrors.NotFound.Code
-                ? NotFound(result.Error)
-                : BadRequest(result.Error);
+            var result = await _sender.Send(new PenalizeTeamCommand(id, request.Points, request.Reason), cancellationToken);
+            if (result.IsFailure)
+            {
+                return result.Error.Code == TeamErrors.NotFound.Code
+                    ? NotFound(result.Error)
+                    : BadRequest(result.Error);
+            }
+            return Ok(new { newScore = result.Value });
         }
-        return Ok(new { newScore = result.Value });
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(Penalize), nameof(TeamsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     /// <summary>
@@ -129,18 +226,31 @@ public class TeamsController : ControllerBase
         [FromBody] ForceAdvanceTeamRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new ForceAdvanceTeamCommand(id, request.NextStageOrder), cancellationToken);
-        if (result.IsFailure)
+        try
         {
-            return result.Error.Code == TeamErrors.NotFound.Code
-                ? NotFound(result.Error)
-                : BadRequest(result.Error);
+            var result = await _sender.Send(new ForceAdvanceTeamCommand(id, request.NextStageOrder), cancellationToken);
+            if (result.IsFailure)
+            {
+                return result.Error.Code == TeamErrors.NotFound.Code
+                    ? NotFound(result.Error)
+                    : BadRequest(result.Error);
+            }
+            return Ok(new
+            {
+                newScore = result.Value.NewScore,
+                elapsedSeconds = result.Value.ElapsedSeconds,
+            });
         }
-        return Ok(new
+        catch (OperationCanceledException)
         {
-            newScore = result.Value.NewScore,
-            elapsedSeconds = result.Value.ElapsedSeconds,
-        });
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(ForceAdvance), nameof(TeamsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     /// <summary>
@@ -155,22 +265,35 @@ public class TeamsController : ControllerBase
         [FromBody] AnswerTriviaRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(
-            new AnswerTriviaCommand(id, request.IsCorrect, request.ScoreChange, request.NextStageOrder),
-            cancellationToken);
-
-        if (result.IsFailure)
+        try
         {
-            return result.Error.Code == TeamErrors.NotFound.Code
-                ? NotFound(result.Error)
-                : BadRequest(result.Error);
+            var result = await _sender.Send(
+                new AnswerTriviaCommand(id, request.IsCorrect, request.ScoreChange, request.NextStageOrder),
+                cancellationToken);
+
+            if (result.IsFailure)
+            {
+                return result.Error.Code == TeamErrors.NotFound.Code
+                    ? NotFound(result.Error)
+                    : BadRequest(result.Error);
+            }
+
+            return Ok(new
+            {
+                newScore = result.Value.NewScore,
+                elapsedSeconds = result.Value.ElapsedSeconds,
+            });
         }
-
-        return Ok(new
+        catch (OperationCanceledException)
         {
-            newScore = result.Value.NewScore,
-            elapsedSeconds = result.Value.ElapsedSeconds,
-        });
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(AnswerTrivia), nameof(TeamsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 }
 
