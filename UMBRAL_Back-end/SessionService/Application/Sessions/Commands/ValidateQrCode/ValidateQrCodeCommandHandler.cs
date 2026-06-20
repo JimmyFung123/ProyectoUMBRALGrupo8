@@ -22,9 +22,8 @@ public class ValidateQrCodeCommandHandler
         ITeamServiceClient teamClient,
         IStageServiceClient stageClient,
         IStageCompletionRecordRepository statsRepository,
-        IIntegrationEventBus bus,
-        ISessionNotifier notifier)
-        : base(sessionRepository, teamClient, stageClient, statsRepository, bus, notifier)
+        IIntegrationEventBus bus)
+        : base(sessionRepository, teamClient, stageClient, statsRepository, bus)
     { }
 
     // ── Command field accessors ───────────────────────────────────────────────

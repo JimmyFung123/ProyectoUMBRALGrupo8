@@ -34,22 +34,19 @@ public abstract class EvidenceHandlerBase<TCommand, TResultDto>
     protected readonly IStageServiceClient StageClient;
     protected readonly IStageCompletionRecordRepository StatsRepository;
     protected readonly IIntegrationEventBus Bus;
-    protected readonly ISessionNotifier Notifier;
 
     protected EvidenceHandlerBase(
         ISessionRepository sessionRepository,
         ITeamServiceClient teamClient,
         IStageServiceClient stageClient,
         IStageCompletionRecordRepository statsRepository,
-        IIntegrationEventBus bus,
-        ISessionNotifier notifier)
+        IIntegrationEventBus bus)
     {
         SessionRepository = sessionRepository;
         TeamClient        = teamClient;
         StageClient       = stageClient;
         StatsRepository   = statsRepository;
         Bus               = bus;
-        Notifier          = notifier;
     }
 
     // ── Validation chain (Chain of Responsibility) ────────────────────────────
@@ -177,15 +174,16 @@ public abstract class EvidenceHandlerBase<TCommand, TResultDto>
         TCommand command, Session session, StageWithOptionsInfo stage,
         EvidenceOutcome evidence, StageTransitionResult transition,
         StageNavigation nav, CancellationToken ct)
-        => Notifier.NotifyStageCompletedAsync(
-            sessionId:      GetSessionId(command),
-            teamId:         GetTeamId(command),
-            stageOrder:     stage.Order,
-            stageType:      GetStageType(),
-            wasCorrect:     evidence.IsCorrect,
-            pointsEarned:   evidence.ScoreChange,
-            newScore:       transition.NewScore,
-            nextStageOrder: nav.NextStageOrder,
-            isLastStage:    nav.IsLastStage,
-            ct:             ct);
+        => Bus.PublishAsync(
+            new StageCompletedIntegrationEvent(
+                SessionId:      GetSessionId(command),
+                TeamId:         GetTeamId(command),
+                StageOrder:     stage.Order,
+                StageType:      GetStageType(),
+                WasCorrect:     evidence.IsCorrect,
+                PointsEarned:   evidence.ScoreChange,
+                NewScore:       transition.NewScore,
+                NextStageOrder: nav.NextStageOrder,
+                IsLastStage:    nav.IsLastStage),
+            ct);
 }

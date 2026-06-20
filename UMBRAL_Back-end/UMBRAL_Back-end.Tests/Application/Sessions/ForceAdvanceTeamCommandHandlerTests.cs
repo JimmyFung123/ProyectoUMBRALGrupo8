@@ -17,7 +17,6 @@ public class ForceAdvanceTeamCommandHandlerTests
     private readonly Mock<IStageServiceClient> _stageClientMock = new();
     private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly Mock<IStageCompletionRecordRepository> _statsRepoMock = new();
-    private readonly Mock<ISessionNotifier> _notifierMock = new();
     private readonly ForceAdvanceTeamCommandHandler _handler;
 
     public ForceAdvanceTeamCommandHandlerTests()
@@ -27,8 +26,7 @@ public class ForceAdvanceTeamCommandHandlerTests
             _teamClientMock.Object,
             _stageClientMock.Object,
             _busMock.Object,
-            _statsRepoMock.Object,
-            _notifierMock.Object);
+            _statsRepoMock.Object);
     }
 
     private static Session CreateSessionWithStatus(SessionStatus status)
@@ -135,7 +133,11 @@ public class ForceAdvanceTeamCommandHandlerTests
         _busMock.Verify(
             b => b.PublishAsync(It.IsAny<SessionAuditIntegrationEvent>(), It.IsAny<CancellationToken>()),
             Times.Once);
-        _notifierMock.Verify(n => n.NotifyStateChangedAsync(session.Id, It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
+        _busMock.Verify(
+            b => b.PublishAsync(
+                It.Is<SessionStateChangedIntegrationEvent>(e => e.SessionId == session.Id),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
 
         // HU-25: a force-advance row must be persisted with WasCorrect=null
         // and WasForceAdvance=true. The stage clock returned 120s.

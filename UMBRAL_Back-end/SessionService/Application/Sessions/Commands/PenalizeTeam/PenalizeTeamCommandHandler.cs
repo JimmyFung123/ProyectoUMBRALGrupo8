@@ -12,18 +12,15 @@ public class PenalizeTeamCommandHandler : IRequestHandler<PenalizeTeamCommand, R
     private readonly ISessionRepository _sessionRepository;
     private readonly ITeamServiceClient _teamClient;
     private readonly IIntegrationEventBus _bus;
-    private readonly ISessionNotifier _notifier;
 
     public PenalizeTeamCommandHandler(
         ISessionRepository sessionRepository,
         ITeamServiceClient teamClient,
-        IIntegrationEventBus bus,
-        ISessionNotifier notifier)
+        IIntegrationEventBus bus)
     {
         _sessionRepository = sessionRepository;
         _teamClient = teamClient;
         _bus = bus;
-        _notifier = notifier;
     }
 
     public async Task<Result<int>> Handle(PenalizeTeamCommand request, CancellationToken cancellationToken)
@@ -61,9 +58,10 @@ public class PenalizeTeamCommandHandler : IRequestHandler<PenalizeTeamCommand, R
             ? SessionEvent.SystemActor
             : request.OperatorName!.Trim();
 
-        await _notifier.NotifyTeamPenalizedAsync(
-            request.SessionId, request.TeamId, teamName,
-            request.Points, request.Reason, newScore, actorName,
+        await _bus.PublishAsync(
+            new TeamPenalizedIntegrationEvent(
+                request.SessionId, request.TeamId, teamName,
+                request.Points, request.Reason, newScore, actorName),
             cancellationToken);
 
         return Result.Success(newScore);

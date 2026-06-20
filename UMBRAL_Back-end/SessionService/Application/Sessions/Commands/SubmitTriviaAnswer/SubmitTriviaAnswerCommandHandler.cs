@@ -27,9 +27,8 @@ public class SubmitTriviaAnswerCommandHandler
         IStageServiceClient stageClient,
         IStageCompletionRecordRepository statsRepository,
         IIntegrationEventBus bus,
-        ISessionNotifier notifier,
         IMissionLookupRepository missionLookupRepository)
-        : base(sessionRepository, teamClient, stageClient, statsRepository, bus, notifier)
+        : base(sessionRepository, teamClient, stageClient, statsRepository, bus)
     {
         _missionLookupRepository = missionLookupRepository;
     }

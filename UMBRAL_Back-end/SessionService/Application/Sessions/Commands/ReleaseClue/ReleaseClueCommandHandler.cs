@@ -12,18 +12,15 @@ public class ReleaseClueCommandHandler : IRequestHandler<ReleaseClueCommand, Res
     private readonly ISessionRepository _sessionRepository;
     private readonly ITeamServiceClient _teamServiceClient;
     private readonly IIntegrationEventBus _bus;
-    private readonly ISessionNotifier _notifier;
 
     public ReleaseClueCommandHandler(
         ISessionRepository sessionRepository,
         ITeamServiceClient teamServiceClient,
-        IIntegrationEventBus bus,
-        ISessionNotifier notifier)
+        IIntegrationEventBus bus)
     {
         _sessionRepository = sessionRepository;
         _teamServiceClient = teamServiceClient;
         _bus = bus;
-        _notifier = notifier;
     }
 
     public async Task<Result<bool>> Handle(ReleaseClueCommand request, CancellationToken cancellationToken)
@@ -62,10 +59,11 @@ public class ReleaseClueCommandHandler : IRequestHandler<ReleaseClueCommand, Res
                 DateTime.UtcNow),
             cancellationToken);
 
-        await _notifier.NotifyClueReleasedAsync(
-            request.SessionId, request.TeamId,
-            request.ClueContent, request.ClueLatitude, request.ClueLongitude, request.ClueRadiusMeters,
-            cluesReceived, isAutomatic: false,
+        await _bus.PublishAsync(
+            new ClueReleasedIntegrationEvent(
+                request.SessionId, request.TeamId,
+                request.ClueContent, request.ClueLatitude, request.ClueLongitude, request.ClueRadiusMeters,
+                cluesReceived, IsAutomatic: false),
             cancellationToken);
 
         return Result.Success(true);

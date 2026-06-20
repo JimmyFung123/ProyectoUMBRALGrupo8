@@ -13,18 +13,15 @@ public class FinalizeSessionCommandHandler : IRequestHandler<FinalizeSessionComm
     private readonly ISessionRepository _sessionRepository;
     private readonly IIntegrationEventBus _bus;
     private readonly IStageCompletionRecordRepository _statsRepository;
-    private readonly ISessionNotifier _notifier;
 
     public FinalizeSessionCommandHandler(
         ISessionRepository sessionRepository,
         IIntegrationEventBus bus,
-        IStageCompletionRecordRepository statsRepository,
-        ISessionNotifier notifier)
+        IStageCompletionRecordRepository statsRepository)
     {
         _sessionRepository = sessionRepository;
         _bus = bus;
         _statsRepository = statsRepository;
-        _notifier = notifier;
     }
 
     public async Task<Result<bool>> Handle(FinalizeSessionCommand request, CancellationToken cancellationToken)
@@ -55,7 +52,9 @@ public class FinalizeSessionCommandHandler : IRequestHandler<FinalizeSessionComm
                 DateTime.UtcNow),
             cancellationToken);
 
-        await _notifier.NotifyStateChangedAsync(session.Id, session.Status.ToString(), cancellationToken);
+        await _bus.PublishAsync(
+            new SessionStateChangedIntegrationEvent(session.Id, session.Status.ToString()),
+            cancellationToken);
 
         return Result.Success(true);
     }

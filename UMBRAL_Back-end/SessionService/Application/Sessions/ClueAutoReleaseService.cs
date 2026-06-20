@@ -16,7 +16,6 @@ public class ClueAutoReleaseService
     private readonly IStageServiceClient _stageClient;
     private readonly IClueServiceClient _clueClient;
     private readonly IIntegrationEventBus _bus;
-    private readonly ISessionNotifier _notifier;
     private readonly ILogger<ClueAutoReleaseService> _logger;
 
     public ClueAutoReleaseService(
@@ -25,7 +24,6 @@ public class ClueAutoReleaseService
         IStageServiceClient stageClient,
         IClueServiceClient clueClient,
         IIntegrationEventBus bus,
-        ISessionNotifier notifier,
         ILogger<ClueAutoReleaseService> logger)
     {
         _sessionRepository = sessionRepository;
@@ -33,7 +31,6 @@ public class ClueAutoReleaseService
         _stageClient = stageClient;
         _clueClient = clueClient;
         _bus = bus;
-        _notifier = notifier;
         _logger = logger;
     }
 
@@ -132,10 +129,11 @@ public class ClueAutoReleaseService
                     DateTime.UtcNow),
                 ct);
 
-            await _notifier.NotifyClueReleasedAsync(
-                session.Id, team.Id,
-                nextClue.Content, nextClue.Latitude, nextClue.Longitude, nextClue.RadiusMeters,
-                clueNumber, isAutomatic: true,
+            await _bus.PublishAsync(
+                new ClueReleasedIntegrationEvent(
+                    session.Id, team.Id,
+                    nextClue.Content, nextClue.Latitude, nextClue.Longitude, nextClue.RadiusMeters,
+                    clueNumber, IsAutomatic: true),
                 ct);
         }
     }

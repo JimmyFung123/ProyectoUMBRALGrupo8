@@ -22,16 +22,13 @@ public class BroadcastOperatorMessageCommandHandler
 
     private readonly ISessionRepository _sessionRepository;
     private readonly IIntegrationEventBus _bus;
-    private readonly ISessionNotifier _notifier;
 
     public BroadcastOperatorMessageCommandHandler(
         ISessionRepository sessionRepository,
-        IIntegrationEventBus bus,
-        ISessionNotifier notifier)
+        IIntegrationEventBus bus)
     {
         _sessionRepository = sessionRepository;
         _bus = bus;
-        _notifier = notifier;
     }
 
     public async Task<Result<BroadcastOperatorMessageResultDto>> Handle(
@@ -67,8 +64,9 @@ public class BroadcastOperatorMessageCommandHandler
                 DateTime.UtcNow),
             cancellationToken);
 
-        await _notifier.NotifyOperatorMessageAsync(
-            request.SessionId, trimmed, actor, deliveredAt, cancellationToken);
+        await _bus.PublishAsync(
+            new OperatorMessageBroadcastIntegrationEvent(request.SessionId, trimmed, actor, deliveredAt),
+            cancellationToken);
 
         return Result.Success(new BroadcastOperatorMessageResultDto(
             SessionId: request.SessionId,

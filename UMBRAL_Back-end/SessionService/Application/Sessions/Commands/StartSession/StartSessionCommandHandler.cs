@@ -12,18 +12,15 @@ public class StartSessionCommandHandler : IRequestHandler<StartSessionCommand, R
     private readonly ISessionRepository _sessionRepository;
     private readonly ITeamServiceClient _teamServiceClient;
     private readonly IIntegrationEventBus _bus;
-    private readonly ISessionNotifier _notifier;
 
     public StartSessionCommandHandler(
         ISessionRepository sessionRepository,
         ITeamServiceClient teamServiceClient,
-        IIntegrationEventBus bus,
-        ISessionNotifier notifier)
+        IIntegrationEventBus bus)
     {
         _sessionRepository = sessionRepository;
         _teamServiceClient = teamServiceClient;
         _bus = bus;
-        _notifier = notifier;
     }
 
     public async Task<Result<bool>> Handle(StartSessionCommand request, CancellationToken cancellationToken)
@@ -59,7 +56,9 @@ public class StartSessionCommandHandler : IRequestHandler<StartSessionCommand, R
                 DateTime.UtcNow),
             cancellationToken);
 
-        await _notifier.NotifyStateChangedAsync(session.Id, session.Status.ToString(), cancellationToken);
+        await _bus.PublishAsync(
+            new SessionStateChangedIntegrationEvent(session.Id, session.Status.ToString()),
+            cancellationToken);
 
         return Result.Success(true);
     }

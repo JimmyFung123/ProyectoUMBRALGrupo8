@@ -16,13 +16,12 @@ public class BroadcastOperatorMessageCommandHandlerTests
 {
     private readonly Mock<ISessionRepository> _sessionRepo = new();
     private readonly Mock<IIntegrationEventBus> _busMock = new();
-    private readonly Mock<ISessionNotifier> _notifierMock = new();
     private readonly BroadcastOperatorMessageCommandHandler _handler;
 
     public BroadcastOperatorMessageCommandHandlerTests()
     {
         _handler = new BroadcastOperatorMessageCommandHandler(
-            _sessionRepo.Object, _busMock.Object, _notifierMock.Object);
+            _sessionRepo.Object, _busMock.Object);
     }
 
     private Session BuildSession(SessionStatus status)
@@ -129,9 +128,11 @@ public class BroadcastOperatorMessageCommandHandlerTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Message.Should().Be("¡Vamos equipos!"); // trimmed
 
-        _notifierMock.Verify(n => n.NotifyOperatorMessageAsync(
-            session.Id, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTime>(),
-            It.IsAny<CancellationToken>()), Times.Once);
+        _busMock.Verify(
+            b => b.PublishAsync(
+                It.Is<OperatorMessageBroadcastIntegrationEvent>(e => e.SessionId == session.Id),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
 
         // Audit row was published with the operator's name.
         _busMock.Verify(
@@ -158,9 +159,11 @@ public class BroadcastOperatorMessageCommandHandlerTests
             default);
 
         result.IsSuccess.Should().BeTrue();
-        _notifierMock.Verify(n => n.NotifyOperatorMessageAsync(
-            session.Id, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTime>(),
-            It.IsAny<CancellationToken>()), Times.Once);
+        _busMock.Verify(
+            b => b.PublishAsync(
+                It.Is<OperatorMessageBroadcastIntegrationEvent>(e => e.SessionId == session.Id),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Fact]

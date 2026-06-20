@@ -11,16 +11,13 @@ public class ResumeSessionCommandHandler : IRequestHandler<ResumeSessionCommand,
 {
     private readonly ISessionRepository _sessionRepository;
     private readonly IIntegrationEventBus _bus;
-    private readonly ISessionNotifier _notifier;
 
     public ResumeSessionCommandHandler(
         ISessionRepository sessionRepository,
-        IIntegrationEventBus bus,
-        ISessionNotifier notifier)
+        IIntegrationEventBus bus)
     {
         _sessionRepository = sessionRepository;
         _bus = bus;
-        _notifier = notifier;
     }
 
     public async Task<Result<bool>> Handle(ResumeSessionCommand request, CancellationToken cancellationToken)
@@ -46,7 +43,9 @@ public class ResumeSessionCommandHandler : IRequestHandler<ResumeSessionCommand,
                 DateTime.UtcNow),
             cancellationToken);
 
-        await _notifier.NotifyStateChangedAsync(session.Id, session.Status.ToString(), cancellationToken);
+        await _bus.PublishAsync(
+            new SessionStateChangedIntegrationEvent(session.Id, session.Status.ToString()),
+            cancellationToken);
 
         return Result.Success(true);
     }

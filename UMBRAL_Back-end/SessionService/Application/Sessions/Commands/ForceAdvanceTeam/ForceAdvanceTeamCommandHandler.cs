@@ -15,22 +15,19 @@ public class ForceAdvanceTeamCommandHandler : IRequestHandler<ForceAdvanceTeamCo
     private readonly IStageServiceClient _stageClient;
     private readonly IIntegrationEventBus _bus;
     private readonly IStageCompletionRecordRepository _statsRepository;
-    private readonly ISessionNotifier _notifier;
 
     public ForceAdvanceTeamCommandHandler(
         ISessionRepository sessionRepository,
         ITeamServiceClient teamClient,
         IStageServiceClient stageClient,
         IIntegrationEventBus bus,
-        IStageCompletionRecordRepository statsRepository,
-        ISessionNotifier notifier)
+        IStageCompletionRecordRepository statsRepository)
     {
         _sessionRepository = sessionRepository;
         _teamClient = teamClient;
         _stageClient = stageClient;
         _bus = bus;
         _statsRepository = statsRepository;
-        _notifier = notifier;
     }
 
     public async Task<Result<bool>> Handle(ForceAdvanceTeamCommand request, CancellationToken cancellationToken)
@@ -92,7 +89,9 @@ public class ForceAdvanceTeamCommandHandler : IRequestHandler<ForceAdvanceTeamCo
             cancellationToken);
 
         // 7. Broadcast to refresh dashboard
-        await _notifier.NotifyStateChangedAsync(request.SessionId, ct: cancellationToken);
+        await _bus.PublishAsync(
+            new SessionStateChangedIntegrationEvent(request.SessionId, NewStatus: null),
+            cancellationToken);
 
         return Result.Success(true);
     }

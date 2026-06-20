@@ -14,7 +14,6 @@ public class StartSessionCommandHandlerTests
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
     private readonly Mock<ITeamServiceClient> _teamClientMock = new();
     private readonly Mock<IIntegrationEventBus> _busMock = new();
-    private readonly Mock<ISessionNotifier> _notifierMock = new();
     private readonly StartSessionCommandHandler _handler;
 
     public StartSessionCommandHandlerTests()
@@ -22,8 +21,7 @@ public class StartSessionCommandHandlerTests
         _handler = new StartSessionCommandHandler(
             _sessionRepoMock.Object,
             _teamClientMock.Object,
-            _busMock.Object,
-            _notifierMock.Object);
+            _busMock.Object);
     }
 
     // ── Session not found ─────────────────────────────────────────────────────
@@ -197,7 +195,11 @@ public class StartSessionCommandHandlerTests
         result.IsSuccess.Should().BeTrue();
         session.Status.Should().Be(SessionStatus.InProgress);
         _sessionRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _notifierMock.Verify(n => n.NotifyStateChangedAsync(sessionId, It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
+        _busMock.Verify(
+            b => b.PublishAsync(
+                It.Is<SessionStateChangedIntegrationEvent>(e => e.SessionId == sessionId),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
         _busMock.Verify(
             b => b.PublishAsync(
                 It.Is<SessionAuditIntegrationEvent>(e => e.Description.Contains("iniciada")),
