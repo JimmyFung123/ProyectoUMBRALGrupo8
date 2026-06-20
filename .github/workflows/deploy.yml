@@ -1,0 +1,28 @@
+name: Deploy (self-hosted)
+
+# Auto-deploy: cada push a develop dispara el deploy en el runner self-hosted
+# (tu PC). deploy.ps1 hace build + migraciones + up + health-check y, si algo
+# falla, rollback automático al último commit estable.
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch: {}   # permite dispararlo a mano desde la pestaña Actions
+
+# Un solo deploy a la vez; si llega otro push mientras corre, se encola.
+concurrency:
+  group: umbral-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # El runner debe estar registrado con estas labels (self-hosted + Windows).
+    runs-on: [self-hosted, Windows]
+    steps:
+      - name: Checkout (historial completo para poder hacer rollback)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Deploy con rollback automático
+        shell: powershell
+        run: .\scripts\deploy.ps1 -Ref ${{ github.sha }}

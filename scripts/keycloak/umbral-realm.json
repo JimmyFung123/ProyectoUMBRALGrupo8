@@ -14,6 +14,16 @@
   "ssoSessionIdleTimeout": 3600,
   "ssoSessionMaxLifespan": 36000,
 
+  "smtpServer": {
+    "host": "mailpit",
+    "port": "1025",
+    "from": "no-reply@umbral.local",
+    "fromDisplayName": "UMBRAL — Personal Operativo",
+    "ssl": "false",
+    "starttls": "false",
+    "auth": "false"
+  },
+
   "roles": {
     "realm": [
       {

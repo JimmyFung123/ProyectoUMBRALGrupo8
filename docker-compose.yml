@@ -11,7 +11,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: "12345"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-12345}"
     ports:
       - "5432:5432"
     volumes:
@@ -32,6 +32,26 @@ services:
       - "15672:15672"  # Management UI (http://localhost:15672, guest/guest)
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ── Mailpit (captura de correos en desarrollo) ──────────────────────────────
+  # Servidor SMTP de mentira: recibe TODO lo que Keycloak (y el backend) envían
+  # y lo muestra en una bandeja web, sin reenviar nada a internet. Ideal para
+  # probar el alta de usuarios (correo con la clave temporal) en local.
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: umbral-mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025"    # SMTP — Keycloak y backend apuntan aquí
+      - "8025:8025"    # Bandeja web: http://localhost:8025
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"      # acepta cualquier credencial (dev)
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"  # sin TLS en local
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
       interval: 10s
       timeout: 5s
       retries: 10

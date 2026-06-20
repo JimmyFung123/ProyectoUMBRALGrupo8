@@ -55,21 +55,8 @@ builder.Services.AddMassTransit(x =>
 builder.Services.AddUmbralJwtAuth(builder.Configuration);
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
-// Allows any LAN origin on Vite dev ports (5173/5174) so participants can connect
-// from phones on the same network.
-builder.Services.AddCors(options =>
-    options.AddPolicy("AllowFrontend", policy =>
-        policy.SetIsOriginAllowed(origin =>
-                {
-                    if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return false;
-                    if (uri.Port != 5173 && uri.Port != 5174) return false;
-                    return uri.IsLoopback
-                        || uri.Host.StartsWith("192.168.")
-                        || uri.Host.StartsWith("10.")
-                        || uri.Host.StartsWith("172.");
-                })
-              .AllowAnyHeader()
-              .AllowAnyMethod()));
+// Unificado (dev LAN + orígenes públicos desde Cors:AllowedOrigins).
+builder.Services.AddUmbralCors(builder.Configuration);
 
 var app = builder.Build();
 

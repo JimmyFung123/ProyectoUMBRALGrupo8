@@ -15,6 +15,5 @@ export interface CreateUserPayload {
   email: string;
   firstName: string;
   lastName: string;
-  temporaryPassword: string;
   role: UserRole;
 }
