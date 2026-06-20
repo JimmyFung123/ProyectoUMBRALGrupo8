@@ -2,6 +2,7 @@ namespace UMBRAL_Back_end.Tests.Application.Sessions;
 
 using FluentAssertions;
 using Moq;
+using SessionService.Application;
 using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Commands.PenalizeTeam;
 using SessionService.Domain.Sessions;
@@ -11,7 +12,7 @@ public class PenalizeTeamCommandHandlerSessionTests
 {
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
     private readonly Mock<ITeamServiceClient> _teamClientMock = new();
-    private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
+    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly Mock<ISessionNotifier> _notifierMock = new();
     private readonly PenalizeTeamCommandHandler _handler;
 
@@ -20,7 +21,7 @@ public class PenalizeTeamCommandHandlerSessionTests
         _handler = new PenalizeTeamCommandHandler(
             _sessionRepoMock.Object,
             _teamClientMock.Object,
-            _eventRepoMock.Object,
+            _busMock.Object,
             _notifierMock.Object);
     }
 

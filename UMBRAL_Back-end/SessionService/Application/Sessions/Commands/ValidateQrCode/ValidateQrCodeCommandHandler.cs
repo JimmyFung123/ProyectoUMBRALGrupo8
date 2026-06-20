@@ -1,10 +1,12 @@
 namespace SessionService.Application.Sessions.Commands.ValidateQrCode;
 
+using SessionService.Application;
 using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Commands.Evidence;
 using SessionService.Domain.Common;
 using SessionService.Domain.Sessions;
 using SessionService.Domain.Statistics;
+using UMBRAL.Contracts.Events;
 
 /// <summary>
 /// Concrete Template Method for QR-code evidence (HU-19).
@@ -20,9 +22,9 @@ public class ValidateQrCodeCommandHandler
         ITeamServiceClient teamClient,
         IStageServiceClient stageClient,
         IStageCompletionRecordRepository statsRepository,
-        ISessionEventRepository eventRepository,
+        IIntegrationEventBus bus,
         ISessionNotifier notifier)
-        : base(sessionRepository, teamClient, stageClient, statsRepository, eventRepository, notifier)
+        : base(sessionRepository, teamClient, stageClient, statsRepository, bus, notifier)
     { }
 
     // ── Command field accessors ───────────────────────────────────────────────
@@ -59,14 +61,15 @@ public class ValidateQrCodeCommandHandler
             if (team is null)
                 return Result.Failure<EvidenceOutcome>(SessionErrors.TeamNotFound);
 
-            var failedEvent = SessionEvent.Create(
-                command.SessionId,
-                $"El equipo '{team.Name}' escaneó un QR incorrecto en la etapa {stage.Order}.",
-                actorName:   $"Equipo {team.Name}",
-                commandType: nameof(ValidateQrCodeCommand),
-                outcome:     SessionEvent.OutcomeFailure);
-            await EventRepository.AddAsync(failedEvent, ct);
-            await EventRepository.SaveChangesAsync(ct);
+            await Bus.PublishAsync(
+                new SessionAuditIntegrationEvent(
+                    command.SessionId,
+                    $"El equipo '{team.Name}' escaneó un QR incorrecto en la etapa {stage.Order}.",
+                    ActorName:   $"Equipo {team.Name}",
+                    CommandType: nameof(ValidateQrCodeCommand),
+                    Outcome:     SessionEvent.OutcomeFailure,
+                    DateTime.UtcNow),
+                ct);
 
             return Result.Success(new EvidenceOutcome(
                 IsCorrect:             false,
@@ -116,15 +119,15 @@ public class ValidateQrCodeCommandHandler
         var teamInfo = await TeamClient.GetTeamByIdAsync(command.TeamId, ct);
         var teamName = teamInfo?.Name ?? "Equipo";
 
-        var ev = SessionEvent.Create(
-            command.SessionId,
-            $"El equipo '{teamName}' resolvió la etapa {stage.Order} escaneando el código QR.",
-            actorName:   $"Equipo {teamName}",
-            commandType: nameof(ValidateQrCodeCommand),
-            outcome:     SessionEvent.OutcomeSuccess);
-
-        await EventRepository.AddAsync(ev, ct);
-        await EventRepository.SaveChangesAsync(ct);
+        await Bus.PublishAsync(
+            new SessionAuditIntegrationEvent(
+                command.SessionId,
+                $"El equipo '{teamName}' resolvió la etapa {stage.Order} escaneando el código QR.",
+                ActorName:   $"Equipo {teamName}",
+                CommandType: nameof(ValidateQrCodeCommand),
+                Outcome:     SessionEvent.OutcomeSuccess,
+                DateTime.UtcNow),
+            ct);
     }
 
     // ── Hook: build result DTO ───────────────────────────────────────────────

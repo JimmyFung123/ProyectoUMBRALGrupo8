@@ -74,6 +74,7 @@ builder.Services.AddMassTransit(x =>
     x.AddConsumer<MissionActivatedConsumer>();
     x.AddConsumer<MissionDeactivatedConsumer>();
     x.AddConsumer<MissionUpdatedConsumer>();
+    x.AddConsumer<SessionAuditConsumer>();
 
     x.UsingRabbitMq((ctx, cfg) =>
     {

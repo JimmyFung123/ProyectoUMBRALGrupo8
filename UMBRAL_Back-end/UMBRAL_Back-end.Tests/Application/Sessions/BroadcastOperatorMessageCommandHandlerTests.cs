@@ -2,9 +2,11 @@ namespace UMBRAL_Back_end.Tests.Application.Sessions;
 
 using FluentAssertions;
 using Moq;
+using SessionService.Application;
 using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Commands.BroadcastOperatorMessage;
 using SessionService.Domain.Sessions;
+using UMBRAL.Contracts.Events;
 using Xunit;
 
 /// <summary>
@@ -13,14 +15,14 @@ using Xunit;
 public class BroadcastOperatorMessageCommandHandlerTests
 {
     private readonly Mock<ISessionRepository> _sessionRepo = new();
-    private readonly Mock<ISessionEventRepository> _eventRepo = new();
+    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly Mock<ISessionNotifier> _notifierMock = new();
     private readonly BroadcastOperatorMessageCommandHandler _handler;
 
     public BroadcastOperatorMessageCommandHandlerTests()
     {
         _handler = new BroadcastOperatorMessageCommandHandler(
-            _sessionRepo.Object, _eventRepo.Object, _notifierMock.Object);
+            _sessionRepo.Object, _busMock.Object, _notifierMock.Object);
     }
 
     private Session BuildSession(SessionStatus status)
@@ -131,10 +133,10 @@ public class BroadcastOperatorMessageCommandHandlerTests
             session.Id, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTime>(),
             It.IsAny<CancellationToken>()), Times.Once);
 
-        // Audit row was persisted with the operator's name.
-        _eventRepo.Verify(
-            r => r.AddAsync(
-                It.Is<SessionEvent>(e =>
+        // Audit row was published with the operator's name.
+        _busMock.Verify(
+            b => b.PublishAsync(
+                It.Is<SessionAuditIntegrationEvent>(e =>
                     e.SessionId == session.Id
                     && e.ActorName == "Prof. Ortega"
                     && e.CommandType == nameof(BroadcastOperatorMessageCommand)
@@ -173,9 +175,9 @@ public class BroadcastOperatorMessageCommandHandlerTests
             new BroadcastOperatorMessageCommand(session.Id, "Hola", null),
             default);
 
-        _eventRepo.Verify(
-            r => r.AddAsync(
-                It.Is<SessionEvent>(e => e.ActorName == SessionEvent.SystemActor),
+        _busMock.Verify(
+            b => b.PublishAsync(
+                It.Is<SessionAuditIntegrationEvent>(e => e.ActorName == SessionEvent.SystemActor),
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }

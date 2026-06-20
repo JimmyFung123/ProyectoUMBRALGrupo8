@@ -1,9 +1,11 @@
 namespace SessionService.Application.Sessions.Commands.BroadcastOperatorMessage;
 
 using MediatR;
+using SessionService.Application;
 using SessionService.Application.Sessions;
 using SessionService.Domain.Common;
 using SessionService.Domain.Sessions;
+using UMBRAL.Contracts.Events;
 
 /// <summary>
 /// HU-28 — pushes an operator-authored message to every participant connected
@@ -19,16 +21,16 @@ public class BroadcastOperatorMessageCommandHandler
     private const int MaxMessageLength = 240;
 
     private readonly ISessionRepository _sessionRepository;
-    private readonly ISessionEventRepository _eventRepository;
+    private readonly IIntegrationEventBus _bus;
     private readonly ISessionNotifier _notifier;
 
     public BroadcastOperatorMessageCommandHandler(
         ISessionRepository sessionRepository,
-        ISessionEventRepository eventRepository,
+        IIntegrationEventBus bus,
         ISessionNotifier notifier)
     {
         _sessionRepository = sessionRepository;
-        _eventRepository = eventRepository;
+        _bus = bus;
         _notifier = notifier;
     }
 
@@ -55,14 +57,15 @@ public class BroadcastOperatorMessageCommandHandler
             ? SessionEvent.SystemActor
             : request.OperatorName!.Trim();
 
-        var audit = SessionEvent.Create(
-            request.SessionId,
-            description: $"Mensaje del operador enviado a participantes: \"{trimmed}\".",
-            actorName: actor,
-            commandType: nameof(BroadcastOperatorMessageCommand),
-            outcome: SessionEvent.OutcomeSuccess);
-        await _eventRepository.AddAsync(audit, cancellationToken);
-        await _eventRepository.SaveChangesAsync(cancellationToken);
+        await _bus.PublishAsync(
+            new SessionAuditIntegrationEvent(
+                request.SessionId,
+                $"Mensaje del operador enviado a participantes: \"{trimmed}\".",
+                ActorName: actor,
+                CommandType: nameof(BroadcastOperatorMessageCommand),
+                Outcome: SessionEvent.OutcomeSuccess,
+                DateTime.UtcNow),
+            cancellationToken);
 
         await _notifier.NotifyOperatorMessageAsync(
             request.SessionId, trimmed, actor, deliveredAt, cancellationToken);

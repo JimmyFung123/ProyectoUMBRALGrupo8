@@ -1,11 +1,13 @@
 namespace SessionService.Application.Sessions.Commands.Evidence;
 
 using MediatR;
+using SessionService.Application;
 using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Validation;
 using SessionService.Domain.Common;
 using SessionService.Domain.Sessions;
 using SessionService.Domain.Statistics;
+using UMBRAL.Contracts.Events;
 
 /// <summary>
 /// Template Method pattern — defines the invariant algorithm for processing
@@ -31,7 +33,7 @@ public abstract class EvidenceHandlerBase<TCommand, TResultDto>
     protected readonly ITeamServiceClient TeamClient;
     protected readonly IStageServiceClient StageClient;
     protected readonly IStageCompletionRecordRepository StatsRepository;
-    protected readonly ISessionEventRepository EventRepository;
+    protected readonly IIntegrationEventBus Bus;
     protected readonly ISessionNotifier Notifier;
 
     protected EvidenceHandlerBase(
@@ -39,14 +41,14 @@ public abstract class EvidenceHandlerBase<TCommand, TResultDto>
         ITeamServiceClient teamClient,
         IStageServiceClient stageClient,
         IStageCompletionRecordRepository statsRepository,
-        ISessionEventRepository eventRepository,
+        IIntegrationEventBus bus,
         ISessionNotifier notifier)
     {
         SessionRepository = sessionRepository;
         TeamClient        = teamClient;
         StageClient       = stageClient;
         StatsRepository   = statsRepository;
-        EventRepository   = eventRepository;
+        Bus               = bus;
         Notifier          = notifier;
     }
 

@@ -1,20 +1,22 @@
 namespace SessionService.Application.Sessions.Commands.UpdateSession;
 
 using MediatR;
+using SessionService.Application;
 using SessionService.Domain.Common;
 using SessionService.Domain.Sessions;
+using UMBRAL.Contracts.Events;
 
 public class UpdateSessionCommandHandler : IRequestHandler<UpdateSessionCommand, Result<bool>>
 {
     private readonly ISessionRepository _sessionRepository;
-    private readonly ISessionEventRepository _eventRepository;
+    private readonly IIntegrationEventBus _bus;
 
     public UpdateSessionCommandHandler(
         ISessionRepository sessionRepository,
-        ISessionEventRepository eventRepository)
+        IIntegrationEventBus bus)
     {
         _sessionRepository = sessionRepository;
-        _eventRepository = eventRepository;
+        _bus = bus;
     }
 
     public async Task<Result<bool>> Handle(UpdateSessionCommand request, CancellationToken cancellationToken)
@@ -35,14 +37,15 @@ public class UpdateSessionCommandHandler : IRequestHandler<UpdateSessionCommand,
         await _sessionRepository.SaveChangesAsync(cancellationToken);
 
         // HU-26: command audit log entry.
-        var auditEvent = SessionEvent.Create(
-            request.SessionId,
-            $"Se editaron los datos de la sesión (nombre: '{session.Name}').",
-            actorName: request.OperatorName,
-            commandType: nameof(UpdateSessionCommand),
-            outcome: SessionEvent.OutcomeSuccess);
-        await _eventRepository.AddAsync(auditEvent, cancellationToken);
-        await _eventRepository.SaveChangesAsync(cancellationToken);
+        await _bus.PublishAsync(
+            new SessionAuditIntegrationEvent(
+                request.SessionId,
+                $"Se editaron los datos de la sesión (nombre: '{session.Name}').",
+                ActorName: request.OperatorName,
+                CommandType: nameof(UpdateSessionCommand),
+                Outcome: SessionEvent.OutcomeSuccess,
+                DateTime.UtcNow),
+            cancellationToken);
 
         return Result.Success(true);
     }

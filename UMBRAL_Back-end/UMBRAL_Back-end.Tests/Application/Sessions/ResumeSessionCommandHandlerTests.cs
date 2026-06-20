@@ -2,6 +2,7 @@ namespace UMBRAL_Back_end.Tests.Application.Sessions;
 
 using FluentAssertions;
 using Moq;
+using SessionService.Application;
 using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Commands.ResumeSession;
 using SessionService.Domain.Sessions;
@@ -10,7 +11,7 @@ using Xunit;
 public class ResumeSessionCommandHandlerTests
 {
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
-    private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
+    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly Mock<ISessionNotifier> _notifierMock = new();
     private readonly ResumeSessionCommandHandler _handler;
 
@@ -18,7 +19,7 @@ public class ResumeSessionCommandHandlerTests
     {
         _handler = new ResumeSessionCommandHandler(
             _sessionRepoMock.Object,
-            _eventRepoMock.Object,
+            _busMock.Object,
             _notifierMock.Object);
     }
 

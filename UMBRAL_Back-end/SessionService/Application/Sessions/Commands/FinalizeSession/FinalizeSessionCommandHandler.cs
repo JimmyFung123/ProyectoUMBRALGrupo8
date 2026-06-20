@@ -1,26 +1,28 @@
 namespace SessionService.Application.Sessions.Commands.FinalizeSession;
 
 using MediatR;
+using SessionService.Application;
 using SessionService.Application.Sessions;
 using SessionService.Domain.Common;
 using SessionService.Domain.Sessions;
 using SessionService.Domain.Statistics;
+using UMBRAL.Contracts.Events;
 
 public class FinalizeSessionCommandHandler : IRequestHandler<FinalizeSessionCommand, Result<bool>>
 {
     private readonly ISessionRepository _sessionRepository;
-    private readonly ISessionEventRepository _eventRepository;
+    private readonly IIntegrationEventBus _bus;
     private readonly IStageCompletionRecordRepository _statsRepository;
     private readonly ISessionNotifier _notifier;
 
     public FinalizeSessionCommandHandler(
         ISessionRepository sessionRepository,
-        ISessionEventRepository eventRepository,
+        IIntegrationEventBus bus,
         IStageCompletionRecordRepository statsRepository,
         ISessionNotifier notifier)
     {
         _sessionRepository = sessionRepository;
-        _eventRepository = eventRepository;
+        _bus = bus;
         _statsRepository = statsRepository;
         _notifier = notifier;
     }
@@ -43,14 +45,15 @@ public class FinalizeSessionCommandHandler : IRequestHandler<FinalizeSessionComm
         await _statsRepository.MarkSessionIncludedAsync(request.SessionId, cancellationToken);
 
         // HU-22 / HU-26: audit log (irreversible state — last entry on the timeline)
-        var auditEvent = SessionEvent.Create(
-            request.SessionId,
-            "La sesión fue finalizada. Ranking definitivo calculado.",
-            actorName: request.OperatorName,
-            commandType: nameof(FinalizeSessionCommand),
-            outcome: SessionEvent.OutcomeSuccess);
-        await _eventRepository.AddAsync(auditEvent, cancellationToken);
-        await _eventRepository.SaveChangesAsync(cancellationToken);
+        await _bus.PublishAsync(
+            new SessionAuditIntegrationEvent(
+                request.SessionId,
+                "La sesión fue finalizada. Ranking definitivo calculado.",
+                ActorName: request.OperatorName,
+                CommandType: nameof(FinalizeSessionCommand),
+                Outcome: SessionEvent.OutcomeSuccess,
+                DateTime.UtcNow),
+            cancellationToken);
 
         await _notifier.NotifyStateChangedAsync(session.Id, session.Status.ToString(), cancellationToken);
 

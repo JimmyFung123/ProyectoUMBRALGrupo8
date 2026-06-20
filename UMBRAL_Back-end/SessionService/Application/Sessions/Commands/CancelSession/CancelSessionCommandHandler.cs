@@ -9,16 +9,13 @@ using UMBRAL.Contracts.Events;
 public class CancelSessionCommandHandler : IRequestHandler<CancelSessionCommand, Result<bool>>
 {
     private readonly ISessionRepository _sessionRepository;
-    private readonly ISessionEventRepository _eventRepository;
     private readonly IIntegrationEventBus _bus;
 
     public CancelSessionCommandHandler(
         ISessionRepository sessionRepository,
-        ISessionEventRepository eventRepository,
         IIntegrationEventBus bus)
     {
         _sessionRepository = sessionRepository;
-        _eventRepository = eventRepository;
         _bus = bus;
     }
 
@@ -37,14 +34,15 @@ public class CancelSessionCommandHandler : IRequestHandler<CancelSessionCommand,
         // HU-22: audit log. Note that HU-22's alternate flow treats Pending/Cancelled
         // sessions as "no events" on the UI — that hides the timeline, but the entry
         // is still persisted for backend traceability.
-        var auditEvent = SessionEvent.Create(
-            request.SessionId,
-            "La sesión fue cancelada.",
-            actorName: request.OperatorName,
-            commandType: nameof(CancelSessionCommand),
-            outcome: SessionEvent.OutcomeSuccess);
-        await _eventRepository.AddAsync(auditEvent, cancellationToken);
-        await _eventRepository.SaveChangesAsync(cancellationToken);
+        await _bus.PublishAsync(
+            new SessionAuditIntegrationEvent(
+                request.SessionId,
+                "La sesión fue cancelada.",
+                ActorName: request.OperatorName,
+                CommandType: nameof(CancelSessionCommand),
+                Outcome: SessionEvent.OutcomeSuccess,
+                DateTime.UtcNow),
+            cancellationToken);
 
         await _bus.PublishAsync(
             new SessionCancelledIntegrationEvent(request.SessionId, DateTime.UtcNow),

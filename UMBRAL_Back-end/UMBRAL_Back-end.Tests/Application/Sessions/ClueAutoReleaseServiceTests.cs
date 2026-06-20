@@ -3,6 +3,7 @@ namespace UMBRAL_Back_end.Tests.Application.Sessions;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using SessionService.Application;
 using SessionService.Application.Sessions;
 using SessionService.Domain.Sessions;
 using Xunit;
@@ -13,7 +14,7 @@ public class ClueAutoReleaseServiceTests
     private readonly Mock<ITeamServiceClient> _teamClientMock = new();
     private readonly Mock<IStageServiceClient> _stageClientMock = new();
     private readonly Mock<IClueServiceClient> _clueClientMock = new();
-    private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
+    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly Mock<ISessionNotifier> _notifierMock = new();
     private readonly ClueAutoReleaseService _service;
 
@@ -24,7 +25,7 @@ public class ClueAutoReleaseServiceTests
             _teamClientMock.Object,
             _stageClientMock.Object,
             _clueClientMock.Object,
-            _eventRepoMock.Object,
+            _busMock.Object,
             _notifierMock.Object,
             NullLogger<ClueAutoReleaseService>.Instance);
     }

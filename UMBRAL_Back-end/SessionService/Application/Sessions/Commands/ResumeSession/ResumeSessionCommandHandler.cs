@@ -1,23 +1,25 @@
 namespace SessionService.Application.Sessions.Commands.ResumeSession;
 
 using MediatR;
+using SessionService.Application;
 using SessionService.Application.Sessions;
 using SessionService.Domain.Common;
 using SessionService.Domain.Sessions;
+using UMBRAL.Contracts.Events;
 
 public class ResumeSessionCommandHandler : IRequestHandler<ResumeSessionCommand, Result<bool>>
 {
     private readonly ISessionRepository _sessionRepository;
-    private readonly ISessionEventRepository _eventRepository;
+    private readonly IIntegrationEventBus _bus;
     private readonly ISessionNotifier _notifier;
 
     public ResumeSessionCommandHandler(
         ISessionRepository sessionRepository,
-        ISessionEventRepository eventRepository,
+        IIntegrationEventBus bus,
         ISessionNotifier notifier)
     {
         _sessionRepository = sessionRepository;
-        _eventRepository = eventRepository;
+        _bus = bus;
         _notifier = notifier;
     }
 
@@ -34,14 +36,15 @@ public class ResumeSessionCommandHandler : IRequestHandler<ResumeSessionCommand,
         await _sessionRepository.SaveChangesAsync(cancellationToken);
 
         // HU-22 / HU-26: audit log
-        var auditEvent = SessionEvent.Create(
-            request.SessionId,
-            "La sesión fue reanudada.",
-            actorName: request.OperatorName,
-            commandType: nameof(ResumeSessionCommand),
-            outcome: SessionEvent.OutcomeSuccess);
-        await _eventRepository.AddAsync(auditEvent, cancellationToken);
-        await _eventRepository.SaveChangesAsync(cancellationToken);
+        await _bus.PublishAsync(
+            new SessionAuditIntegrationEvent(
+                request.SessionId,
+                "La sesión fue reanudada.",
+                ActorName: request.OperatorName,
+                CommandType: nameof(ResumeSessionCommand),
+                Outcome: SessionEvent.OutcomeSuccess,
+                DateTime.UtcNow),
+            cancellationToken);
 
         await _notifier.NotifyStateChangedAsync(session.Id, session.Status.ToString(), cancellationToken);
 

@@ -2,10 +2,12 @@ namespace UMBRAL_Back_end.Tests.Application.Sessions;
 
 using FluentAssertions;
 using Moq;
+using SessionService.Application;
 using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Commands.ValidateQrCode;
 using SessionService.Domain.Sessions;
 using SessionService.Domain.Statistics;
+using UMBRAL.Contracts.Events;
 using Xunit;
 
 public class ValidateQrCodeCommandHandlerTests
@@ -13,7 +15,7 @@ public class ValidateQrCodeCommandHandlerTests
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
     private readonly Mock<ITeamServiceClient> _teamClientMock = new();
     private readonly Mock<IStageServiceClient> _stageClientMock = new();
-    private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
+    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly Mock<IStageCompletionRecordRepository> _statsRepoMock = new();
     private readonly Mock<ISessionNotifier> _notifierMock = new();
     private readonly ValidateQrCodeCommandHandler _handler;
@@ -25,7 +27,7 @@ public class ValidateQrCodeCommandHandlerTests
             _teamClientMock.Object,
             _stageClientMock.Object,
             _statsRepoMock.Object,
-            _eventRepoMock.Object,
+            _busMock.Object,
             _notifierMock.Object);
     }
 
@@ -143,8 +145,8 @@ public class ValidateQrCodeCommandHandlerTests
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<string>(),
             It.IsAny<bool>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<bool>(),
             It.IsAny<CancellationToken>()), Times.Never);
-        _eventRepoMock.Verify(
-            r => r.AddAsync(It.IsAny<SessionEvent>(), It.IsAny<CancellationToken>()),
+        _busMock.Verify(
+            b => b.PublishAsync(It.IsAny<SessionAuditIntegrationEvent>(), It.IsAny<CancellationToken>()),
             Times.Once);
 
         // HU-25: a wrong QR scan does NOT complete the stage — no analytics row.
@@ -196,8 +198,8 @@ public class ValidateQrCodeCommandHandlerTests
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<string>(),
             It.IsAny<bool>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<bool>(),
             It.IsAny<CancellationToken>()), Times.Once);
-        _eventRepoMock.Verify(
-            r => r.AddAsync(It.IsAny<SessionEvent>(), It.IsAny<CancellationToken>()),
+        _busMock.Verify(
+            b => b.PublishAsync(It.IsAny<SessionAuditIntegrationEvent>(), It.IsAny<CancellationToken>()),
             Times.Once);
 
         // HU-25: a TreasureHunt/WasCorrect=true record must be appended.

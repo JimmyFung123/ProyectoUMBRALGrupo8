@@ -2,21 +2,23 @@ namespace UMBRAL_Back_end.Tests.Application.Sessions;
 
 using FluentAssertions;
 using Moq;
+using SessionService.Application;
 using SessionService.Application.Sessions.Commands.UpdateSession;
 using SessionService.Domain.Sessions;
+using UMBRAL.Contracts.Events;
 using Xunit;
 
 public class UpdateSessionCommandHandlerTests
 {
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
-    private readonly Mock<ISessionEventRepository> _eventRepoMock = new();
+    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly UpdateSessionCommandHandler _handler;
 
     public UpdateSessionCommandHandlerTests()
     {
         _handler = new UpdateSessionCommandHandler(
             _sessionRepoMock.Object,
-            _eventRepoMock.Object);
+            _busMock.Object);
     }
 
     // ── Flujo feliz ───────────────────────────────────────────────────────────
@@ -70,10 +72,10 @@ public class UpdateSessionCommandHandlerTests
             .Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(session);
 
-        SessionEvent? captured = null;
-        _eventRepoMock
-            .Setup(r => r.AddAsync(It.IsAny<SessionEvent>(), It.IsAny<CancellationToken>()))
-            .Callback<SessionEvent, CancellationToken>((e, _) => captured = e);
+        SessionAuditIntegrationEvent? captured = null;
+        _busMock
+            .Setup(b => b.PublishAsync(It.IsAny<SessionAuditIntegrationEvent>(), It.IsAny<CancellationToken>()))
+            .Callback<SessionAuditIntegrationEvent, CancellationToken>((e, _) => captured = e);
 
         var result = await _handler.Handle(
             new UpdateSessionCommand(sessionId, "Nombre actualizado", null, "Prof. Ortega"),

@@ -1,5 +1,6 @@
 namespace SessionService.Application.Sessions.Commands.SubmitTriviaAnswer;
 
+using SessionService.Application;
 using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Commands.Evidence;
 using SessionService.Application.Sessions.Scoring;
@@ -7,6 +8,7 @@ using SessionService.Domain.Common;
 using SessionService.Domain.MissionLookup;
 using SessionService.Domain.Sessions;
 using SessionService.Domain.Statistics;
+using UMBRAL.Contracts.Events;
 
 /// <summary>
 /// Concrete Template Method for trivia-answer evidence (HU-18).
@@ -24,10 +26,10 @@ public class SubmitTriviaAnswerCommandHandler
         ITeamServiceClient teamClient,
         IStageServiceClient stageClient,
         IStageCompletionRecordRepository statsRepository,
-        ISessionEventRepository eventRepository,
+        IIntegrationEventBus bus,
         ISessionNotifier notifier,
         IMissionLookupRepository missionLookupRepository)
-        : base(sessionRepository, teamClient, stageClient, statsRepository, eventRepository, notifier)
+        : base(sessionRepository, teamClient, stageClient, statsRepository, bus, notifier)
     {
         _missionLookupRepository = missionLookupRepository;
     }
@@ -104,14 +106,14 @@ public class SubmitTriviaAnswerCommandHandler
             ? $"El equipo '{teamName}' respondió correctamente la etapa {stage.Order} y sumó {scoreChange} pts. Nuevo puntaje: {transition.NewScore}."
             : $"El equipo '{teamName}' respondió incorrectamente la etapa {stage.Order} ({scoreChange} pts). Nuevo puntaje: {transition.NewScore}.";
 
-        var ev = SessionEvent.Create(
-            command.SessionId, message,
-            actorName:   $"Equipo {teamName}",
-            commandType: nameof(SubmitTriviaAnswerCommand),
-            outcome:     isCorrect ? SessionEvent.OutcomeSuccess : SessionEvent.OutcomeFailure);
-
-        await EventRepository.AddAsync(ev, ct);
-        await EventRepository.SaveChangesAsync(ct);
+        await Bus.PublishAsync(
+            new SessionAuditIntegrationEvent(
+                command.SessionId, message,
+                ActorName:   $"Equipo {teamName}",
+                CommandType: nameof(SubmitTriviaAnswerCommand),
+                Outcome:     isCorrect ? SessionEvent.OutcomeSuccess : SessionEvent.OutcomeFailure,
+                DateTime.UtcNow),
+            ct);
     }
 
     // ── Hook: build result DTO ───────────────────────────────────────────────

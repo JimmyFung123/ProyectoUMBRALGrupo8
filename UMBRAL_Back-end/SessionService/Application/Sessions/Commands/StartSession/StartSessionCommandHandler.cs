@@ -1,26 +1,28 @@
 namespace SessionService.Application.Sessions.Commands.StartSession;
 
 using MediatR;
+using SessionService.Application;
 using SessionService.Application.Sessions;
 using SessionService.Domain.Common;
 using SessionService.Domain.Sessions;
+using UMBRAL.Contracts.Events;
 
 public class StartSessionCommandHandler : IRequestHandler<StartSessionCommand, Result<bool>>
 {
     private readonly ISessionRepository _sessionRepository;
     private readonly ITeamServiceClient _teamServiceClient;
-    private readonly ISessionEventRepository _eventRepository;
+    private readonly IIntegrationEventBus _bus;
     private readonly ISessionNotifier _notifier;
 
     public StartSessionCommandHandler(
         ISessionRepository sessionRepository,
         ITeamServiceClient teamServiceClient,
-        ISessionEventRepository eventRepository,
+        IIntegrationEventBus bus,
         ISessionNotifier notifier)
     {
         _sessionRepository = sessionRepository;
         _teamServiceClient = teamServiceClient;
-        _eventRepository = eventRepository;
+        _bus = bus;
         _notifier = notifier;
     }
 
@@ -47,14 +49,15 @@ public class StartSessionCommandHandler : IRequestHandler<StartSessionCommand, R
         await _sessionRepository.SaveChangesAsync(cancellationToken);
 
         // HU-22 / HU-26: audit log of the state change
-        var auditEvent = SessionEvent.Create(
-            request.SessionId,
-            "La sesión fue iniciada.",
-            actorName: request.OperatorName,
-            commandType: nameof(StartSessionCommand),
-            outcome: SessionEvent.OutcomeSuccess);
-        await _eventRepository.AddAsync(auditEvent, cancellationToken);
-        await _eventRepository.SaveChangesAsync(cancellationToken);
+        await _bus.PublishAsync(
+            new SessionAuditIntegrationEvent(
+                request.SessionId,
+                "La sesión fue iniciada.",
+                ActorName: request.OperatorName,
+                CommandType: nameof(StartSessionCommand),
+                Outcome: SessionEvent.OutcomeSuccess,
+                DateTime.UtcNow),
+            cancellationToken);
 
         await _notifier.NotifyStateChangedAsync(session.Id, session.Status.ToString(), cancellationToken);
 
