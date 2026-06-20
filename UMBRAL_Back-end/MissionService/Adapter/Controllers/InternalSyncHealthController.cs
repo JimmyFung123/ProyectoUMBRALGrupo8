@@ -2,6 +2,7 @@ namespace UMBRAL_Back_end.Adapter.Controllers;
 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using UMBRAL_Back_end.Domain.Common;
 using UMBRAL_Back_end.Domain.Missions;
 using UMBRAL_Back_end.Infrastructure.Persistence;
 
@@ -24,85 +25,114 @@ public class InternalSyncHealthController : ControllerBase
     private readonly AppDbContext _context;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
+    private readonly ILogger<InternalSyncHealthController> _logger;
 
     public InternalSyncHealthController(
         AppDbContext context,
         IHttpClientFactory httpClientFactory,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        ILogger<InternalSyncHealthController> logger)
     {
         _context = context;
         _httpClientFactory = httpClientFactory;
         _configuration = configuration;
+        _logger = logger;
     }
 
     [HttpGet]
     public async Task<IActionResult> Get(CancellationToken ct)
     {
-        var totalMissions = await _context.Missions.CountAsync(ct);
+        try
+        {
+            var totalMissions = await _context.Missions.CountAsync(ct);
 
-        var stageCountLookupRows = await _context.StageCountLookup.CountAsync(ct);
-        var stageCountLookupSum = await _context.StageCountLookup.AnyAsync(ct)
-            ? await _context.StageCountLookup.SumAsync(s => s.Count, ct)
-            : 0;
+            var stageCountLookupRows = await _context.StageCountLookup.CountAsync(ct);
+            var stageCountLookupSum = await _context.StageCountLookup.AnyAsync(ct)
+                ? await _context.StageCountLookup.SumAsync(s => s.Count, ct)
+                : 0;
 
-        return Ok(new MissionServiceSyncHealthDto(
-            TotalMissions: totalMissions,
-            StageCountLookupRows: stageCountLookupRows,
-            StageCountLookupSum: stageCountLookupSum));
+            return Ok(new MissionServiceSyncHealthDto(
+                TotalMissions: totalMissions,
+                StageCountLookupRows: stageCountLookupRows,
+                StageCountLookupSum: stageCountLookupSum));
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(Get), nameof(InternalSyncHealthController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     [HttpPost("reproject")]
     public async Task<IActionResult> Reproject(CancellationToken ct)
     {
-        var stageUrl = _configuration["StageServiceUrl"] ?? "http://localhost:5093/";
-        var client = _httpClientFactory.CreateClient();
-        client.BaseAddress = new Uri(stageUrl);
-
-        var response = await client.GetAsync("api/internal/sync-health/stages-feed", ct);
-        if (!response.IsSuccessStatusCode)
-            return StatusCode(503, new { error = "StageService unreachable" });
-
-        var json = await response.Content.ReadAsStringAsync(ct);
-        var stages = System.Text.Json.JsonSerializer.Deserialize<List<UpstreamStageDto>>(
-            json, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })
-            ?? [];
-
-        // Group stages by mission and rebuild the lookup from scratch.
-        var countsByMission = stages
-            .GroupBy(s => s.MissionId)
-            .ToDictionary(g => g.Key, g => g.Count());
-
-        var existing = await _context.StageCountLookup.ToListAsync(ct);
-
-        // Remove rows that no longer have any stage upstream.
-        foreach (var row in existing)
-            if (!countsByMission.ContainsKey(row.MissionId))
-                _context.StageCountLookup.Remove(row);
-
-        // Re-insert/refresh rows so Count exactly matches upstream.
-        var byMission = existing.ToDictionary(r => r.MissionId);
-        foreach (var (missionId, count) in countsByMission)
+        try
         {
-            if (byMission.TryGetValue(missionId, out var row))
+            var stageUrl = _configuration["StageServiceUrl"] ?? "http://localhost:5093/";
+            var client = _httpClientFactory.CreateClient();
+            client.BaseAddress = new Uri(stageUrl);
+
+            var response = await client.GetAsync("api/internal/sync-health/stages-feed", ct);
+            if (!response.IsSuccessStatusCode)
+                return StatusCode(503, new { error = "StageService unreachable" });
+
+            var json = await response.Content.ReadAsStringAsync(ct);
+            var stages = System.Text.Json.JsonSerializer.Deserialize<List<UpstreamStageDto>>(
+                json, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                ?? [];
+
+            // Group stages by mission and rebuild the lookup from scratch.
+            var countsByMission = stages
+                .GroupBy(s => s.MissionId)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            var existing = await _context.StageCountLookup.ToListAsync(ct);
+
+            // Remove rows that no longer have any stage upstream.
+            foreach (var row in existing)
+                if (!countsByMission.ContainsKey(row.MissionId))
+                    _context.StageCountLookup.Remove(row);
+
+            // Re-insert/refresh rows so Count exactly matches upstream.
+            var byMission = existing.ToDictionary(r => r.MissionId);
+            foreach (var (missionId, count) in countsByMission)
             {
-                // Cheap path: drop and re-insert when count differs (entity has
-                // no setter — only Increment/Decrement — so we rebuild it).
-                _context.StageCountLookup.Remove(row);
+                if (byMission.TryGetValue(missionId, out var row))
+                {
+                    // Cheap path: drop and re-insert when count differs (entity has
+                    // no setter — only Increment/Decrement — so we rebuild it).
+                    _context.StageCountLookup.Remove(row);
+                }
+
+                var fresh = StageCountLookup.Create(missionId);
+                for (var i = 1; i < count; i++)
+                    fresh.Increment();
+                _context.StageCountLookup.Add(fresh);
             }
 
-            var fresh = StageCountLookup.Create(missionId);
-            for (var i = 1; i < count; i++)
-                fresh.Increment();
-            _context.StageCountLookup.Add(fresh);
+            var changes = await _context.SaveChangesAsync(ct);
+            return Ok(new MissionReprojectResultDto(
+                ProjectionId: "stage-count-lookup",
+                UpstreamStages: stages.Count,
+                MissionsWithStages: countsByMission.Count,
+                ChangedRows: changes,
+                CompletedAt: DateTime.UtcNow));
         }
-
-        var changes = await _context.SaveChangesAsync(ct);
-        return Ok(new MissionReprojectResultDto(
-            ProjectionId: "stage-count-lookup",
-            UpstreamStages: stages.Count,
-            MissionsWithStages: countsByMission.Count,
-            ChangedRows: changes,
-            CompletedAt: DateTime.UtcNow));
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(Reproject), nameof(InternalSyncHealthController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 }
 

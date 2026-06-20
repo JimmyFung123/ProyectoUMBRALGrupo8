@@ -2,6 +2,7 @@ namespace StageService.Adapter.Controllers;
 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using StageService.Domain.Common;
 using StageService.Infrastructure.Persistence;
 
 /// <summary>
@@ -25,15 +26,18 @@ public class InternalSyncHealthController : ControllerBase
     private readonly StagesDbContext _context;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
+    private readonly ILogger<InternalSyncHealthController> _logger;
 
     public InternalSyncHealthController(
         StagesDbContext context,
         IHttpClientFactory httpClientFactory,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        ILogger<InternalSyncHealthController> logger)
     {
         _context = context;
         _httpClientFactory = httpClientFactory;
         _configuration = configuration;
+        _logger = logger;
     }
 
     /// <summary>
@@ -43,17 +47,30 @@ public class InternalSyncHealthController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> Get(CancellationToken ct)
     {
-        var totalStages = await _context.Stages.CountAsync(ct);
+        try
+        {
+            var totalStages = await _context.Stages.CountAsync(ct);
 
-        var missionsLookupCount = await _context.MissionsLookup.CountAsync(ct);
-        DateTime? missionsLookupMaxUpdatedAt = await _context.MissionsLookup.AnyAsync(ct)
-            ? await _context.MissionsLookup.MaxAsync(m => (DateTime?)m.LastUpdatedAt, ct)
-            : null;
+            var missionsLookupCount = await _context.MissionsLookup.CountAsync(ct);
+            DateTime? missionsLookupMaxUpdatedAt = await _context.MissionsLookup.AnyAsync(ct)
+                ? await _context.MissionsLookup.MaxAsync(m => (DateTime?)m.LastUpdatedAt, ct)
+                : null;
 
-        return Ok(new StageServiceSyncHealthDto(
-            TotalStages: totalStages,
-            MissionsLookupCount: missionsLookupCount,
-            MissionsLookupMaxUpdatedAt: missionsLookupMaxUpdatedAt));
+            return Ok(new StageServiceSyncHealthDto(
+                TotalStages: totalStages,
+                MissionsLookupCount: missionsLookupCount,
+                MissionsLookupMaxUpdatedAt: missionsLookupMaxUpdatedAt));
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(Get), nameof(InternalSyncHealthController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     /// <summary>
@@ -64,11 +81,24 @@ public class InternalSyncHealthController : ControllerBase
     [HttpGet("stages-feed")]
     public async Task<IActionResult> StagesFeed(CancellationToken ct)
     {
-        var stages = await _context.Stages
-            .AsNoTracking()
-            .Select(s => new StageFeedItemDto(s.Id, s.MissionId, s.Title))
-            .ToListAsync(ct);
-        return Ok(stages);
+        try
+        {
+            var stages = await _context.Stages
+                .AsNoTracking()
+                .Select(s => new StageFeedItemDto(s.Id, s.MissionId, s.Title))
+                .ToListAsync(ct);
+            return Ok(stages);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(StagesFeed), nameof(InternalSyncHealthController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 
     /// <summary>
@@ -79,49 +109,62 @@ public class InternalSyncHealthController : ControllerBase
     [HttpPost("reproject")]
     public async Task<IActionResult> Reproject(CancellationToken ct)
     {
-        var missionUrl = _configuration["MissionServiceUrl"] ?? "http://localhost:5091/";
-        var client = _httpClientFactory.CreateClient();
-        client.BaseAddress = new Uri(missionUrl);
-
-        var response = await client.GetAsync("api/missions", ct);
-        if (!response.IsSuccessStatusCode)
-            return StatusCode(503, new { error = "MissionService unreachable" });
-
-        var json = await response.Content.ReadAsStringAsync(ct);
-        var missions = System.Text.Json.JsonSerializer.Deserialize<List<UpstreamMissionDto>>(
-            json, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })
-            ?? [];
-
-        var existing = await _context.MissionsLookup.ToListAsync(ct);
-        var existingById = existing.ToDictionary(m => m.Id);
-        var seen = new HashSet<Guid>();
-
-        foreach (var m in missions)
+        try
         {
-            seen.Add(m.Id);
-            if (existingById.TryGetValue(m.Id, out var row))
+            var missionUrl = _configuration["MissionServiceUrl"] ?? "http://localhost:5091/";
+            var client = _httpClientFactory.CreateClient();
+            client.BaseAddress = new Uri(missionUrl);
+
+            var response = await client.GetAsync("api/missions", ct);
+            if (!response.IsSuccessStatusCode)
+                return StatusCode(503, new { error = "MissionService unreachable" });
+
+            var json = await response.Content.ReadAsStringAsync(ct);
+            var missions = System.Text.Json.JsonSerializer.Deserialize<List<UpstreamMissionDto>>(
+                json, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                ?? [];
+
+            var existing = await _context.MissionsLookup.ToListAsync(ct);
+            var existingById = existing.ToDictionary(m => m.Id);
+            var seen = new HashSet<Guid>();
+
+            foreach (var m in missions)
             {
-                row.UpdateStatus(m.Status);
+                seen.Add(m.Id);
+                if (existingById.TryGetValue(m.Id, out var row))
+                {
+                    row.UpdateStatus(m.Status);
+                }
+                else
+                {
+                    _context.MissionsLookup.Add(
+                        StageService.Domain.MissionLookup.MissionLookup.Create(m.Id, m.Name, m.Status));
+                }
             }
-            else
-            {
-                _context.MissionsLookup.Add(
-                    StageService.Domain.MissionLookup.MissionLookup.Create(m.Id, m.Name, m.Status));
-            }
+
+            // Drop rows for missions that no longer exist upstream.
+            foreach (var row in existing)
+                if (!seen.Contains(row.Id))
+                    _context.MissionsLookup.Remove(row);
+
+            var changes = await _context.SaveChangesAsync(ct);
+
+            return Ok(new ReprojectResultDto(
+                ProjectionId: "missions-lookup-stage",
+                UpstreamCount: missions.Count,
+                ChangedRows: changes,
+                CompletedAt: DateTime.UtcNow));
         }
-
-        // Drop rows for missions that no longer exist upstream.
-        foreach (var row in existing)
-            if (!seen.Contains(row.Id))
-                _context.MissionsLookup.Remove(row);
-
-        var changes = await _context.SaveChangesAsync(ct);
-
-        return Ok(new ReprojectResultDto(
-            ProjectionId: "missions-lookup-stage",
-            UpstreamCount: missions.Count,
-            ChangedRows: changes,
-            CompletedAt: DateTime.UtcNow));
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(Reproject), nameof(InternalSyncHealthController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
     }
 }
 
