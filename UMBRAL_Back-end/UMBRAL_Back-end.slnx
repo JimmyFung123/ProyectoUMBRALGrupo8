@@ -1,8 +1,12 @@
 <Solution>
+  <Project Path="ApiGateway/ApiGateway.csproj" />
   <Project Path="MissionService/MissionService.csproj" />
   <Project Path="UMBRAL_Back-end.Tests/UMBRAL_Back-end.Tests.csproj" />
   <Project Path="Shared/UMBRAL.Contracts/UMBRAL.Contracts.csproj" />
+  <Project Path="Shared/UMBRAL.Auth/UMBRAL.Auth.csproj" />
   <Project Path="SessionService/SessionService.csproj" />
   <Project Path="StageService/StageService.csproj" />
   <Project Path="ClueService/ClueService.csproj" />
+  <Project Path="TeamService/TeamService.csproj" />
+  <Project Path="UserService/UserService.csproj" />
 </Solution>

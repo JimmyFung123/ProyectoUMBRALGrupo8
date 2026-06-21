@@ -41,6 +41,7 @@ $migrationDbs = [ordered]@{
 
 # Endpoints de salud (cualquier respuesta HTTP = el contenedor está vivo).
 $healthUrls = [ordered]@{
+    ApiGateway        = 'http://localhost:5080'
     MissionService    = 'http://localhost:5091'
     SessionService    = 'http://localhost:5092'
     StageService      = 'http://localhost:5093'
