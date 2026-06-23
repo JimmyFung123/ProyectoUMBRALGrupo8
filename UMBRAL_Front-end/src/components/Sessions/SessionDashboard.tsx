@@ -9,6 +9,7 @@ import type { SessionDashboard as SessionDashboardData, SessionEventDto, Session
 import type { Stage } from '../../types/stage';
 import type { Clue } from '../../types/clue';
 import type { TeamProgressDto } from '../../types/team';
+import type { SessionCommandAudit, SessionCommandAuditEntry } from '../../types/audit';
 import { SessionAuditTimeline } from './SessionAuditTimeline';
 import { SessionControls } from './SessionControls';
 import { SessionRankingPanel } from './SessionRankingPanel';
@@ -47,27 +48,70 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-/** Formats elapsed time since a given ISO date string. */
-function useElapsedTime(since: string | null): string {
+const TIMER_COMMANDS = new Set([
+  'StartSessionCommand',
+  'PauseSessionCommand',
+  'ResumeSessionCommand',
+  'FinalizeSessionCommand',
+]);
+
+/**
+ * Net play time excluding paused stretches: sums the ms between each
+ * Start/Resume and the next Pause/Finalize. `runningSinceMs` is set only
+ * while there's an open (InProgress) interval — null while Pending, Paused,
+ * Completed or Cancelled.
+ */
+function computeNetTime(entries: SessionCommandAuditEntry[]): { baseMs: number; runningSinceMs: number | null } {
+  const relevant = entries
+    .filter(e => e.outcome === 'Success' && e.commandType && TIMER_COMMANDS.has(e.commandType))
+    .slice()
+    .sort((a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime());
+
+  let baseMs = 0;
+  let openSinceMs: number | null = null;
+
+  for (const e of relevant) {
+    const t = new Date(e.occurredAt).getTime();
+    if (e.commandType === 'StartSessionCommand' || e.commandType === 'ResumeSessionCommand') {
+      openSinceMs = t;
+    } else if (openSinceMs !== null) {
+      baseMs += t - openSinceMs;
+      openSinceMs = null;
+    }
+  }
+  return { baseMs, runningSinceMs: openSinceMs };
+}
+
+/**
+ * Formats `baseMs` of already-accumulated time plus, while `runningSinceMs`
+ * is set, the live elapsed time since then. Shows "—" when there's no
+ * accumulated time and nothing running (session never started).
+ */
+function useElapsedTime(baseMs: number, runningSinceMs: number | null): string {
   const [elapsed, setElapsed] = useState('—');
   useEffect(() => {
-    if (!since) return;
-    function update() {
-      const diffMs = Date.now() - new Date(since!).getTime();
+    function format(diffMs: number) {
       const totalSec = Math.floor(diffMs / 1000);
       const h = Math.floor(totalSec / 3600);
       const m = Math.floor((totalSec % 3600) / 60);
       const s = totalSec % 60;
-      setElapsed(
-        h > 0
-          ? `${h}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`
-          : `${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`,
-      );
+      return h > 0
+        ? `${h}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`
+        : `${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
+    }
+
+    if (runningSinceMs === null) {
+      setElapsed(baseMs > 0 ? format(baseMs) : '—');
+      return;
+    }
+
+    function update() {
+      setElapsed(format(baseMs + (Date.now() - runningSinceMs!)));
     }
     update();
     const id = setInterval(update, 1000);
     return () => clearInterval(id);
-  }, [since]);
+  }, [baseMs, runningSinceMs]);
   return elapsed;
 }
 
@@ -101,8 +145,14 @@ export function SessionDashboard({ sessionId, onBack, onOpenCommandAudit }: Prop
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const elapsed = useElapsedTime(data?.createdAt ?? null);
+  const [commandAudit, setCommandAudit] = useState<SessionCommandAudit | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // El dominio no registra arranque/pausas/fin, solo CreatedAt — se deriva del
+  // log técnico de auditoría (HU-26), que sí tiene CommandType con precisión
+  // de milisegundos para cada comando ejecutado.
+  const { baseMs, runningSinceMs } = computeNetTime(commandAudit?.entries ?? []);
+  const elapsed = useElapsedTime(baseMs, runningSinceMs);
 
   async function loadStagesAndClues(missionId: string) {
     try {
@@ -125,9 +175,10 @@ export function SessionDashboard({ sessionId, onBack, onOpenCommandAudit }: Prop
 
   async function load() {
     try {
-      const [dashboardResult, teamsResult] = await Promise.allSettled([
+      const [dashboardResult, teamsResult, auditResult] = await Promise.allSettled([
         sessionService.getDashboard(sessionId),
         teamService.getTeamProgress(sessionId),
+        sessionService.getCommandAudit(sessionId),
       ]);
       if (dashboardResult.status === 'rejected') {
         setError('No se pudo cargar el tablero. Reintentando…');
@@ -136,6 +187,7 @@ export function SessionDashboard({ sessionId, onBack, onOpenCommandAudit }: Prop
       const dashboard = dashboardResult.value;
       setData(dashboard);
       setTeams(teamsResult.status === 'fulfilled' ? teamsResult.value : []);
+      if (auditResult.status === 'fulfilled') setCommandAudit(auditResult.value);
       setError(teamsResult.status === 'rejected' ? '⚠ TeamService no disponible — ranking sin datos' : null);
       if (stages.length === 0 && dashboard.missionId) {
         await loadStagesAndClues(dashboard.missionId);
@@ -230,7 +282,7 @@ export function SessionDashboard({ sessionId, onBack, onOpenCommandAudit }: Prop
           value={teams.length}
           sub={teams.length === 0 ? 'Sin equipos registrados' : undefined}
         />
-        <MetricCard label="Tiempo transcurrido" value={elapsed} sub="desde la creación de la sesión" />
+        <MetricCard label="Tiempo transcurrido" value={elapsed} />
         <MetricCard
           label="Estado"
           value={SESSION_STATUS_LABELS[data!.status as keyof typeof SESSION_STATUS_LABELS] ?? data!.status}
