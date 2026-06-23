@@ -54,7 +54,7 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
       // HU-28: themed toast + haptic on every clue arrival.
       pushToast({
         variant: 'clue',
-        title: isAutomatic ? '💡 Pista automática' : '💡 Nueva pista',
+        title: isAutomatic ? 'Pista automática' : 'Nueva pista',
         body: clue.content
           ?? (clue.radiusMeters != null
             ? `Zona geográfica actualizada (radio ${clue.radiusMeters}m)`
@@ -73,7 +73,7 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
       if (payload.wasCorrect) {
         pushToast({
           variant: 'stage',
-          title: '✅ ¡Etapa superada!',
+          title: '¡Etapa superada!',
           body: payload.pointsEarned > 0
             ? `+${payload.pointsEarned} pts · Nuevo puntaje ${payload.newScore}`
             : `Nuevo puntaje ${payload.newScore}`,
@@ -87,7 +87,7 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
       } else {
         pushToast({
           variant: 'wrong',
-          title: '❌ Respuesta incorrecta',
+          title: 'Respuesta incorrecta',
           body: 'Sigue intentando — el equipo permanece en esta etapa.',
         });
         vibrate('error');
@@ -96,7 +96,7 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
     onOperatorMessage: msg => {
       pushToast({
         variant: 'message',
-        title: `📩 Mensaje del operador`,
+        title: 'Mensaje del operador',
         body: msg.message,
         durationMs: 7000,
       });
@@ -106,7 +106,7 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
       // Visible y persistente: el equipo merece leer el motivo completo.
       pushToast({
         variant: 'penalty',
-        title: `🚨 Penalización: -${payload.points} pts`,
+        title: `Penalización: -${payload.points} pts`,
         body: `${payload.reason} · Nuevo puntaje: ${payload.newScore}`,
         durationMs: 8000,
       });
