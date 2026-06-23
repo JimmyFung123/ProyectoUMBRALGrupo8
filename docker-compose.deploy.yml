@@ -21,6 +21,35 @@ services:
       KC_HOSTNAME: ${PUBLIC_KEYCLOAK_URL:-http://localhost:18090}
       KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
 
+  # ── API Gateway (YARP) ─────────────────────────────────────────────────────
+  apigateway:
+    build:
+      context: ./UMBRAL_Back-end
+      dockerfile: ApiGateway/Dockerfile
+    image: umbral-apigateway:latest
+    restart: unless-stopped
+    ports: ["5080:8080"]
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      Keycloak__Authority: ${KEYCLOAK_AUTHORITY:-http://localhost:18090/realms/umbral}
+      Keycloak__MetadataAddress: ${KEYCLOAK_METADATA_ADDRESS:-http://keycloak:8080/realms/umbral/.well-known/openid-configuration}
+      Keycloak__RequireHttpsMetadata: ${KEYCLOAK_REQUIRE_HTTPS:-false}
+      Cors__AllowedOrigins__0: ${CORS_OPERADOR_ORIGIN:-http://localhost:5173}
+      Cors__AllowedOrigins__1: ${CORS_PARTICIPANTE_ORIGIN:-http://localhost:5174}
+      ReverseProxy__Clusters__mission-cluster__Destinations__destination1__Address: "http://missionservice:8080/"
+      ReverseProxy__Clusters__stage-cluster__Destinations__destination1__Address: "http://stageservice:8080/"
+      ReverseProxy__Clusters__clue-cluster__Destinations__destination1__Address: "http://clueservice:8080/"
+      ReverseProxy__Clusters__session-cluster__Destinations__destination1__Address: "http://sessionservice:8080/"
+      ReverseProxy__Clusters__team-cluster__Destinations__destination1__Address: "http://teamservice:8080/"
+      ReverseProxy__Clusters__user-cluster__Destinations__destination1__Address: "http://userservice:8080/"
+    depends_on:
+      - missionservice
+      - stageservice
+      - clueservice
+      - sessionservice
+      - teamservice
+      - userservice
+
   # ── Microservicios .NET ─────────────────────────────────────────────────────
   missionservice:
     build:
