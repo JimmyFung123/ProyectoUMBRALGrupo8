@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { HubConnectionBuilder, HubConnectionState, LogLevel } from '@microsoft/signalr';
 import type { ParticipantStage, SessionInfo, TeamCreatedInfo, TeamJoinedInfo } from '../types';
 import { getTeamInfo } from '../services/teamService';
 import { getParticipantStage } from '../services/sessionService';
@@ -18,6 +19,10 @@ interface Props {
 const POLL_INTERVAL_MS = 5_000;
 const BLOCKING_STATUSES: ReadonlySet<string> = new Set(['Paused', 'Completed', 'Cancelled']);
 
+const HUB_URL = (import.meta.env.VITE_SESSION_HUB_URL as string | undefined) ?? '/hubs/session';
+const SERVER_TIMEOUT_MS = 6_000;
+const KEEP_ALIVE_MS = 3_000;
+
 export function WaitingRoomScreen({ session, team, nickname, onGameStart, onLeaveSession }: Props) {
   const inviteCode = team.inviteCode;
   const initialCount = team.isLeader ? 1 : (team as TeamJoinedInfo).memberCount;
@@ -30,6 +35,8 @@ export function WaitingRoomScreen({ session, team, nickname, onGameStart, onLeav
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function poll() {
       try {
         // Update member count
@@ -53,8 +60,41 @@ export function WaitingRoomScreen({ session, team, nickname, onGameStart, onLeav
 
     poll();
     intervalRef.current = setInterval(poll, POLL_INTERVAL_MS);
+
+    // Push refresh: SessionStateChanged fires on Start/Resume/Pause/Finalize/
+    // Penalize/ForceAdvance/LeaveTeam — much faster than waiting for the next
+    // 5s poll tick, especially for "the operator just started the session"
+    // and "a teammate just left" (member count). Polling stays as fallback.
+    const connection = new HubConnectionBuilder()
+      .withUrl(HUB_URL)
+      .withAutomaticReconnect()
+      .configureLogging(LogLevel.Warning)
+      .build();
+    connection.serverTimeoutInMilliseconds = SERVER_TIMEOUT_MS;
+    connection.keepAliveIntervalInMilliseconds = KEEP_ALIVE_MS;
+    connection.on('SessionStateChanged', () => { void poll(); });
+    connection.onreconnected(() => {
+      connection.invoke('JoinSession', session.id).catch(() => { /* swallow */ });
+      void poll();
+    });
+
+    void (async () => {
+      try {
+        await connection.start();
+        if (cancelled) { await connection.stop(); return; }
+        await connection.invoke('JoinSession', session.id);
+      } catch {
+        // Hub unreachable — polling fallback keeps the UI fresh.
+      }
+    })();
+
     return () => {
+      cancelled = true;
       if (intervalRef.current) clearInterval(intervalRef.current);
+      if (connection.state !== HubConnectionState.Disconnected) {
+        connection.invoke('LeaveSession', session.id).catch(() => { /* swallow */ });
+        connection.stop().catch(() => { /* swallow */ });
+      }
     };
   }, [team.teamId, session.id, onGameStart]);
 

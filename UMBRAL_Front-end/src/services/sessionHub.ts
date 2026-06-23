@@ -15,7 +15,7 @@ const KEEP_ALIVE_MS = 3_000;
  * counts as "something changed, please refresh".
  *
  * SessionStateChanged → emitted by Start / Pause / Resume / Finalize /
- *   Penalize / ForceAdvance / submit-trivia / validate-qr handlers.
+ *   Penalize / ForceAdvance / submit-trivia / validate-qr / LeaveTeam handlers.
  * ClueReleased → emitted by ReleaseClue handler AND by the ClueAutoReleaseService
  *   background worker. The operator dashboard wants to know about both so the
  *   audit log refreshes when a clue is auto-released by the system.
@@ -36,14 +36,40 @@ interface ConnectOptions {
 interface SessionHubHandle {
   /** Live SignalR connection (exposed for tests / debugging). */
   connection: signalR.HubConnection;
-  /** Tears the connection down safely — waits for `start()` to settle so SignalR
-   *  does not log "stopped during negotiation" under React Strict Mode. */
+  /** Unregisters this caller. Tears the real connection down once the last
+   *  caller for this sessionId has disposed. */
   dispose: () => void;
 }
+
+interface Listener {
+  onRefresh: () => void;
+  onStateChange?: (state: HubConnState) => void;
+}
+
+interface SharedHub {
+  connection: signalR.HubConnection;
+  listeners: Set<Listener>;
+  state: HubConnState;
+  cancelled: boolean;
+  /** Waits for `start()` to settle so dispose() never aborts an in-flight negotiation. */
+  startPromise: Promise<void>;
+}
+
+// The operator dashboard mounts several panels at once (SessionDashboard,
+// SessionRankingPanel, SessionAuditTimeline, …) that all want the same
+// sessionId's events. Without sharing, each one opened its own WebSocket —
+// the server ended up broadcasting every event N times to the same browser.
+// One real connection per sessionId, reference-counted by listener count.
+const sharedHubs = new Map<string, SharedHub>();
 
 /**
  * Connects to /hubs/session, joins the session group, and wires `onRefresh`
  * to the events that matter for the operator dashboard.
+ *
+ * Multiple callers for the same `sessionId` share a single underlying
+ * connection — the first call opens it, later calls just register as
+ * additional listeners, and the connection only closes once every caller
+ * has disposed.
  *
  * Why a shared helper?
  * 1) Under React Strict Mode the mount→unmount→re-mount cycle was tearing
@@ -58,53 +84,75 @@ interface SessionHubHandle {
  *    the 10s polling tick.
  */
 export function connectToSessionHub({ sessionId, onRefresh, onStateChange }: ConnectOptions): SessionHubHandle {
-  const connection = new signalR.HubConnectionBuilder()
-    .withUrl(SIGNALR_URL)
-    .withAutomaticReconnect()
-    .configureLogging(signalR.LogLevel.Warning)
-    .build();
+  let shared = sharedHubs.get(sessionId);
 
-  // Aggressive ping schedule — see SERVER_TIMEOUT_MS comment above.
-  connection.serverTimeoutInMilliseconds = SERVER_TIMEOUT_MS;
-  connection.keepAliveIntervalInMilliseconds = KEEP_ALIVE_MS;
+  if (!shared) {
+    const connection = new signalR.HubConnectionBuilder()
+      .withUrl(SIGNALR_URL)
+      .withAutomaticReconnect()
+      .configureLogging(signalR.LogLevel.Warning)
+      .build();
 
-  for (const event of REFRESH_EVENTS) {
-    connection.on(event, () => onRefresh());
+    // Aggressive ping schedule — see SERVER_TIMEOUT_MS comment above.
+    connection.serverTimeoutInMilliseconds = SERVER_TIMEOUT_MS;
+    connection.keepAliveIntervalInMilliseconds = KEEP_ALIVE_MS;
+
+    const listeners = new Set<Listener>();
+    const setState = (state: HubConnState) => {
+      shared!.state = state;
+      for (const l of listeners) l.onStateChange?.(state);
+    };
+
+    for (const event of REFRESH_EVENTS) {
+      connection.on(event, () => { for (const l of listeners) l.onRefresh(); });
+    }
+
+    connection.onreconnecting(() => setState('reconnecting'));
+    connection.onreconnected(() => {
+      setState('connected');
+      connection.invoke('JoinSession', sessionId).catch(() => { /* swallow */ });
+      for (const l of listeners) l.onRefresh();
+    });
+    connection.onclose(() => setState('disconnected'));
+
+    const startPromise = (async () => {
+      try {
+        await connection.start();
+        if (shared!.cancelled) return;
+        await connection.invoke('JoinSession', sessionId);
+        setState('connected');
+      } catch {
+        // Hub unreachable — polling fallback will keep the UI fresh.
+        if (!shared!.cancelled) setState('disconnected');
+      }
+    })();
+
+    shared = { connection, listeners, state: 'connecting', cancelled: false, startPromise };
+    sharedHubs.set(sessionId, shared);
   }
 
-  onStateChange?.('connecting');
-  connection.onreconnecting(() => onStateChange?.('reconnecting'));
-  connection.onreconnected(() => {
-    onStateChange?.('connected');
-    connection.invoke('JoinSession', sessionId).catch(() => { /* swallow */ });
-    onRefresh();
-  });
-  connection.onclose(() => onStateChange?.('disconnected'));
-
-  let cancelled = false;
-  const startPromise = (async () => {
-    try {
-      await connection.start();
-      if (cancelled) return;
-      await connection.invoke('JoinSession', sessionId);
-      onStateChange?.('connected');
-    } catch {
-      // Hub unreachable — polling fallback will keep the UI fresh.
-      if (!cancelled) onStateChange?.('disconnected');
-    }
-  })();
+  const listener: Listener = { onRefresh, onStateChange };
+  shared.listeners.add(listener);
+  onStateChange?.(shared.state);
 
   function dispose() {
-    cancelled = true;
+    const current = sharedHubs.get(sessionId);
+    if (!current) return;
+
+    current.listeners.delete(listener);
+    if (current.listeners.size > 0) return;
+
+    sharedHubs.delete(sessionId);
+    current.cancelled = true;
     // Wait for start() to resolve (or fail) BEFORE calling stop(), otherwise
     // SignalR aborts the in-flight negotiation and logs an ugly error.
-    startPromise.finally(() => {
-      if (connection.state !== signalR.HubConnectionState.Disconnected) {
-        connection.invoke('LeaveSession', sessionId).catch(() => { /* swallow */ });
-        connection.stop().catch(() => { /* swallow */ });
+    current.startPromise.finally(() => {
+      if (current.connection.state !== signalR.HubConnectionState.Disconnected) {
+        current.connection.invoke('LeaveSession', sessionId).catch(() => { /* swallow */ });
+        current.connection.stop().catch(() => { /* swallow */ });
       }
     });
   }
 
-  return { connection, dispose };
+  return { connection: shared.connection, dispose };
 }
