@@ -23,6 +23,13 @@ public interface ITeamServiceClient
     Task<int> PenalizeTeamAsync(Guid teamId, int points, string reason, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Removes a participant from the team. If the team is left with zero members,
+    /// TeamService deletes it entirely (frees the invite code). Best-effort: a failure
+    /// here must not block the participant from leaving on the front-end.
+    /// </summary>
+    Task LeaveTeamAsync(Guid teamId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Forces a team to advance to the given next stage, earning 0 points.
     /// Returns <c>null</c> on error. Otherwise carries the seconds the team
     /// spent on the skipped stage — used by HU-25 to record the analytics row.

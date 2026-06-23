@@ -122,6 +122,18 @@ public class TeamServiceClient : ITeamServiceClient
         catch { return int.MinValue; }
     }
 
+    public async Task LeaveTeamAsync(Guid teamId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await _http.PostAsync($"api/teams/{teamId}/leave", null, cancellationToken);
+        }
+        catch
+        {
+            // best-effort: the participant must be able to leave even if TeamService is unreachable.
+        }
+    }
+
     public async Task<StageTransitionResult?> ForceAdvanceTeamAsync(Guid teamId, int nextStageOrder, CancellationToken cancellationToken)
     {
         try

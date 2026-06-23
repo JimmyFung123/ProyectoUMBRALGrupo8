@@ -30,14 +30,20 @@ public class RankingProjector : IRankingProjector
         // 1. Latest team state. Read from DB first (modifications on tracked
         //    entities are reconciled automatically), then merge in entities that
         //    are tracked locally as `Added` — those are not yet in the DB so the
-        //    SQL query above can't see them (relevant for CreateTeam).
-        var teams = await _context.Teams
+        //    SQL query above can't see them (relevant for CreateTeam). Exclude
+        //    entities tracked as `Deleted` — the SQL query still returns their row
+        //    until SaveChanges runs, but they must not reappear in the ranking
+        //    (relevant for LeaveTeam, which deletes the team in the same unit of
+        //    work as this rebuild).
+        var teams = (await _context.Teams
             .Where(t => t.SessionId == sessionId)
-            .ToListAsync(cancellationToken);
+            .ToListAsync(cancellationToken))
+            .Where(t => _context.Entry(t).State != EntityState.Deleted)
+            .ToList();
 
         foreach (var localTeam in _context.Teams.Local.Where(t => t.SessionId == sessionId))
         {
-            if (!teams.Contains(localTeam))
+            if (_context.Entry(localTeam).State != EntityState.Deleted && !teams.Contains(localTeam))
                 teams.Add(localTeam);
         }
 

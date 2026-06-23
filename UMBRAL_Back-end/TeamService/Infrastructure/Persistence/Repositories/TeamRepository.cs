@@ -37,6 +37,17 @@ public class TeamRepository : ITeamRepository
         _context.Teams.RemoveRange(teams);
     }
 
+    public async Task DeleteAsync(
+        Guid teamId,
+        CancellationToken cancellationToken = default)
+    {
+        var team = await _context.Teams
+            .FirstOrDefaultAsync(t => t.Id == teamId, cancellationToken);
+
+        if (team is not null)
+            _context.Teams.Remove(team);
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
         => _context.SaveChangesAsync(cancellationToken);
 

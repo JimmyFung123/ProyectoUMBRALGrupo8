@@ -80,6 +80,16 @@ public class Team
         return Result.Success(MemberCount);
     }
 
+    /// <summary>
+    /// Removes a member from this team. Returns true if the team is now empty
+    /// (caller must delete it — Team itself can't remove its own row).
+    /// </summary>
+    public bool Leave()
+    {
+        if (MemberCount > 0) MemberCount--;
+        return MemberCount == 0;
+    }
+
     public void SetConnected(bool connected) => IsConnected = connected;
 
     public void UpdateProgress(int stageOrder, int cluesCurrentStage, int totalClues)

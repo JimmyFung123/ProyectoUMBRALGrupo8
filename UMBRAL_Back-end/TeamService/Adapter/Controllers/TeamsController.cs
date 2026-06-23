@@ -6,6 +6,7 @@ using TeamService.Application.Teams.Commands.AnswerTrivia;
 using TeamService.Application.Teams.Commands.CreateTeam;
 using TeamService.Application.Teams.Commands.ForceAdvance;
 using TeamService.Application.Teams.Commands.JoinTeam;
+using TeamService.Application.Teams.Commands.LeaveTeam;
 using TeamService.Application.Teams.Commands.PenalizeTeam;
 using TeamService.Application.Teams.Commands.ReleaseClue;
 using TeamService.Application.Teams.Queries.GetSessionRanking;
@@ -181,6 +182,38 @@ public class TeamsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(ReleaseClue), nameof(TeamsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
+    }
+
+    /// <summary>
+    /// Removes a member from the team. If the team is left with zero members,
+    /// it is deleted entirely (frees the invite code) and the ranking is refreshed.
+    /// </summary>
+    [HttpPost("{id:guid}/leave")]
+    public async Task<IActionResult> Leave(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _sender.Send(new LeaveTeamCommand(id), cancellationToken);
+            if (result.IsFailure)
+            {
+                return result.Error.Code == TeamErrors.NotFound.Code
+                    ? NotFound(result.Error)
+                    : BadRequest(result.Error);
+            }
+            return Ok(new { teamDeleted = result.Value });
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(Leave), nameof(TeamsController));
             return StatusCode(StatusCodes.Status500InternalServerError,
                 new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
         }
