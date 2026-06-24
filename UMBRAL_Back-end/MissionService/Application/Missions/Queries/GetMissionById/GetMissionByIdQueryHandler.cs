@@ -1,10 +1,12 @@
 namespace UMBRAL_Back_end.Application.Missions.Queries.GetMissionById;
 
 using MediatR;
+using UMBRAL_Back_end.Application.Missions;
+using UMBRAL_Back_end.Application.Missions.Queries.GetMissions;
 using UMBRAL_Back_end.Domain.Common;
 using UMBRAL_Back_end.Domain.Missions;
 
-public class GetMissionByIdQueryHandler : IRequestHandler<GetMissionByIdQuery, Result<MissionDetailDto>>
+public class GetMissionByIdQueryHandler : IRequestHandler<GetMissionByIdQuery, Result<MissionDto>>
 {
     private readonly IMissionRepository _repository;
 
@@ -13,22 +15,12 @@ public class GetMissionByIdQueryHandler : IRequestHandler<GetMissionByIdQuery, R
         _repository = repository;
     }
 
-    public async Task<Result<MissionDetailDto>> Handle(GetMissionByIdQuery request, CancellationToken cancellationToken)
+    public async Task<Result<MissionDto>> Handle(GetMissionByIdQuery request, CancellationToken cancellationToken)
     {
         var mission = await _repository.GetByIdAsync(request.MissionId, cancellationToken);
         if (mission is null)
-            return Result.Failure<MissionDetailDto>(MissionErrors.NotFound);
+            return Result.Failure<MissionDto>(MissionErrors.NotFound);
 
-        var dto = new MissionDetailDto(
-            mission.Id,
-            mission.Name,
-            mission.Description,
-            mission.Difficulty.ToString(),
-            mission.MaxDuration,
-            mission.Status.ToString(),
-            mission.CreatedAt,
-            mission.UpdatedAt);
-
-        return Result.Success(dto);
+        return Result.Success(MissionMapper.ToDto(mission));
     }
 }
