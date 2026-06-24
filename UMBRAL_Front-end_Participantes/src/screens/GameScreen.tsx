@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ParticipantStage, QrValidationResult, SessionInfo, TriviaAnswerResult } from '../types';
+import type { ParticipantStage, QrValidationResult, SessionInfo, TriviaAnswerResult, TriviaWrongAnswerPayload } from '../types';
 import { getParticipantStage, submitTriviaAnswer, validateQrCode } from '../services/sessionService';
 import { useGameConnection } from '../services/gameConnection';
 import { vibrate, isHapticsEnabled, setHapticsEnabled } from '../services/vibrate';
@@ -39,6 +39,7 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
   // Cuando el operador pausa/finaliza/cancela la sesión, el polling detecta el
   // cambio de sessionStatus y bloqueamos toda interacción con un overlay.
   const [blockingStatus, setBlockingStatus] = useState<BlockingSessionStatus | null>(null);
+  const [wrongAnswerEvent, setWrongAnswerEvent] = useState<TriviaWrongAnswerPayload | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // HU-28: toast stack — declared before useGameConnection so the
@@ -108,6 +109,10 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
       });
       vibrate('error');
     },
+    onTriviaWrongAnswer: payload => {
+      setWrongAnswerEvent(payload);
+      vibrate('error');
+    },
   });
 
   function toggleHaptics() {
@@ -134,8 +139,8 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
           setStage((prev) => {
             if (updated.currentStageOrder !== prev.currentStageOrder) {
               setAnswerState({ phase: 'answering' });
-              // Clues belong to a specific stage — clear them on advance.
               resetClues();
+              setWrongAnswerEvent(null);
             }
             return updated;
           });
@@ -152,6 +157,10 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
   }, [session.id, team.teamId, resetClues]);
 
   function handleAnswered(result: StageResult) {
+    // Wrong answer with attempts remaining — TriviaScreen handles its own state,
+    // so GameScreen stays in 'answering' phase (no result card, no auto-advance).
+    if ('shouldAdvance' in result && result.shouldAdvance === false) return;
+
     setAnswerState({ phase: 'result', result });
 
     // After 3s, advance to next stage view via polling refresh
@@ -161,6 +170,7 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
         setStage(updated);
         setAnswerState({ phase: 'answering' });
         resetClues();
+        setWrongAnswerEvent(null);
       } catch {
         setAnswerState({ phase: 'answering' });
       }
@@ -376,11 +386,13 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
         stage={stage}
         sessionId={session.id}
         teamId={team.teamId}
+        nickname={nickname}
         onAnswered={handleAnswered}
         onError={setError}
         submitAnswer={submitTriviaAnswer}
         clues={clues}
         clueStatus={clueStatus}
+        wrongAnswerEvent={wrongAnswerEvent}
       />
       {exitFab}
       {rankingFab}

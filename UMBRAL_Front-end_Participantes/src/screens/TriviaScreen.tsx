@@ -39,6 +39,15 @@ export function TriviaScreen({
   const [maxAttempts, setMaxAttempts] = useState(0);
   const [teammateMsg, setTeammateMsg] = useState<string | null>(null);
 
+  // Reset all attempt state when the stage changes.
+  useEffect(() => {
+    setBlockedOptionIds(new Set());
+    setAttemptsUsed(0);
+    setMaxAttempts(0);
+    setSelectedOptionId(null);
+    setTeammateMsg(null);
+  }, [stage.stageId]);
+
   // Apply incoming SignalR event (teammate or self via broadcast).
   useEffect(() => {
     if (!wrongAnswerEvent) return;
