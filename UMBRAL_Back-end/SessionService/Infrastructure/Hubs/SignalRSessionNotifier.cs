@@ -85,4 +85,23 @@ public sealed class SignalRSessionNotifier(IHubContext<SessionHub> hub) : ISessi
             ActorName = actorName,
         }, ct);
     }
+
+    public Task NotifyTriviaWrongAnswerAsync(
+        Guid sessionId, Guid teamId, int stageOrder,
+        Guid blockedOptionId, int attemptsUsed, int maxAttempts,
+        int scoreChange, int newScore, string? participantName,
+        CancellationToken ct = default)
+        => hub.Clients.Group(sessionId.ToString())
+            .SendAsync("TriviaWrongAnswer", new
+            {
+                SessionId       = sessionId,
+                TeamId          = teamId,
+                StageOrder      = stageOrder,
+                BlockedOptionId = blockedOptionId,
+                AttemptsUsed    = attemptsUsed,
+                MaxAttempts     = maxAttempts,
+                ScoreChange     = scoreChange,
+                NewScore        = newScore,
+                ParticipantName = participantName,
+            }, ct);
 }

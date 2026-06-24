@@ -8,6 +8,7 @@ using UserService.Application.Users.Commands.ChangeRole;
 using UserService.Application.Users.Commands.CreateUser;
 using UserService.Application.Users.Commands.DisableUser;
 using UserService.Application.Users.Commands.EnableUser;
+using UserService.Application.Users.Commands.SendTemporaryPassword;
 using UserService.Application.Users.Queries.GetUsers;
 using UserService.Domain.Common;
 using UserService.Domain.Users;
@@ -150,6 +151,27 @@ public class UsersController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(Enable), nameof(UsersController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
+    }
+
+    /// <summary>Genera una nueva clave temporal y la envía por correo al usuario.</summary>
+    [HttpPost("{id:guid}/send-temporary-password")]
+    public async Task<IActionResult> SendTemporaryPassword(Guid id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _sender.Send(new SendTemporaryPasswordCommand(id), cancellationToken);
+            return result.IsSuccess ? NoContent() : MapErrorToStatus(result.Error);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(SendTemporaryPassword), nameof(UsersController));
             return StatusCode(StatusCodes.Status500InternalServerError,
                 new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
         }

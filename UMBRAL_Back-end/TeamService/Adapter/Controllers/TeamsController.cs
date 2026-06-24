@@ -8,6 +8,7 @@ using TeamService.Application.Teams.Commands.JoinTeam;
 using TeamService.Application.Teams.Commands.LeaveTeam;
 using TeamService.Application.Teams.Commands.PenalizeTeam;
 using TeamService.Application.Teams.Commands.RecordEvidenceOutcome;
+using TeamService.Application.Teams.Commands.RecordWrongAttempt;
 using TeamService.Application.Teams.Commands.ReleaseClue;
 using TeamService.Application.Teams.Queries.GetSessionRanking;
 using TeamService.Application.Teams.Queries.GetTeamById;
@@ -287,6 +288,46 @@ public class TeamsController : ControllerBase
     }
 
     /// <summary>
+    /// Records a wrong trivia answer without advancing the stage.
+    /// Applies the penalty, increments the wrong-attempt counter and blocks the option.
+    /// Called by SessionService only.
+    /// </summary>
+    [HttpPost("{id:guid}/record-wrong-attempt")]
+    public async Task<IActionResult> RecordWrongAttempt(
+        Guid id,
+        [FromBody] RecordWrongAttemptRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _sender.Send(
+                new RecordWrongAttemptCommand(id, request.BlockedOptionId, request.ScorePenalty),
+                cancellationToken);
+
+            if (result.IsFailure)
+                return result.Error.Code == TeamErrors.NotFound.Code
+                    ? NotFound(result.Error)
+                    : BadRequest(result.Error);
+
+            return Ok(new
+            {
+                newWrongCount = result.Value.NewWrongCount,
+                newScore      = result.Value.NewScore,
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(RecordWrongAttempt), nameof(TeamsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
+    }
+
+    /// <summary>
     /// Records the outcome of a piece of stage evidence (a trivia answer or a QR scan) for
     /// a team: adjusts score and advances to the next stage.
     /// Called by SessionService only — never called directly by participants.
@@ -335,4 +376,5 @@ public record ReleaseClueRequest(int TotalCluesForStage, bool IsAutomatic = fals
 public record PenalizeTeamRequest(int Points, string Reason);
 public record ForceAdvanceTeamRequest(int NextStageOrder);
 public record RecordEvidenceOutcomeRequest(bool IsCorrect, int ScoreChange, int NextStageOrder);
+public record RecordWrongAttemptRequest(Guid BlockedOptionId, int ScorePenalty);
 public record CreateTeamRequest(Guid SessionId, string TeamName);

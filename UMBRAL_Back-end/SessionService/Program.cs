@@ -84,6 +84,7 @@ builder.Services.AddMassTransit(x =>
     x.AddConsumer<StageCompletedConsumer>();
     x.AddConsumer<ClueReleasedConsumer>();
     x.AddConsumer<TeamPenalizedConsumer>();
+    x.AddConsumer<TriviaWrongAnswerConsumer>();
 
     x.UsingRabbitMq((ctx, cfg) =>
     {

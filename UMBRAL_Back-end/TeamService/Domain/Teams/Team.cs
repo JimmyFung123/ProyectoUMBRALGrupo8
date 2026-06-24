@@ -54,6 +54,12 @@ public class Team
     /// </summary>
     public DateTime? CurrentStageStartedAt { get; private set; }
 
+    /// <summary>Number of wrong trivia answers on the current stage.</summary>
+    public int WrongAttemptsCurrentStage { get; private set; }
+
+    /// <summary>Comma-separated GUIDs of trivia options already chosen incorrectly on this stage.</summary>
+    public string? BlockedOptionIds { get; private set; }
+
     private Team() { }
 
     public static Team Create(Guid sessionId, TeamName name)
@@ -101,6 +107,8 @@ public class Team
             CurrentStageStartedAt = now;
             LastClueWasAutomatic = false;
             CluesReceivedCurrentStage = 0;
+            WrongAttemptsCurrentStage = 0;
+            BlockedOptionIds = null;
         }
         CurrentStageOrder = stageOrder;
         CluesReceivedCurrentStage = cluesCurrentStage;
@@ -145,6 +153,8 @@ public class Team
         ClueTimerResetAt = now;
         CurrentStageStartedAt = now;
         LastClueWasAutomatic = false;
+        WrongAttemptsCurrentStage = 0;
+        BlockedOptionIds = null;
         return Result.Success(new StageTransitionOutcome(Score, elapsedSeconds));
     }
 
@@ -169,9 +179,30 @@ public class Team
         ClueTimerResetAt = now;
         CurrentStageStartedAt = now;
         LastClueWasAutomatic = false;
+        WrongAttemptsCurrentStage = 0;
+        BlockedOptionIds = null;
         if (isCorrect)
             LastStageCompletedAt = now;
         return Result.Success(new StageTransitionOutcome(Score, elapsedSeconds));
+    }
+
+    /// <summary>
+    /// Records a wrong trivia answer without advancing the stage.
+    /// Applies the score penalty, increments the wrong-attempt counter,
+    /// and adds the chosen option to the blocked list.
+    /// Returns the new wrong-attempt count and new score.
+    /// </summary>
+    public WrongAttemptOutcome RecordWrongAttempt(Guid optionId, int scorePenalty)
+    {
+        Score += scorePenalty; // scorePenalty is negative (resolved by IScoringStrategy)
+        WrongAttemptsCurrentStage++;
+
+        var existing = string.IsNullOrEmpty(BlockedOptionIds)
+            ? []
+            : BlockedOptionIds.Split(',', StringSplitOptions.RemoveEmptyEntries);
+        BlockedOptionIds = string.Join(',', existing.Append(optionId.ToString()));
+
+        return new WrongAttemptOutcome(WrongAttemptsCurrentStage, Score);
     }
 
     /// <summary>

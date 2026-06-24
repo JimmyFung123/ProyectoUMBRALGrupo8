@@ -23,4 +23,10 @@ public interface ISessionNotifier
         Guid sessionId, Guid teamId, string teamName,
         int points, string reason, int newScore, string actorName,
         CancellationToken ct = default);
+
+    Task NotifyTriviaWrongAnswerAsync(
+        Guid sessionId, Guid teamId, int stageOrder,
+        Guid blockedOptionId, int attemptsUsed, int maxAttempts,
+        int scoreChange, int newScore, string? participantName,
+        CancellationToken ct = default);
 }

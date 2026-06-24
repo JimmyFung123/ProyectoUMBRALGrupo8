@@ -600,7 +600,7 @@ public class SessionsController : ControllerBase
         try
         {
             var result = await _sender.Send(
-                new SubmitTriviaAnswerCommand(id, teamId, request.StageId, request.OptionId),
+                new SubmitTriviaAnswerCommand(id, teamId, request.StageId, request.OptionId, request.ParticipantName),
                 cancellationToken);
 
             if (result.IsFailure)
@@ -735,6 +735,6 @@ public record ReleaseClueRequest(
     double? ClueLongitude = null,
     int? ClueRadiusMeters = null);
 public record PenalizeTeamRequest(int Points, string Reason);
-public record SubmitTriviaAnswerRequest(Guid StageId, Guid OptionId);
+public record SubmitTriviaAnswerRequest(Guid StageId, Guid OptionId, string? ParticipantName = null);
 public record ValidateQrRequest(Guid StageId, string ScannedCode);
 public record BroadcastOperatorMessageRequest(string Message);

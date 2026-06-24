@@ -14,7 +14,14 @@ using UMBRAL.Contracts.Events;
 /// Concrete Template Method for trivia-answer evidence (HU-18).
 /// Inherits the shared session/stage validation, navigation, TeamService call,
 /// and SignalR broadcast from <see cref="EvidenceHandlerBase{TCommand,TResultDto}"/>.
-/// Implements: option validation, Strategy-based scoring, trivia analytics, trivia audit.
+///
+/// Wrong-answer blocking logic:
+///   - AutoReleaseMaxAttempts == null or 0 → always advance (legacy behaviour).
+///   - Wrong answer + attempts remaining → record wrong attempt in TeamService,
+///     publish TriviaWrongAnswerIntegrationEvent, return ShouldAdvance=false.
+///   - Wrong answer + no attempts left → advance with 0 additional score change
+///     (penalty already applied by the last RecordWrongAttemptAsync call).
+///   - Correct answer → advance normally.
 /// </summary>
 public class SubmitTriviaAnswerCommandHandler
     : EvidenceHandlerBase<SubmitTriviaAnswerCommand, TriviaAnswerResultDto>
@@ -41,7 +48,7 @@ public class SubmitTriviaAnswerCommandHandler
     protected override string GetStageType()                           => "Trivia";
     protected override Error GetRecordingError()                       => SessionErrors.CannotAnswerTrivia;
 
-    // ── Hook: validate trivia option + apply scoring strategy ────────────────
+    // ── Hook: validate trivia option + attempt blocking logic ─────────────────
 
     protected override async Task<Result<EvidenceOutcome>> ProcessEvidenceAsync(
         SubmitTriviaAnswerCommand command,
@@ -56,22 +63,73 @@ public class SubmitTriviaAnswerCommandHandler
         bool isCorrect = option.IsCorrect;
 
         var missionLookup = await _missionLookupRepository.GetByIdAsync(session.MissionId, ct);
-        var strategy  = ScoringStrategyFactory.Create(missionLookup?.Difficulty ?? "Medium");
-        int scoreChange = strategy.Calculate(stage.BaseScore, isCorrect);
+        var strategy      = ScoringStrategyFactory.Create(missionLookup?.Difficulty ?? "Medium");
+        int scoreChange   = strategy.Calculate(stage.BaseScore, isCorrect);
 
-        // Trivia always advances the stage regardless of correctness
+        int maxAttempts = stage.AutoReleaseMaxAttempts ?? 0;
+
+        // No attempt limit or correct answer → always advance.
+        if (isCorrect || maxAttempts == 0)
+            return Result.Success(new EvidenceOutcome(isCorrect, scoreChange, ShouldAdvance: true));
+
+        // Wrong answer with attempt limit: record in TeamService.
+        var wrongResult = await TeamClient.RecordWrongAttemptAsync(
+            command.TeamId, command.OptionId, scoreChange, ct);
+
+        if (wrongResult is null)
+            return Result.Failure<EvidenceOutcome>(SessionErrors.CannotAnswerTrivia);
+
+        if (wrongResult.NewWrongCount < maxAttempts)
+        {
+            // Attempts remaining → block option, do NOT advance.
+            await Bus.PublishAsync(
+                new TriviaWrongAnswerIntegrationEvent(
+                    SessionId:       command.SessionId,
+                    TeamId:          command.TeamId,
+                    StageOrder:      stage.Order,
+                    BlockedOptionId: command.OptionId,
+                    AttemptsUsed:    wrongResult.NewWrongCount,
+                    MaxAttempts:     maxAttempts,
+                    ScoreChange:     scoreChange,
+                    NewScore:        wrongResult.NewScore,
+                    ParticipantName: command.ParticipantName),
+                ct);
+
+            return Result.Success(new EvidenceOutcome(
+                IsCorrect:             false,
+                ScoreChange:           0,
+                ShouldAdvance:         false,
+                TeamCurrentStageOrder: stage.Order,
+                WrongAttempt: new WrongAttemptInfo(
+                    command.OptionId,
+                    wrongResult.NewWrongCount,
+                    maxAttempts,
+                    wrongResult.NewScore)));
+        }
+
+        // Out of attempts → advance; score penalty already applied.
         return Result.Success(new EvidenceOutcome(
-            IsCorrect: isCorrect,
-            ScoreChange: scoreChange,
+            IsCorrect:     false,
+            ScoreChange:   0,
             ShouldAdvance: true));
     }
 
-    // ── Hook: trivia never has a wrong-answer early return ───────────────────
+    // ── Hook: blocked result (no stage advance) ───────────────────────────────
 
     protected override TriviaAnswerResultDto BuildEarlyResult(
         EvidenceOutcome outcome, SubmitTriviaAnswerCommand command)
-        => throw new InvalidOperationException(
-            "Trivia evidence always advances the stage; BuildEarlyResult should never be called.");
+    {
+        var wa = outcome.WrongAttempt!;
+        return new TriviaAnswerResultDto(
+            IsCorrect:       false,
+            NewScore:        wa.NewScore,
+            NextStageOrder:  outcome.TeamCurrentStageOrder,
+            IsLastStage:     false,
+            ShouldAdvance:   false,
+            BlockedOptionId: wa.BlockedOptionId,
+            AttemptsUsed:    wa.AttemptsUsed,
+            MaxAttempts:     wa.MaxAttempts);
+    }
 
     // ── Hook: analytics ──────────────────────────────────────────────────────
 
