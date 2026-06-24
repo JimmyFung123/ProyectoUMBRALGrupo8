@@ -52,17 +52,20 @@ export function CluePanel({ clues, status, variant }: Props) {
       </div>
       <div style={styles.list}>
         {clues.map((clue) => {
-          const isGeo = clue.content == null && clue.latitude != null && clue.longitude != null;
+          const hasGeo = clue.latitude != null && clue.longitude != null;
           return (
             <div key={clue.id} style={styles.card}>
               <span style={styles.cardNumber}>#{clue.order}</span>
-              <p style={styles.cardText}>
-                {clue.content
-                  ? clue.content
-                  : isGeo
-                    ? `📍 Nueva zona en el mapa — radio ${clue.radiusMeters ?? '?'} m`
-                    : '(sin contenido)'}
-              </p>
+              <div style={{ flex: 1 }}>
+                <p style={styles.cardText}>
+                  {clue.content ?? '(sin contenido)'}
+                </p>
+                {hasGeo && (
+                  <p style={styles.geoHint}>
+                    📍 Zona actualizada en el mapa — radio {clue.radiusMeters ?? '?'} m
+                  </p>
+                )}
+              </div>
             </div>
           );
         })}
@@ -122,6 +125,12 @@ const styles: Record<string, React.CSSProperties> = {
     lineHeight: 1.45,
     margin: 0,
     whiteSpace: 'pre-wrap',
+  },
+  geoHint: {
+    color: '#94a3b8',
+    fontSize: '0.75rem',
+    margin: '0.3rem 0 0',
+    fontStyle: 'italic',
   },
   empty: {
     background: '#0f172a',
