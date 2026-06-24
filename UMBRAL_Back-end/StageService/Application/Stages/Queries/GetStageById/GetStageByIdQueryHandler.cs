@@ -18,12 +18,6 @@ public class GetStageByIdQueryHandler : IRequestHandler<GetStageByIdQuery, Resul
         if (stage is null)
             return Result.Failure<StageDto>(StageErrors.NotFound);
 
-        return Result.Success(new StageDto(
-            stage.Id, stage.MissionId, stage.Title, stage.Type.ToString(), stage.Order, stage.BaseScore,
-            stage.Question,
-            stage.Options.Select(o => new TriviaOptionDto(o.Id, o.Text, o.IsCorrect)).ToList(),
-            stage.Latitude, stage.Longitude, stage.QrCode,
-            stage.AutoReleaseTimeMinutes, stage.AutoReleaseMaxAttempts,
-            stage.CreatedAt));
+        return Result.Success(StageMapper.ToDto(stage));
     }
 }
