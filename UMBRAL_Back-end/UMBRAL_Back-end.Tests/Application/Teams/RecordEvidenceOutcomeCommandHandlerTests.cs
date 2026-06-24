@@ -3,18 +3,18 @@ namespace UMBRAL_Back_end.Tests.Application.Teams;
 using FluentAssertions;
 using Moq;
 using TeamService.Application.Rankings;
-using TeamService.Application.Teams.Commands.AnswerTrivia;
+using TeamService.Application.Teams.Commands.RecordEvidenceOutcome;
 using TeamService.Domain.Teams;
 using Xunit;
 
-public class AnswerTriviaCommandHandlerTests
+public class RecordEvidenceOutcomeCommandHandlerTests
 {
     private readonly Mock<ITeamRepository> _repoMock = new();
     private readonly Mock<IRankingProjector> _projectorMock = new();
-    private readonly AnswerTriviaCommandHandler _handler;
+    private readonly RecordEvidenceOutcomeCommandHandler _handler;
 
-    public AnswerTriviaCommandHandlerTests()
-        => _handler = new AnswerTriviaCommandHandler(_repoMock.Object, _projectorMock.Object);
+    public RecordEvidenceOutcomeCommandHandlerTests()
+        => _handler = new RecordEvidenceOutcomeCommandHandler(_repoMock.Object, _projectorMock.Object);
 
     [Fact]
     public async Task Handle_WhenTeamNotFound_ReturnsNotFoundError()
@@ -23,7 +23,7 @@ public class AnswerTriviaCommandHandlerTests
                  .ReturnsAsync((Team?)null);
 
         var result = await _handler.Handle(
-            new AnswerTriviaCommand(Guid.NewGuid(), true, 50, 2), default);
+            new RecordEvidenceOutcomeCommand(Guid.NewGuid(), true, 50, 2), default);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be(TeamErrors.NotFound);
@@ -41,7 +41,7 @@ public class AnswerTriviaCommandHandlerTests
                  .ReturnsAsync(team);
 
         var result = await _handler.Handle(
-            new AnswerTriviaCommand(team.Id, IsCorrect: true, ScoreChange: 50, NextStageOrder: 2), default);
+            new RecordEvidenceOutcomeCommand(team.Id, IsCorrect: true, ScoreChange: 50, NextStageOrder: 2), default);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.NewScore.Should().Be(150);
@@ -66,7 +66,7 @@ public class AnswerTriviaCommandHandlerTests
                  .ReturnsAsync(team);
 
         var result = await _handler.Handle(
-            new AnswerTriviaCommand(team.Id, IsCorrect: false, ScoreChange: -50, NextStageOrder: 2), default);
+            new RecordEvidenceOutcomeCommand(team.Id, IsCorrect: false, ScoreChange: -50, NextStageOrder: 2), default);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.NewScore.Should().Be(50);  // 100 + (-50) = 50

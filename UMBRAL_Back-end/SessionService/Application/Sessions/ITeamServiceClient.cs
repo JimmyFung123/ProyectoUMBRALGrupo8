@@ -23,6 +23,13 @@ public interface ITeamServiceClient
     Task<int> PenalizeTeamAsync(Guid teamId, int points, string reason, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Removes a participant from the team. If the team is left with zero members,
+    /// TeamService deletes it entirely (frees the invite code). Best-effort: a failure
+    /// here must not block the participant from leaving on the front-end.
+    /// </summary>
+    Task LeaveTeamAsync(Guid teamId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Forces a team to advance to the given next stage, earning 0 points.
     /// Returns <c>null</c> on error. Otherwise carries the seconds the team
     /// spent on the skipped stage — used by HU-25 to record the analytics row.
@@ -30,12 +37,13 @@ public interface ITeamServiceClient
     Task<StageTransitionResult?> ForceAdvanceTeamAsync(Guid teamId, int nextStageOrder, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Records a trivia answer: adjusts the team's score and advances to nextStageOrder.
+    /// Records the outcome of a piece of stage evidence (trivia answer or QR scan):
+    /// adjusts the team's score and advances to nextStageOrder.
     /// Returns <c>null</c> on error. Otherwise carries the new score AND the
-    /// seconds elapsed since the team entered the stage just answered — the
+    /// seconds elapsed since the team entered the stage just resolved — the
     /// timing data feeds the HU-25 analytics dashboard.
     /// </summary>
-    Task<StageTransitionResult?> AnswerTriviaAsync(Guid teamId, bool isCorrect, int scoreChange, int nextStageOrder, CancellationToken cancellationToken);
+    Task<StageTransitionResult?> RecordEvidenceOutcomeAsync(Guid teamId, bool isCorrect, int scoreChange, int nextStageOrder, CancellationToken cancellationToken);
 
     /// <summary>
     /// RB-18: Returns true if every team enrolled in the session has at least

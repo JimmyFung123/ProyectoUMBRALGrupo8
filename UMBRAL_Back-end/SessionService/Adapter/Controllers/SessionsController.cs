@@ -9,6 +9,7 @@ using SessionService.Application.Sessions.Commands.CancelSession;
 using SessionService.Application.Sessions.Commands.CreateSession;
 using SessionService.Application.Sessions.Commands.FinalizeSession;
 using SessionService.Application.Sessions.Commands.ForceAdvanceTeam;
+using SessionService.Application.Sessions.Commands.LeaveTeam;
 using SessionService.Application.Sessions.Commands.PauseSession;
 using SessionService.Application.Sessions.Commands.PenalizeTeam;
 using SessionService.Application.Sessions.Commands.ReleaseClue;
@@ -691,6 +692,34 @@ public class SessionsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(ValidateQr), nameof(SessionsController));
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
+        }
+    }
+
+    /// <summary>
+    /// Participant action: leaves their team. Forwards to TeamService through the
+    /// orchestrator — participants never call TeamService directly.
+    /// </summary>
+    [HttpPost("{id:guid}/teams/{teamId:guid}/leave")]
+    [AllowAnonymous] // participantes anónimos
+    public async Task<IActionResult> LeaveTeam(
+        Guid id,
+        Guid teamId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _sender.Send(new LeaveTeamCommand(id, teamId), cancellationToken);
+            return result.IsSuccess ? Ok() : BadRequest(result.Error);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(LeaveTeam), nameof(SessionsController));
             return StatusCode(StatusCodes.Status500InternalServerError,
                 new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
         }

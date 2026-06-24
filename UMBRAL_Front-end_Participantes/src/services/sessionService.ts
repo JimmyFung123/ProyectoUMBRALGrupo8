@@ -73,3 +73,7 @@ export async function validateQrCode(
   if (!res.ok) throw new Error('No se pudo validar el código QR');
   return res.json();
 }
+
+export async function leaveTeam(sessionId: string, teamId: string): Promise<void> {
+  await fetch(`${BASE_URL}/sessions/${sessionId}/teams/${teamId}/leave`, { method: 'POST' });
+}

@@ -122,6 +122,18 @@ public class TeamServiceClient : ITeamServiceClient
         catch { return int.MinValue; }
     }
 
+    public async Task LeaveTeamAsync(Guid teamId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await _http.PostAsync($"api/teams/{teamId}/leave", null, cancellationToken);
+        }
+        catch
+        {
+            // best-effort: the participant must be able to leave even if TeamService is unreachable.
+        }
+    }
+
     public async Task<StageTransitionResult?> ForceAdvanceTeamAsync(Guid teamId, int nextStageOrder, CancellationToken cancellationToken)
     {
         try
@@ -139,13 +151,13 @@ public class TeamServiceClient : ITeamServiceClient
         catch { return null; }
     }
 
-    public async Task<StageTransitionResult?> AnswerTriviaAsync(Guid teamId, bool isCorrect, int scoreChange, int nextStageOrder, CancellationToken cancellationToken)
+    public async Task<StageTransitionResult?> RecordEvidenceOutcomeAsync(Guid teamId, bool isCorrect, int scoreChange, int nextStageOrder, CancellationToken cancellationToken)
     {
         try
         {
             var payload = JsonSerializer.Serialize(new { isCorrect, scoreChange, nextStageOrder });
             var content = new StringContent(payload, System.Text.Encoding.UTF8, "application/json");
-            var response = await _http.PostAsync($"api/teams/{teamId}/answer-trivia", content, cancellationToken);
+            var response = await _http.PostAsync($"api/teams/{teamId}/record-evidence-outcome", content, cancellationToken);
             if (!response.IsSuccessStatusCode) return null;
             var json = await response.Content.ReadAsStringAsync(cancellationToken);
             using var doc = JsonDocument.Parse(json);

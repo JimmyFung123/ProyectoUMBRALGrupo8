@@ -94,7 +94,7 @@ public abstract class EvidenceHandlerBase<TCommand, TResultDto>
         if (nav is null)               return Fail(SessionErrors.StageNotFound);
 
         // Step 6: record in TeamService — updates score + advances stage order
-        var transition = await TeamClient.AnswerTriviaAsync(
+        var transition = await TeamClient.RecordEvidenceOutcomeAsync(
             GetTeamId(command), evidence.IsCorrect, evidence.ScoreChange, nav.NextStageOrder, ct);
         if (transition is null)        return Fail(GetRecordingError());
 

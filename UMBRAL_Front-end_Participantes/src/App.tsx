@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { leaveTeam } from './services/sessionService';
 import { JoinSessionScreen } from './screens/JoinSessionScreen';
 import { TeamChoiceScreen } from './screens/TeamChoiceScreen';
 import { CreateTeamScreen } from './screens/CreateTeamScreen';
@@ -85,7 +86,14 @@ export default function App() {
     setScreen('game');
   }
 
-  function handleLeaveSession() {
+  async function handleLeaveSession() {
+    if (session && team) {
+      try {
+        await leaveTeam(session.id, team.data.teamId);
+      } catch {
+        // Error de red al salir: no debe bloquear al participante — convención del proyecto.
+      }
+    }
     clearPersistedState();
     setSession(null);
     setNickname('');

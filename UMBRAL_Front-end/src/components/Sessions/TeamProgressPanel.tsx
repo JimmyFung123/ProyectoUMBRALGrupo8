@@ -154,6 +154,7 @@ export function TeamProgressPanel({
   }
 
   const canAct = sessionStatus === 'InProgress';
+  const maxStageOrder = stages.length > 0 ? Math.max(...stages.map(s => s.order)) : 0;
 
   return (
     <div>
@@ -190,6 +191,7 @@ export function TeamProgressPanel({
               const totalClues = clues.length;
               const received = team.cluesReceivedCurrentStage;
               const exhausted = totalClues > 0 && received >= totalClues;
+              const isFinished = maxStageOrder > 0 && team.currentStageOrder > maxStageOrder;
               const noStage = team.currentStageOrder === 0 || clues.length === 0;
               const isReleasing = releasing === team.id;
               const isAdvancing = advancing === team.id;
@@ -222,9 +224,11 @@ export function TeamProgressPanel({
                     )}
                   </Td>
                   <Td align="center">
-                    {team.currentStageOrder === 0
-                      ? <span className="text-ink-subtle">—</span>
-                      : <span className="text-ink-soft">Etapa {team.currentStageOrder}</span>}
+                    {isFinished
+                      ? <Badge tone="success">✓ Finalizado</Badge>
+                      : team.currentStageOrder === 0
+                        ? <span className="text-ink-subtle">—</span>
+                        : <span className="text-ink-soft">Etapa {team.currentStageOrder}</span>}
                   </Td>
                   <Td align="center">
                     {noStage ? (

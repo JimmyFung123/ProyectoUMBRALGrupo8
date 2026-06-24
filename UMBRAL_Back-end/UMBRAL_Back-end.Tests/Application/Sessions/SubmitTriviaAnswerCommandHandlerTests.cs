@@ -106,7 +106,7 @@ public class SubmitTriviaAnswerCommandHandlerTests
     // ── Correct answer ────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task Handle_CorrectAnswer_CallsAnswerTriviaWithIsCorrectTrueAndBroadcasts()
+    public async Task Handle_CorrectAnswer_CallsRecordEvidenceOutcomeWithIsCorrectTrueAndBroadcasts()
     {
         var session = CreateSessionWithStatus(SessionStatus.InProgress);
         var stageId = Guid.NewGuid();
@@ -126,7 +126,7 @@ public class SubmitTriviaAnswerCommandHandlerTests
                         .ReturnsAsync(stageInfo);
         _stageClientMock.Setup(s => s.GetStagesByMissionAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                         .ReturnsAsync(new[] { stage1Ref, stage2Ref });
-        _teamClientMock.Setup(t => t.AnswerTriviaAsync(It.IsAny<Guid>(), true, 50, 2, It.IsAny<CancellationToken>()))
+        _teamClientMock.Setup(t => t.RecordEvidenceOutcomeAsync(It.IsAny<Guid>(), true, 50, 2, It.IsAny<CancellationToken>()))
                        .ReturnsAsync(new StageTransitionResult(NewScore: 150, ElapsedSeconds: 42));
 
         var result = await _handler.Handle(
@@ -136,7 +136,7 @@ public class SubmitTriviaAnswerCommandHandlerTests
         result.IsSuccess.Should().BeTrue();
         result.Value.IsCorrect.Should().BeTrue();
         result.Value.NewScore.Should().Be(150);
-        _teamClientMock.Verify(t => t.AnswerTriviaAsync(
+        _teamClientMock.Verify(t => t.RecordEvidenceOutcomeAsync(
             It.IsAny<Guid>(), true, 50, 2, It.IsAny<CancellationToken>()), Times.Once);
         _busMock.Verify(
             b => b.PublishAsync(It.IsAny<StageCompletedIntegrationEvent>(), It.IsAny<CancellationToken>()),
@@ -158,7 +158,7 @@ public class SubmitTriviaAnswerCommandHandlerTests
     // ── Incorrect answer ──────────────────────────────────────────────────────
 
     [Fact]
-    public async Task Handle_IncorrectAnswer_CallsAnswerTriviaWithIsCorrectFalse()
+    public async Task Handle_IncorrectAnswer_CallsRecordEvidenceOutcomeWithIsCorrectFalse()
     {
         var session = CreateSessionWithStatus(SessionStatus.InProgress);
         var stageId = Guid.NewGuid();
@@ -178,7 +178,7 @@ public class SubmitTriviaAnswerCommandHandlerTests
         _stageClientMock.Setup(s => s.GetStagesByMissionAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                         .ReturnsAsync(new[] { stage1Ref, stage2Ref });
         // Medium strategy: wrong answer → -(baseScore/2) = -25
-        _teamClientMock.Setup(t => t.AnswerTriviaAsync(It.IsAny<Guid>(), false, -25, It.IsAny<int>(), It.IsAny<CancellationToken>()))
+        _teamClientMock.Setup(t => t.RecordEvidenceOutcomeAsync(It.IsAny<Guid>(), false, -25, It.IsAny<int>(), It.IsAny<CancellationToken>()))
                        .ReturnsAsync(new StageTransitionResult(NewScore: 25, ElapsedSeconds: 13));
 
         var result = await _handler.Handle(
@@ -187,7 +187,7 @@ public class SubmitTriviaAnswerCommandHandlerTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value.IsCorrect.Should().BeFalse();
-        _teamClientMock.Verify(t => t.AnswerTriviaAsync(
+        _teamClientMock.Verify(t => t.RecordEvidenceOutcomeAsync(
             It.IsAny<Guid>(), false, -25, It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Once);
 
         // HU-25: an incorrect-answer record still gets recorded.
@@ -220,7 +220,7 @@ public class SubmitTriviaAnswerCommandHandlerTests
                         .ReturnsAsync(stageInfo);
         _stageClientMock.Setup(s => s.GetStagesByMissionAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                         .ReturnsAsync(new[] { new StageInfo(stageId, 1) });
-        _teamClientMock.Setup(t => t.AnswerTriviaAsync(teamId, true, 50, It.IsAny<int>(), It.IsAny<CancellationToken>()))
+        _teamClientMock.Setup(t => t.RecordEvidenceOutcomeAsync(teamId, true, 50, It.IsAny<int>(), It.IsAny<CancellationToken>()))
                        .ReturnsAsync(new StageTransitionResult(NewScore: 200, ElapsedSeconds: 10));
         _teamClientMock.Setup(t => t.GetTeamByIdAsync(teamId, It.IsAny<CancellationToken>()))
                        .ReturnsAsync(new TeamInfoItem(teamId, "Alfa", 1));
@@ -260,7 +260,7 @@ public class SubmitTriviaAnswerCommandHandlerTests
         _stageClientMock.Setup(s => s.GetStagesByMissionAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                         .ReturnsAsync(new[] { new StageInfo(stageId, 1) });
         // Medium strategy: wrong answer → -25
-        _teamClientMock.Setup(t => t.AnswerTriviaAsync(teamId, false, -25, It.IsAny<int>(), It.IsAny<CancellationToken>()))
+        _teamClientMock.Setup(t => t.RecordEvidenceOutcomeAsync(teamId, false, -25, It.IsAny<int>(), It.IsAny<CancellationToken>()))
                        .ReturnsAsync(new StageTransitionResult(NewScore: 25, ElapsedSeconds: 12));
         _teamClientMock.Setup(t => t.GetTeamByIdAsync(teamId, It.IsAny<CancellationToken>()))
                        .ReturnsAsync(new TeamInfoItem(teamId, "Beta", 1));

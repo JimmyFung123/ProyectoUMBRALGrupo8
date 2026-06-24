@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ParticipantStage, QrValidationResult, SessionInfo, TriviaAnswerResult } from '../types';
 import { getParticipantStage, submitTriviaAnswer, validateQrCode } from '../services/sessionService';
-import { useClueStream } from '../services/clueStream';
-import { useGameEvents } from '../services/gameEvents';
+import { useGameConnection } from '../services/gameConnection';
 import { vibrate, isHapticsEnabled, setHapticsEnabled } from '../services/vibrate';
 import { TriviaScreen } from './TriviaScreen';
 import { TreasureHuntScreen } from './TreasureHuntScreen';
@@ -42,19 +41,23 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
   const [blockingStatus, setBlockingStatus] = useState<BlockingSessionStatus | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // HU-28: toast stack — declared before useClueStream/useGameEvents so the
+  // HU-28: toast stack — declared before useGameConnection so the
   // event callbacks can call pushToast without forward references.
   const { toasts, push: pushToast, dismiss: dismissToast } = useToastStack();
 
-  // Real-time clue stream (HU-20): SignalR + API resync after reconnect.
-  const { clues, status: clueStatus, resetClues } = useClueStream({
+  const [hapticsOn, setHapticsOn] = useState(isHapticsEnabled());
+  const [celebrate, setCelebrate] = useState(false);
+
+  // Single SignalR connection (HU-20 + HU-28): live clues, stage results,
+  // operator broadcasts and penalties all go through the same WebSocket.
+  const { clues, status: clueStatus, resetClues } = useGameConnection({
     sessionId: session.id,
     teamId: team.teamId,
     onClue: (clue, isAutomatic) => {
       // HU-28: themed toast + haptic on every clue arrival.
       pushToast({
         variant: 'clue',
-        title: isAutomatic ? '💡 Pista automática' : '💡 Nueva pista',
+        title: isAutomatic ? 'Pista automática' : 'Nueva pista',
         body: clue.content
           ?? (clue.radiusMeters != null
             ? `Zona geográfica actualizada (radio ${clue.radiusMeters}m)`
@@ -62,18 +65,11 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
       });
       vibrate('tap');
     },
-  });
-  const [hapticsOn, setHapticsOn] = useState(isHapticsEnabled());
-  const [celebrate, setCelebrate] = useState(false);
-
-  useGameEvents({
-    sessionId: session.id,
-    teamId: team.teamId,
     onStageCompleted: payload => {
       if (payload.wasCorrect) {
         pushToast({
           variant: 'stage',
-          title: '✅ ¡Etapa superada!',
+          title: '¡Etapa superada!',
           body: payload.pointsEarned > 0
             ? `+${payload.pointsEarned} pts · Nuevo puntaje ${payload.newScore}`
             : `Nuevo puntaje ${payload.newScore}`,
@@ -87,7 +83,7 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
       } else {
         pushToast({
           variant: 'wrong',
-          title: '❌ Respuesta incorrecta',
+          title: 'Respuesta incorrecta',
           body: 'Sigue intentando — el equipo permanece en esta etapa.',
         });
         vibrate('error');
@@ -96,7 +92,7 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
     onOperatorMessage: msg => {
       pushToast({
         variant: 'message',
-        title: `📩 Mensaje del operador`,
+        title: 'Mensaje del operador',
         body: msg.message,
         durationMs: 7000,
       });
@@ -106,7 +102,7 @@ export function GameScreen({ session, team, nickname, initialStage, onLeaveSessi
       // Visible y persistente: el equipo merece leer el motivo completo.
       pushToast({
         variant: 'penalty',
-        title: `🚨 Penalización: -${payload.points} pts`,
+        title: `Penalización: -${payload.points} pts`,
         body: `${payload.reason} · Nuevo puntaje: ${payload.newScore}`,
         durationMs: 8000,
       });

@@ -210,6 +210,32 @@ public class RankingProjectorTests
         rows.Select(r => r.TeamName).Should().Contain(new[] { "Existing", "Newcomer" });
     }
 
+    [Fact]
+    public async Task RebuildAsync_ExcludesTeamsMarkedAsDeleted()
+    {
+        // LeaveTeam path: the now-empty team is Removed but SaveChanges hasn't
+        // run yet. The SQL query still returns its row (the DELETE isn't
+        // persisted), but the projector must not put it back in the ranking.
+        using var ctx = NewContext();
+        var sessionId = Guid.NewGuid();
+        var staying = SeedTeam(ctx, sessionId, "Staying", 100);
+        var leaving = SeedTeam(ctx, sessionId, "Leaving", 50);
+        await ctx.SaveChangesAsync();
+
+        ctx.Teams.Remove(leaving); // tracked as Deleted, not yet saved
+
+        var projector = new RankingProjector(ctx);
+        await projector.RebuildAsync(sessionId);
+        await ctx.SaveChangesAsync();
+
+        var rows = await ctx.RankingProjections
+            .Where(p => p.SessionId == sessionId)
+            .ToListAsync();
+
+        rows.Should().ContainSingle();
+        rows[0].TeamId.Should().Be(staying.Id);
+    }
+
     // ── Session isolation ─────────────────────────────────────────────────────
 
     [Fact]
