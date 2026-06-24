@@ -18,15 +18,12 @@ builder.Services.AddControllers()
             new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddOpenApi();
 
-// PostgreSQL via EF Core
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// MediatR — scans this assembly for all IRequestHandler<,> implementations
 builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
 
-// Repositories
 builder.Services.AddScoped<IMissionRepository, MissionRepository>();
 builder.Services.AddScoped<IStageCountLookupRepository, StageCountLookupRepository>();
 builder.Services.AddScoped<IIntegrationEventBus, MassTransitIntegrationEventBus>();

@@ -181,7 +181,6 @@ export function ClueManager({ missionId, stageId, stageType, isLocked }: Props) 
 
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Estado del formulario de agregar
   const [addOrder, setAddOrder] = useState(1);
   const [addContent, setAddContent] = useState('');
   const [addGeo, setAddGeo] = useState<ClueGeoData | null>(null);
