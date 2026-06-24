@@ -52,6 +52,13 @@ public interface ITeamServiceClient
     /// </summary>
     Task<bool> AllTeamsMeetMinimumMembersAsync(Guid sessionId, int minMembers, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Records a wrong trivia answer without advancing the stage.
+    /// Applies the score penalty, increments the wrong-attempt counter and blocks the option.
+    /// Returns null on error.
+    /// </summary>
+    Task<WrongAttemptResult?> RecordWrongAttemptAsync(Guid teamId, Guid blockedOptionId, int scorePenalty, CancellationToken cancellationToken);
+
     /// <summary>Returns basic info for a single team by ID.</summary>
     Task<TeamInfoItem?> GetTeamByIdAsync(Guid teamId, CancellationToken cancellationToken);
 
@@ -97,3 +104,9 @@ public record TeamInfoItem(
 /// write the analytics fact row.
 /// </summary>
 public record StageTransitionResult(int NewScore, int ElapsedSeconds);
+
+/// <summary>
+/// Outcome of recording a wrong trivia attempt in TeamService.
+/// The stage is NOT advanced.
+/// </summary>
+public record WrongAttemptResult(int NewWrongCount, int NewScore);

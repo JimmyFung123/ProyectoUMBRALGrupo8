@@ -7,4 +7,5 @@ public record SubmitTriviaAnswerCommand(
     Guid SessionId,
     Guid TeamId,
     Guid StageId,
-    Guid OptionId) : IRequest<Result<TriviaAnswerResultDto>>;
+    Guid OptionId,
+    string? ParticipantName = null) : IRequest<Result<TriviaAnswerResultDto>>;

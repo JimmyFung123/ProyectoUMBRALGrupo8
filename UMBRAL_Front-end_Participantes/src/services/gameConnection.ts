@@ -5,7 +5,7 @@ import {
   LogLevel,
 } from '@microsoft/signalr';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ClueStreamStatus, ReleasedClue } from '../types';
+import type { ClueStreamStatus, ReleasedClue, TriviaWrongAnswerPayload } from '../types';
 import { getReleasedClues } from './sessionService';
 
 /**
@@ -85,6 +85,8 @@ export interface UseGameConnectionOptions {
   onOperatorMessage?: (payload: OperatorMessagePayload) => void;
   /** Called when the operator applied a penalty to THIS team (filtered by teamId). */
   onTeamPenalized?: (payload: TeamPenalizedPayload) => void;
+  /** Called when a team member answered a trivia question incorrectly (filtered by teamId). */
+  onTriviaWrongAnswer?: (payload: TriviaWrongAnswerPayload) => void;
 }
 
 export interface UseGameConnectionResult {
@@ -111,6 +113,7 @@ export function useGameConnection({
   onStageCompleted,
   onOperatorMessage,
   onTeamPenalized,
+  onTriviaWrongAnswer,
 }: UseGameConnectionOptions): UseGameConnectionResult {
   const [clues, setClues] = useState<ReleasedClue[]>([]);
   const [status, setStatus] = useState<ClueStreamStatus>('connecting');
@@ -122,11 +125,13 @@ export function useGameConnection({
   const onStageCompletedRef = useRef(onStageCompleted);
   const onOperatorMessageRef = useRef(onOperatorMessage);
   const onTeamPenalizedRef = useRef(onTeamPenalized);
+  const onTriviaWrongAnswerRef = useRef(onTriviaWrongAnswer);
   useEffect(() => {
     onClueRef.current = onClue;
     onStageCompletedRef.current = onStageCompleted;
     onOperatorMessageRef.current = onOperatorMessage;
     onTeamPenalizedRef.current = onTeamPenalized;
+    onTriviaWrongAnswerRef.current = onTriviaWrongAnswer;
   });
 
   const syncFromApi = useCallback(async () => {
@@ -195,6 +200,11 @@ export function useGameConnection({
       // change through the regular SessionStateChanged refresh.
       if (payload.teamId !== teamId) return;
       onTeamPenalizedRef.current?.(payload);
+    });
+
+    connection.on('TriviaWrongAnswer', (payload: TriviaWrongAnswerPayload) => {
+      if (payload.teamId !== teamId) return;
+      onTriviaWrongAnswerRef.current?.(payload);
     });
 
     connection.onreconnecting(() => {

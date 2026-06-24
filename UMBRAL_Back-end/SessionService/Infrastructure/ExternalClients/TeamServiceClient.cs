@@ -168,6 +168,23 @@ public class TeamServiceClient : ITeamServiceClient
         catch { return null; }
     }
 
+    public async Task<WrongAttemptResult?> RecordWrongAttemptAsync(Guid teamId, Guid blockedOptionId, int scorePenalty, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var payload = JsonSerializer.Serialize(new { blockedOptionId, scorePenalty });
+            var content = new StringContent(payload, System.Text.Encoding.UTF8, "application/json");
+            var response = await _http.PostAsync($"api/teams/{teamId}/record-wrong-attempt", content, cancellationToken);
+            if (!response.IsSuccessStatusCode) return null;
+            var json = await response.Content.ReadAsStringAsync(cancellationToken);
+            using var doc = JsonDocument.Parse(json);
+            return new WrongAttemptResult(
+                NewWrongCount: doc.RootElement.GetProperty("newWrongCount").GetInt32(),
+                NewScore:      doc.RootElement.GetProperty("newScore").GetInt32());
+        }
+        catch { return null; }
+    }
+
     public async Task<TeamInfoItem?> GetTeamByIdAsync(Guid teamId, CancellationToken cancellationToken)
     {
         try

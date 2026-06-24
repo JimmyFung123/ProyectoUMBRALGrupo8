@@ -19,4 +19,15 @@ public record EvidenceOutcome(
     bool IsCorrect,
     int ScoreChange,
     bool ShouldAdvance,
-    int TeamCurrentStageOrder = 0);
+    int TeamCurrentStageOrder = 0,
+    WrongAttemptInfo? WrongAttempt = null);
+
+/// <summary>
+/// Carried in <see cref="EvidenceOutcome"/> when a trivia answer is wrong
+/// but the team still has remaining attempts (stage is NOT advanced).
+/// </summary>
+public record WrongAttemptInfo(
+    Guid BlockedOptionId,
+    int AttemptsUsed,
+    int MaxAttempts,
+    int NewScore);

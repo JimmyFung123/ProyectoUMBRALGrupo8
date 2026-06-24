@@ -23,6 +23,7 @@ public record StageWithOptionsInfo(
     IReadOnlyList<TriviaOptionInfo> Options,
     double? Latitude = null,
     double? Longitude = null,
-    string? QrCode = null);
+    string? QrCode = null,
+    int? AutoReleaseMaxAttempts = null);
 
 public record TriviaOptionInfo(Guid Id, string Text, bool IsCorrect);

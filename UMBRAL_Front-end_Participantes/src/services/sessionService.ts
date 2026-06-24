@@ -31,11 +31,12 @@ export async function submitTriviaAnswer(
   teamId: string,
   stageId: string,
   optionId: string,
+  participantName?: string,
 ): Promise<TriviaAnswerResult> {
   const res = await fetch(`${BASE_URL}/sessions/${sessionId}/teams/${teamId}/answer-trivia`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ stageId, optionId }),
+    body: JSON.stringify({ stageId, optionId, participantName }),
   });
   if (!res.ok) throw new Error('No se pudo registrar la respuesta');
   return res.json();

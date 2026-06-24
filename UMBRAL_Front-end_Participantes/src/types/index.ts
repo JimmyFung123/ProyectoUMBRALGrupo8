@@ -42,6 +42,23 @@ export interface TriviaAnswerResult {
   newScore: number;
   nextStageOrder: number;
   isLastStage: boolean;
+  /** False when the answer was wrong and the team still has remaining attempts. */
+  shouldAdvance?: boolean;
+  blockedOptionId?: string | null;
+  attemptsUsed?: number;
+  maxAttempts?: number;
+}
+
+export interface TriviaWrongAnswerPayload {
+  sessionId: string;
+  teamId: string;
+  stageOrder: number;
+  blockedOptionId: string;
+  attemptsUsed: number;
+  maxAttempts: number;
+  scoreChange: number;
+  newScore: number;
+  participantName: string | null;
 }
 
 export interface QrValidationResult {
