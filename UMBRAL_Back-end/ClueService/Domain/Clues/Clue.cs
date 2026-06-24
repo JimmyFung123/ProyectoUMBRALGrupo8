@@ -80,12 +80,14 @@ public class Clue
 
         if (normalized == "TreasureHunt")
         {
-            // RB-21: treasure clues are exclusively a map point + approximation radius.
             var geoResult = GeoPoint.Create(latitude, longitude);
             if (geoResult.IsFailure) return Result.Failure<bool>(geoResult.Error);
 
             var radiusResult = GeoRadius.Create(radiusMeters);
             if (radiusResult.IsFailure) return Result.Failure<bool>(radiusResult.Error);
+
+            if (string.IsNullOrWhiteSpace(content))
+                return Result.Failure<bool>(ClueErrors.InvalidContent);
 
             return Result.Success(true);
         }

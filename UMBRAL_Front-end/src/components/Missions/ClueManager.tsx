@@ -30,6 +30,7 @@ interface ClueGeoData {
   latitude: number;
   longitude: number;
   radiusMeters: number;
+  content: string;
 }
 
 // ── ClueTreasureForm ──────────────────────────────────────────────────────────
@@ -48,27 +49,41 @@ function ClueTreasureForm({
   initialLatitude,
   initialLongitude,
   initialRadiusMeters,
+  initialContent,
 }: {
   onChange: (data: ClueGeoData | null) => void;
   initialLatitude?: number;
   initialLongitude?: number;
   initialRadiusMeters?: number;
+  initialContent?: string;
 }) {
   const [lat, setLat] = useState<number | null>(initialLatitude ?? null);
   const [lng, setLng] = useState<number | null>(initialLongitude ?? null);
   const [radius, setRadius] = useState(initialRadiusMeters ?? 100);
+  const [content, setContent] = useState(initialContent ?? '');
+
+  function emit(pickedLat: number | null, pickedLng: number | null, r: number, c: string) {
+    if (pickedLat !== null && pickedLng !== null) {
+      onChange({ latitude: pickedLat, longitude: pickedLng, radiusMeters: r, content: c });
+    } else {
+      onChange(null);
+    }
+  }
 
   function handlePick(pickedLat: number, pickedLng: number) {
     setLat(pickedLat);
     setLng(pickedLng);
-    onChange({ latitude: pickedLat, longitude: pickedLng, radiusMeters: radius });
+    emit(pickedLat, pickedLng, radius, content);
   }
 
   function handleRadiusChange(newRadius: number) {
     setRadius(newRadius);
-    if (lat !== null && lng !== null) {
-      onChange({ latitude: lat, longitude: lng, radiusMeters: newRadius });
-    }
+    emit(lat, lng, newRadius, content);
+  }
+
+  function handleContentChange(newContent: string) {
+    setContent(newContent);
+    emit(lat, lng, radius, newContent);
   }
 
   return (
@@ -121,6 +136,19 @@ function ClueTreasureForm({
           ? <>Lat: <strong>{lat.toFixed(6)}</strong> &nbsp; Lon: <strong>{lng.toFixed(6)}</strong></>
           : <span style={{ color: '#aaa' }}>Sin ubicación seleccionada</span>
         }
+      </div>
+
+      <div style={{ marginTop: '0.6rem' }}>
+        <label style={{ fontSize: '0.8rem', display: 'block', marginBottom: '0.3rem' }}>
+          Texto de la pista <span style={{ color: '#e53e3e', fontWeight: 700 }}>*</span>
+        </label>
+        <textarea
+          value={content}
+          onChange={e => handleContentChange(e.target.value)}
+          rows={3}
+          placeholder="Ej: Busca cerca del árbol más alto del parque…"
+          style={{ display: 'block', width: '100%', padding: '0.3rem', resize: 'vertical', boxSizing: 'border-box', fontSize: '0.85rem' }}
+        />
       </div>
 
       <div style={{ marginTop: '0.5rem' }}>
@@ -187,6 +215,7 @@ export function ClueManager({ missionId, stageId, stageType, isLocked }: Props) 
     if (stageType === 'Trivia') {
       payload.content = addContent;
     } else if (addGeo) {
+      payload.content = addGeo.content;
       payload.latitude = addGeo.latitude;
       payload.longitude = addGeo.longitude;
       payload.radiusMeters = addGeo.radiusMeters;
@@ -216,7 +245,7 @@ export function ClueManager({ missionId, stageId, stageType, isLocked }: Props) 
 
   const canAdd = stageType === 'Trivia'
     ? addContent.trim().length > 0
-    : addGeo !== null;
+    : addGeo !== null && addGeo.content.trim().length > 0;
 
   if (loading) {
     return <p style={{ fontSize: '0.82rem', color: '#888', padding: '0.5rem 0' }}>Cargando pistas…</p>;
@@ -340,9 +369,16 @@ function ClueRow({
         <span style={{ marginLeft: '0.6rem', fontSize: '0.82rem', color: '#555' }}>
           {stageType === 'Trivia'
             ? (clue.content ?? <em style={{ color: '#aaa' }}>Sin contenido</em>)
-            : (clue.latitude !== null
-              ? `Lat: ${clue.latitude.toFixed(6)}, Lon: ${clue.longitude?.toFixed(6)}, Radio: ${clue.radiusMeters}m`
-              : <em style={{ color: '#aaa' }}>Sin ubicación</em>)
+            : (
+              <>
+                <span>{clue.content ?? <em style={{ color: '#aaa' }}>Sin texto</em>}</span>
+                {clue.latitude !== null && (
+                  <span style={{ display: 'block', fontSize: '0.75rem', color: '#999', fontFamily: 'monospace', marginTop: '0.2rem' }}>
+                    📍 {clue.latitude.toFixed(5)}, {clue.longitude?.toFixed(5)} — {clue.radiusMeters} m
+                  </span>
+                )}
+              </>
+            )
           }
         </span>
       </div>
@@ -381,7 +417,7 @@ function ClueEditForm({
   const [content, setContent] = useState(clue.content ?? '');
   const [geo, setGeo] = useState<ClueGeoData | null>(
     clue.latitude !== null && clue.longitude !== null && clue.radiusMeters !== null
-      ? { latitude: clue.latitude, longitude: clue.longitude, radiusMeters: clue.radiusMeters }
+      ? { latitude: clue.latitude, longitude: clue.longitude, radiusMeters: clue.radiusMeters, content: clue.content ?? '' }
       : null
   );
   const [saving, setSaving] = useState(false);
@@ -389,7 +425,7 @@ function ClueEditForm({
 
   const canSave = stageType === 'Trivia'
     ? content.trim().length > 0
-    : geo !== null;
+    : geo !== null && geo.content.trim().length > 0;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -400,6 +436,7 @@ function ClueEditForm({
     if (stageType === 'Trivia') {
       payload.content = content;
     } else if (geo) {
+      payload.content = geo.content;
       payload.latitude = geo.latitude;
       payload.longitude = geo.longitude;
       payload.radiusMeters = geo.radiusMeters;
@@ -452,6 +489,7 @@ function ClueEditForm({
           initialLatitude={clue.latitude ?? undefined}
           initialLongitude={clue.longitude ?? undefined}
           initialRadiusMeters={clue.radiusMeters ?? undefined}
+          initialContent={clue.content ?? undefined}
         />
       )}
 
