@@ -46,6 +46,10 @@ public interface IKeycloakAdminClient
     Task DisableAsync(Guid userId, CancellationToken cancellationToken);
 
     Task EnableAsync(Guid userId, CancellationToken cancellationToken);
+
+    /// <summary>Resets the user's password to <paramref name="temporaryPassword"/>
+    /// and marks it as temporary so Keycloak forces a change on next login.</summary>
+    Task ResetPasswordAsync(Guid userId, string temporaryPassword, CancellationToken cancellationToken);
 }
 
 /// <summary>Snapshot of a Keycloak user as UMBRAL cares about it.</summary>

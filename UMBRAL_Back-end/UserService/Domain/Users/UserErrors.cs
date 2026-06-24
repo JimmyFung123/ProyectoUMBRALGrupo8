@@ -48,4 +48,8 @@ public static class UserErrors
     public static readonly Error KeycloakUnavailable =
         new("User.KeycloakUnavailable",
             "No se pudo contactar al proveedor de identidades. Intenta de nuevo.");
+
+    public static readonly Error EmailDeliveryFailed =
+        new("User.EmailDeliveryFailed",
+            "La clave temporal fue restablecida, pero no se pudo enviar el correo. Revisá la configuración de SMTP.");
 }

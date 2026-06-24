@@ -287,6 +287,17 @@ public class KeycloakAdminClient : IKeycloakAdminClient
     public Task EnableAsync(Guid userId, CancellationToken cancellationToken)
         => SetEnabledAsync(userId, enabled: true, cancellationToken);
 
+    public async Task ResetPasswordAsync(Guid userId, string temporaryPassword, CancellationToken cancellationToken)
+    {
+        using var req = await NewAuthedRequest(HttpMethod.Put,
+            $"/users/{userId}/reset-password", cancellationToken);
+        req.Content = JsonContent.Create(
+            new { type = "password", value = temporaryPassword, temporary = true },
+            options: JsonOptions);
+        using var resp = await _http.SendAsync(req, cancellationToken);
+        resp.EnsureSuccessStatusCode();
+    }
+
     private async Task SetEnabledAsync(Guid userId, bool enabled, CancellationToken ct)
     {
         using var req = await NewAuthedRequest(HttpMethod.Put, $"/users/{userId}", ct);

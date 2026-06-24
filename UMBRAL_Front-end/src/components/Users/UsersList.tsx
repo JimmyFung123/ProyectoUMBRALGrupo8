@@ -33,6 +33,7 @@ export function UsersList() {
   const [showCreate, setShowCreate] = useState(false);
   const [changingRoleFor, setChangingRoleFor] = useState<UmbralUserRow | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -48,12 +49,14 @@ export function UsersList() {
 
   useEffect(() => { void load(); }, [load]);
 
-  async function withRowLoading(id: string, fn: () => Promise<void>) {
+  async function withRowLoading(id: string, fn: () => Promise<void>, successMsg?: string) {
     setPendingId(id);
     setError(null);
+    setSuccess(null);
     try {
       await fn();
-      await load();
+      if (successMsg) setSuccess(successMsg);
+      else await load();
     } catch (err) {
       setError(errorMessage(err, 'La acción no se pudo completar.'));
     } finally {
@@ -77,6 +80,7 @@ export function UsersList() {
       />
 
       {error && <Alert tone="danger" onDismiss={() => setError(null)} className="mb-4">{error}</Alert>}
+      {success && <Alert tone="success" onDismiss={() => setSuccess(null)} className="mb-4">{success}</Alert>}
 
       {users.length === 0 ? (
         <Card>
@@ -136,6 +140,19 @@ export function UsersList() {
                             title={isMe ? 'No puedes cambiar tu propio rol.' : 'Cambiar rol del usuario'}
                           >
                             🔄 Cambiar rol
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => withRowLoading(
+                              u.id,
+                              () => userService.sendTemporaryPassword(u.id),
+                              `Clave temporal enviada a ${u.email}.`
+                            )}
+                            disabled={isPending}
+                            title="Genera una nueva clave temporal y la envía al correo del usuario"
+                          >
+                            {isPending ? '…' : '🔑 Enviar clave'}
                           </Button>
                           {u.enabled ? (
                             <Button

@@ -28,4 +28,8 @@ export const userService = {
   enable(userId: string): Promise<void> {
     return http.put<void>(`${BASE_URL}/users/${userId}/enable`);
   },
+
+  sendTemporaryPassword(userId: string): Promise<void> {
+    return http.post<void>(`${BASE_URL}/users/${userId}/send-temporary-password`);
+  },
 };
