@@ -149,7 +149,8 @@ public class Team
     }
 
     /// <summary>
-    /// Updates the team's score and advances to the next stage after answering a trivia question.
+    /// Updates the team's score and advances to the next stage after evaluating a piece
+    /// of stage evidence (a trivia answer or a QR scan).
     /// Score changes by the signed <paramref name="scoreChange"/> value provided
     /// by the caller (positive = reward, negative = penalty, zero = no change).
     /// The sign is resolved by the IScoringStrategy in SessionService before
@@ -157,7 +158,7 @@ public class Team
     /// Returns the seconds the team spent on the stage being abandoned — used by
     /// HU-25 to record the analytics fact row.
     /// </summary>
-    public Result<StageTransitionOutcome> AnswerTrivia(bool isCorrect, int scoreChange, int nextStageOrder)
+    public Result<StageTransitionOutcome> RecordEvidenceOutcome(bool isCorrect, int scoreChange, int nextStageOrder)
     {
         var now = DateTime.UtcNow;
         var elapsedSeconds = ComputeStageElapsedSeconds(now);

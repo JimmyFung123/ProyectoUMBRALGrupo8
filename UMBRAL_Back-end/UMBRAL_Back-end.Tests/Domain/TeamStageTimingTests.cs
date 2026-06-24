@@ -49,16 +49,16 @@ public class TeamStageTimingTests
         team.CurrentStageStartedAt.Should().Be(firstTimestamp);
     }
 
-    // ── AnswerTrivia returns elapsed and resets the clock ────────────────────
+    // ── RecordEvidenceOutcome returns elapsed and resets the clock ───────────
 
     [Fact]
-    public void AnswerTrivia_ReturnsElapsedSecondsForTheStageJustLeft()
+    public void RecordEvidenceOutcome_ReturnsElapsedSecondsForTheStageJustLeft()
     {
         var team = Team.Create(Guid.NewGuid(), TeamName.Create("Alpha").Value);
         // Manually stamp the stage start in the past so the elapsed math is testable.
         SetCurrentStageStartedAt(team, DateTime.UtcNow.AddSeconds(-90));
 
-        var result = team.AnswerTrivia(isCorrect: true, scoreChange: 50, nextStageOrder: 2);
+        var result = team.RecordEvidenceOutcome(isCorrect: true, scoreChange: 50, nextStageOrder: 2);
 
         result.IsSuccess.Should().BeTrue();
         // Allow small jitter — the test machine is doing real wall-clock subtraction.
@@ -66,13 +66,13 @@ public class TeamStageTimingTests
     }
 
     [Fact]
-    public void AnswerTrivia_AdvancesStage_AndResetsCurrentStageStartedAtToNow()
+    public void RecordEvidenceOutcome_AdvancesStage_AndResetsCurrentStageStartedAtToNow()
     {
         var team = Team.Create(Guid.NewGuid(), TeamName.Create("Alpha").Value);
         SetCurrentStageStartedAt(team, DateTime.UtcNow.AddSeconds(-30));
 
         var before = DateTime.UtcNow;
-        team.AnswerTrivia(isCorrect: true, scoreChange: 50, nextStageOrder: 2);
+        team.RecordEvidenceOutcome(isCorrect: true, scoreChange: 50, nextStageOrder: 2);
         var after = DateTime.UtcNow;
 
         team.CurrentStageStartedAt.Should().NotBeNull();
@@ -81,13 +81,13 @@ public class TeamStageTimingTests
     }
 
     [Fact]
-    public void AnswerTrivia_WhenStageStartIsNull_ElapsedSecondsIsZero()
+    public void RecordEvidenceOutcome_WhenStageStartIsNull_ElapsedSecondsIsZero()
     {
         // Defensive case for pre-HU-25 rows that never had the column populated.
         var team = Team.Create(Guid.NewGuid(), TeamName.Create("Alpha").Value);
         // CurrentStageStartedAt is null at this point.
 
-        var result = team.AnswerTrivia(isCorrect: true, scoreChange: 50, nextStageOrder: 1);
+        var result = team.RecordEvidenceOutcome(isCorrect: true, scoreChange: 50, nextStageOrder: 1);
 
         result.Value.ElapsedSeconds.Should().Be(0);
     }
@@ -137,14 +137,14 @@ public class TeamStageTimingTests
     // ── ElapsedSeconds clamps to zero on clock skew ──────────────────────────
 
     [Fact]
-    public void AnswerTrivia_WhenStageStartIsInTheFuture_ElapsedSecondsClampsToZero()
+    public void RecordEvidenceOutcome_WhenStageStartIsInTheFuture_ElapsedSecondsClampsToZero()
     {
         // Defensive: if the clock skewed forward between writes, we still
         // produce a sensible analytics row (0 seconds) instead of a negative value.
         var team = Team.Create(Guid.NewGuid(), TeamName.Create("Alpha").Value);
         SetCurrentStageStartedAt(team, DateTime.UtcNow.AddSeconds(10));
 
-        var result = team.AnswerTrivia(isCorrect: true, scoreChange: 10, nextStageOrder: 2);
+        var result = team.RecordEvidenceOutcome(isCorrect: true, scoreChange: 10, nextStageOrder: 2);
 
         result.Value.ElapsedSeconds.Should().Be(0);
     }

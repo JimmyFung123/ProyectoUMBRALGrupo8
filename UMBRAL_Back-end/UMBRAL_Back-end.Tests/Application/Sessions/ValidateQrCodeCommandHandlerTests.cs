@@ -137,7 +137,7 @@ public class ValidateQrCodeCommandHandlerTests
         result.Value.IsLastStage.Should().BeFalse();
 
         _teamClientMock.Verify(
-            t => t.AnswerTriviaAsync(It.IsAny<Guid>(), It.IsAny<bool>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()),
+            t => t.RecordEvidenceOutcomeAsync(It.IsAny<Guid>(), It.IsAny<bool>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()),
             Times.Never);
         _busMock.Verify(
             b => b.PublishAsync(It.IsAny<StageCompletedIntegrationEvent>(), It.IsAny<CancellationToken>()),
@@ -173,7 +173,7 @@ public class ValidateQrCodeCommandHandlerTests
                             new StageInfo(stageId, 1),
                             new StageInfo(Guid.NewGuid(), 2),
                         });
-        _teamClientMock.Setup(t => t.AnswerTriviaAsync(teamId, true, 75, 2, It.IsAny<CancellationToken>()))
+        _teamClientMock.Setup(t => t.RecordEvidenceOutcomeAsync(teamId, true, 75, 2, It.IsAny<CancellationToken>()))
                        .ReturnsAsync(new StageTransitionResult(NewScore: 175, ElapsedSeconds: 90));
         _teamClientMock.Setup(t => t.GetTeamByIdAsync(teamId, It.IsAny<CancellationToken>()))
                        .ReturnsAsync(new TeamInfoItem(teamId, "Alfa", CurrentStageOrder: 1));
@@ -189,7 +189,7 @@ public class ValidateQrCodeCommandHandlerTests
         result.Value.IsLastStage.Should().BeFalse();
 
         _teamClientMock.Verify(
-            t => t.AnswerTriviaAsync(teamId, true, 75, 2, It.IsAny<CancellationToken>()),
+            t => t.RecordEvidenceOutcomeAsync(teamId, true, 75, 2, It.IsAny<CancellationToken>()),
             Times.Once);
         _busMock.Verify(
             b => b.PublishAsync(It.IsAny<StageCompletedIntegrationEvent>(), It.IsAny<CancellationToken>()),
@@ -232,7 +232,7 @@ public class ValidateQrCodeCommandHandlerTests
                             new StageInfo(Guid.NewGuid(), 2),
                             new StageInfo(stageId, 3),
                         });
-        _teamClientMock.Setup(t => t.AnswerTriviaAsync(teamId, true, 100, 4, It.IsAny<CancellationToken>()))
+        _teamClientMock.Setup(t => t.RecordEvidenceOutcomeAsync(teamId, true, 100, 4, It.IsAny<CancellationToken>()))
                        .ReturnsAsync(new StageTransitionResult(NewScore: 300, ElapsedSeconds: 200));
         _teamClientMock.Setup(t => t.GetTeamByIdAsync(teamId, It.IsAny<CancellationToken>()))
                        .ReturnsAsync(new TeamInfoItem(teamId, "Beta", CurrentStageOrder: 3));
@@ -263,7 +263,7 @@ public class ValidateQrCodeCommandHandlerTests
                             10.0, -66.0, "qr-abc-123"));
         _stageClientMock.Setup(s => s.GetStagesByMissionAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                         .ReturnsAsync(new[] { new StageInfo(stageId, 1) });
-        _teamClientMock.Setup(t => t.AnswerTriviaAsync(teamId, true, 50, 2, It.IsAny<CancellationToken>()))
+        _teamClientMock.Setup(t => t.RecordEvidenceOutcomeAsync(teamId, true, 50, 2, It.IsAny<CancellationToken>()))
                        .ReturnsAsync(new StageTransitionResult(NewScore: 50, ElapsedSeconds: 30));
         _teamClientMock.Setup(t => t.GetTeamByIdAsync(teamId, It.IsAny<CancellationToken>()))
                        .ReturnsAsync(new TeamInfoItem(teamId, "Alfa", CurrentStageOrder: 1));

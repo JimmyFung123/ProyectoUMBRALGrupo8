@@ -37,12 +37,13 @@ public interface ITeamServiceClient
     Task<StageTransitionResult?> ForceAdvanceTeamAsync(Guid teamId, int nextStageOrder, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Records a trivia answer: adjusts the team's score and advances to nextStageOrder.
+    /// Records the outcome of a piece of stage evidence (trivia answer or QR scan):
+    /// adjusts the team's score and advances to nextStageOrder.
     /// Returns <c>null</c> on error. Otherwise carries the new score AND the
-    /// seconds elapsed since the team entered the stage just answered — the
+    /// seconds elapsed since the team entered the stage just resolved — the
     /// timing data feeds the HU-25 analytics dashboard.
     /// </summary>
-    Task<StageTransitionResult?> AnswerTriviaAsync(Guid teamId, bool isCorrect, int scoreChange, int nextStageOrder, CancellationToken cancellationToken);
+    Task<StageTransitionResult?> RecordEvidenceOutcomeAsync(Guid teamId, bool isCorrect, int scoreChange, int nextStageOrder, CancellationToken cancellationToken);
 
     /// <summary>
     /// RB-18: Returns true if every team enrolled in the session has at least

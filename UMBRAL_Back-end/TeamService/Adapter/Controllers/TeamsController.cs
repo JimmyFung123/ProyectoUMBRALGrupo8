@@ -2,12 +2,12 @@ namespace TeamService.Adapter.Controllers;
 
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using TeamService.Application.Teams.Commands.AnswerTrivia;
 using TeamService.Application.Teams.Commands.CreateTeam;
 using TeamService.Application.Teams.Commands.ForceAdvance;
 using TeamService.Application.Teams.Commands.JoinTeam;
 using TeamService.Application.Teams.Commands.LeaveTeam;
 using TeamService.Application.Teams.Commands.PenalizeTeam;
+using TeamService.Application.Teams.Commands.RecordEvidenceOutcome;
 using TeamService.Application.Teams.Commands.ReleaseClue;
 using TeamService.Application.Teams.Queries.GetSessionRanking;
 using TeamService.Application.Teams.Queries.GetTeamById;
@@ -287,21 +287,22 @@ public class TeamsController : ControllerBase
     }
 
     /// <summary>
-    /// Records a trivia answer for a team: adjusts score and advances to the next stage.
+    /// Records the outcome of a piece of stage evidence (a trivia answer or a QR scan) for
+    /// a team: adjusts score and advances to the next stage.
     /// Called by SessionService only — never called directly by participants.
     /// HU-25: response carries <c>elapsedSeconds</c> so SessionService can record
     /// the analytics fact row for the stage just completed.
     /// </summary>
-    [HttpPost("{id:guid}/answer-trivia")]
-    public async Task<IActionResult> AnswerTrivia(
+    [HttpPost("{id:guid}/record-evidence-outcome")]
+    public async Task<IActionResult> RecordEvidenceOutcome(
         Guid id,
-        [FromBody] AnswerTriviaRequest request,
+        [FromBody] RecordEvidenceOutcomeRequest request,
         CancellationToken cancellationToken)
     {
         try
         {
             var result = await _sender.Send(
-                new AnswerTriviaCommand(id, request.IsCorrect, request.ScoreChange, request.NextStageOrder),
+                new RecordEvidenceOutcomeCommand(id, request.IsCorrect, request.ScoreChange, request.NextStageOrder),
                 cancellationToken);
 
             if (result.IsFailure)
@@ -323,7 +324,7 @@ public class TeamsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(AnswerTrivia), nameof(TeamsController));
+            _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(RecordEvidenceOutcome), nameof(TeamsController));
             return StatusCode(StatusCodes.Status500InternalServerError,
                 new Error("ServerError", "Ha ocurrido un error inesperado. Intente nuevamente más tarde."));
         }
@@ -333,5 +334,5 @@ public class TeamsController : ControllerBase
 public record ReleaseClueRequest(int TotalCluesForStage, bool IsAutomatic = false);
 public record PenalizeTeamRequest(int Points, string Reason);
 public record ForceAdvanceTeamRequest(int NextStageOrder);
-public record AnswerTriviaRequest(bool IsCorrect, int ScoreChange, int NextStageOrder);
+public record RecordEvidenceOutcomeRequest(bool IsCorrect, int ScoreChange, int NextStageOrder);
 public record CreateTeamRequest(Guid SessionId, string TeamName);

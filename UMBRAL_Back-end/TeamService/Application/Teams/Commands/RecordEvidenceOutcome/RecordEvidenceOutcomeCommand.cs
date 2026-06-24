@@ -1,10 +1,10 @@
-namespace TeamService.Application.Teams.Commands.AnswerTrivia;
+namespace TeamService.Application.Teams.Commands.RecordEvidenceOutcome;
 
 using MediatR;
 using TeamService.Domain.Common;
 using TeamService.Domain.Teams;
 
-public record AnswerTriviaCommand(
+public record RecordEvidenceOutcomeCommand(
     Guid TeamId,
     bool IsCorrect,
     int ScoreChange,
