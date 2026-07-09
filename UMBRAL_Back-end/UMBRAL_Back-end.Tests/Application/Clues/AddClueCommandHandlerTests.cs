@@ -27,8 +27,8 @@ public class AddClueCommandHandlerTests
     private AddClueCommand TriviaCmd(Guid stageId, int order = 0, string? content = "Contenido válido")
         => new(stageId, order, content, null, null, null);
 
-    private AddClueCommand TreasureCmd(Guid stageId, int order = 0, double? lat = 10.48, double? lng = -66.85, int? radius = 50)
-        => new(stageId, order, null, lat, lng, radius);
+    private AddClueCommand TreasureCmd(Guid stageId, int order = 0, double? lat = 10.48, double? lng = -66.85, int? radius = 50, string? content = "Pista de tesoro")
+        => new(stageId, order, content, lat, lng, radius);
 
     [Fact]
     public async Task Handle_WhenStageNotFoundInLookup_ReturnsStageNotFoundError()
@@ -112,7 +112,7 @@ public class AddClueCommandHandlerTests
         _clueRepoMock.Verify(r => r.AddAsync(
             It.Is<Clue>(c =>
                 c.StageType == "TreasureHunt" &&
-                c.Content == null &&
+                c.Content == "Pista de tesoro" &&
                 c.Latitude == 10.49 &&
                 c.Longitude == -66.85 &&
                 c.RadiusMeters == 75),
