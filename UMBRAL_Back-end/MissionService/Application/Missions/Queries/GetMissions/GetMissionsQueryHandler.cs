@@ -1,7 +1,6 @@
 namespace UMBRAL_Back_end.Application.Missions.Queries.GetMissions;
 
 using MediatR;
-using UMBRAL_Back_end.Application.Missions;
 using UMBRAL_Back_end.Domain.Missions;
 
 public class GetMissionsQueryHandler : IRequestHandler<GetMissionsQuery, IReadOnlyList<MissionDto>>
@@ -20,6 +19,17 @@ public class GetMissionsQueryHandler : IRequestHandler<GetMissionsQuery, IReadOn
             status = parsed;
 
         var missions = await _repository.GetAllAsync(status, cancellationToken);
-        return missions.Select(MissionMapper.ToDto).ToList();
+
+        return missions
+            .Select(m => new MissionDto(
+                m.Id,
+                m.Name,
+                m.Description,
+                m.Difficulty.ToString(),
+                m.MaxDuration,
+                m.Status.ToString(),
+                m.CreatedAt,
+                m.UpdatedAt))
+            .ToList();
     }
 }
