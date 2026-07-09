@@ -54,13 +54,13 @@ public class UpdateClueCommandHandlerTests
     {
         var stageId = Guid.NewGuid();
         var missionId = Guid.NewGuid();
-        var clue = Clue.Create(stageId, missionId, "TreasureHunt", 1, null, 10.0, -66.0, 100).Value;
+        var clue = Clue.Create(stageId, missionId, "TreasureHunt", 1, "Pista de tesoro", 10.0, -66.0, 100).Value;
 
         _clueRepoMock.Setup(r => r.GetByIdAsync(clue.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(clue);
 
         var result = await _handler.Handle(
-            new UpdateClueCommand(clue.Id, 1, null, 10.5, -66.5, 30), default);
+            new UpdateClueCommand(clue.Id, 1, "Pista actualizada", 10.5, -66.5, 30), default);
 
         result.IsSuccess.Should().BeTrue();
         clue.Latitude.Should().Be(10.5);
@@ -73,7 +73,7 @@ public class UpdateClueCommandHandlerTests
     {
         var stageId = Guid.NewGuid();
         var missionId = Guid.NewGuid();
-        var clue = Clue.Create(stageId, missionId, "TreasureHunt", 1, null, 10.0, -66.0, 100).Value;
+        var clue = Clue.Create(stageId, missionId, "TreasureHunt", 1, "Pista de tesoro", 10.0, -66.0, 100).Value;
 
         _clueRepoMock.Setup(r => r.GetByIdAsync(clue.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(clue);

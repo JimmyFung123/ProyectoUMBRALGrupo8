@@ -47,7 +47,7 @@ public class ClueValueObjectsTests
     public void Create_TreasureHunt_WithValidGeo_Succeeds()
     {
         var result = Clue.Create(Guid.NewGuid(), Guid.NewGuid(), "TreasureHunt", 1,
-            content: null, latitude: 10.49, longitude: -66.85, radiusMeters: 50);
+            content: "Pista de tesoro", latitude: 10.49, longitude: -66.85, radiusMeters: 50);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.RadiusMeters.Should().Be(50);
