@@ -506,6 +506,13 @@ public class SessionsController : ControllerBase
         {
             throw;
         }
+        catch (FluentValidation.ValidationException ex)
+        {
+            return BadRequest(new
+            {
+                errors = ex.Errors.Select(e => new { field = e.PropertyName, message = e.ErrorMessage })
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(PenalizeTeam), nameof(SessionsController));

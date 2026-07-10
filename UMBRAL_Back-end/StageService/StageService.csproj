@@ -6,6 +6,7 @@
     <RootNamespace>StageService</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Shared\UMBRAL.Application\UMBRAL.Application.csproj" />
     <ProjectReference Include="..\Shared\UMBRAL.Auth\UMBRAL.Auth.csproj" />
     <ProjectReference Include="..\Shared\UMBRAL.Contracts\UMBRAL.Contracts.csproj" />
   </ItemGroup>

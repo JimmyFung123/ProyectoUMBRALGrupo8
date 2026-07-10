@@ -1,3 +1,4 @@
+using FluentValidation;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using TeamService.Application.Rankings;
@@ -22,8 +23,15 @@ builder.Services.AddDbContext<TeamsDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // ── MediatR ───────────────────────────────────────────────────────────────────
+// LoggingBehavior (UMBRAL.Application) envuelve cada command/query con logging
+// estructurado y timing — reemplaza las llamadas ILogger dispersas a mano.
 builder.Services.AddMediatR(cfg =>
-    cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
+{
+    cfg.RegisterServicesFromAssembly(typeof(Program).Assembly);
+    cfg.AddOpenBehavior(typeof(UMBRAL.Application.LoggingBehavior<,>));
+    cfg.AddOpenBehavior(typeof(UMBRAL.Application.ValidationBehavior<,>));
+});
+builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly);
 
 // ── Repositories ──────────────────────────────────────────────────────────────
 builder.Services.AddScoped<ITeamRepository, TeamRepository>();
