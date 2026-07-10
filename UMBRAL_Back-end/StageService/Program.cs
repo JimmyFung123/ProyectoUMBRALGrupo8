@@ -21,7 +21,10 @@ builder.Services.AddDbContext<StagesDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddMediatR(cfg =>
-    cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
+{
+    cfg.RegisterServicesFromAssembly(typeof(Program).Assembly);
+    cfg.AddOpenBehavior(typeof(UMBRAL.Application.LoggingBehavior<,>));
+});
 
 builder.Services.AddScoped<IStageRepository, StageRepository>();
 builder.Services.AddScoped<IMissionLookupRepository, MissionLookupRepository>();

@@ -22,9 +22,14 @@ builder.Services.AddOpenApi();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// MediatR — scans this assembly for all IRequestHandler<,> implementations
+// MediatR — scans this assembly for all IRequestHandler<,> implementations.
+// LoggingBehavior (UMBRAL.Application) envuelve cada command/query con logging
+// estructurado y timing — reemplaza las llamadas ILogger dispersas a mano.
 builder.Services.AddMediatR(cfg =>
-    cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
+{
+    cfg.RegisterServicesFromAssembly(typeof(Program).Assembly);
+    cfg.AddOpenBehavior(typeof(UMBRAL.Application.LoggingBehavior<,>));
+});
 
 // Repositories
 builder.Services.AddScoped<IMissionRepository, MissionRepository>();
