@@ -79,6 +79,15 @@ public class MissionsController : ControllerBase
         {
             throw;
         }
+        catch (FluentValidation.ValidationException ex)
+        {
+            // ValidationBehavior (UMBRAL.Application) rechazó el comando antes de
+            // que el handler tocara el repositorio — es un 400, no un 500.
+            return BadRequest(new
+            {
+                errors = ex.Errors.Select(e => new { field = e.PropertyName, message = e.ErrorMessage })
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error inesperado en {Action} de {Controller}.", nameof(Create), nameof(MissionsController));
@@ -101,6 +110,13 @@ public class MissionsController : ControllerBase
         catch (OperationCanceledException)
         {
             throw;
+        }
+        catch (FluentValidation.ValidationException ex)
+        {
+            return BadRequest(new
+            {
+                errors = ex.Errors.Select(e => new { field = e.PropertyName, message = e.ErrorMessage })
+            });
         }
         catch (Exception ex)
         {

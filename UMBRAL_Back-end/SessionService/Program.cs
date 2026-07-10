@@ -1,3 +1,4 @@
+using FluentValidation;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -43,7 +44,9 @@ builder.Services.AddMediatR(cfg =>
 {
     cfg.RegisterServicesFromAssembly(typeof(Program).Assembly);
     cfg.AddOpenBehavior(typeof(UMBRAL.Application.LoggingBehavior<,>));
+    cfg.AddOpenBehavior(typeof(UMBRAL.Application.ValidationBehavior<,>));
 });
+builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly);
 
 // ── Repositories ──────────────────────────────────────────────────────────────
 builder.Services.AddScoped<ISessionRepository, SessionRepository>();
