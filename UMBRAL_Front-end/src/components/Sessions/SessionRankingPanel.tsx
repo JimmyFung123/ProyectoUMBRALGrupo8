@@ -7,7 +7,12 @@ import { Badge, EmptyState, type BadgeTone } from '../ui';
 const FALLBACK_POLL_MS = 10_000;
 type ConnectionState = HubConnState;
 
-interface Props { sessionId: string }
+interface Props {
+  sessionId: string;
+  /** Mayor orden de etapa de la misión. Un equipo con currentStageOrder por
+   *  encima de este valor ya terminó la última etapa (finalizó). */
+  totalStages?: number;
+}
 
 const RANK_COLOR: Record<number, string> = {
   1: '#f59e0b',
@@ -56,7 +61,7 @@ function formatResolutionTime(iso: string | null): string {
   return new Date(iso).toLocaleTimeString('es-VE', { timeStyle: 'medium' });
 }
 
-export function SessionRankingPanel({ sessionId }: Props) {
+export function SessionRankingPanel({ sessionId, totalStages }: Props) {
   const [ranking, setRanking] = useState<SessionRanking | null>(null);
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
   const [connState, setConnState] = useState<ConnectionState>('connecting');
@@ -144,7 +149,9 @@ export function SessionRankingPanel({ sessionId }: Props) {
                   <Td align="center">
                     {team.currentStageOrder === 0
                       ? <span className="text-ink-subtle">—</span>
-                      : <span className="text-ink-soft">Etapa {team.currentStageOrder}</span>}
+                      : (totalStages != null && totalStages > 0 && team.currentStageOrder > totalStages)
+                        ? <span className="font-semibold" style={{ color: '#16a34a' }}>🏁 Finalizó</span>
+                        : <span className="text-ink-soft">Etapa {team.currentStageOrder}</span>}
                   </Td>
                   <Td align="right">
                     <span className="font-bold tabular-nums text-ink">
