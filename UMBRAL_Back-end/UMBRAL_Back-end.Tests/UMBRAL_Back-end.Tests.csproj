@@ -23,6 +23,12 @@
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.5" />
   </ItemGroup>
 
+  <!-- Correlation ID: los tests del middleware usan tipos de ASP.NET (DefaultHttpContext),
+       que este SDK plano no trae por defecto. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\MissionService\MissionService.csproj" />
     <ProjectReference Include="..\SessionService\SessionService.csproj" />
@@ -30,6 +36,7 @@
     <ProjectReference Include="..\ClueService\ClueService.csproj" />
     <ProjectReference Include="..\TeamService\TeamService.csproj" />
     <ProjectReference Include="..\UserService\UserService.csproj" />
+    <ProjectReference Include="..\Shared\UMBRAL.Observability\UMBRAL.Observability.csproj" />
   </ItemGroup>
 
 </Project>
