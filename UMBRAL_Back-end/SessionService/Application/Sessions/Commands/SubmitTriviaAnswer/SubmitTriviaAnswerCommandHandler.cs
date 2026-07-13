@@ -27,6 +27,7 @@ public class SubmitTriviaAnswerCommandHandler
     : EvidenceHandlerBase<SubmitTriviaAnswerCommand, TriviaAnswerResultDto>
 {
     private readonly IMissionLookupRepository _missionLookupRepository;
+    private readonly IClueServiceClient _clueServiceClient;
 
     public SubmitTriviaAnswerCommandHandler(
         ISessionRepository sessionRepository,
@@ -34,10 +35,12 @@ public class SubmitTriviaAnswerCommandHandler
         IStageServiceClient stageClient,
         IStageCompletionRecordRepository statsRepository,
         IIntegrationEventBus bus,
-        IMissionLookupRepository missionLookupRepository)
+        IMissionLookupRepository missionLookupRepository,
+        IClueServiceClient clueServiceClient)
         : base(sessionRepository, teamClient, stageClient, statsRepository, bus)
     {
         _missionLookupRepository = missionLookupRepository;
+        _clueServiceClient = clueServiceClient;
     }
 
     // ── Command field accessors ───────────────────────────────────────────────
@@ -95,6 +98,11 @@ public class SubmitTriviaAnswerCommandHandler
                     ParticipantName: command.ParticipantName),
                 ct);
 
+            // Pistas por reintento (regla "Intentos fallidos"): cada fallo con
+            // intentos restantes libera la siguiente pista de la etapa para ayudar
+            // al equipo. Paralelo a la auto-liberación por tiempo (HU-14).
+            await ReleaseNextClueOnWrongAttemptAsync(command, ct);
+
             return Result.Success(new EvidenceOutcome(
                 IsCorrect:             false,
                 ScoreChange:           0,
@@ -112,6 +120,35 @@ public class SubmitTriviaAnswerCommandHandler
             IsCorrect:     false,
             ScoreChange:   0,
             ShouldAdvance: true));
+    }
+
+    /// <summary>
+    /// "Pistas por reintento": libera automáticamente la siguiente pista de la
+    /// etapa tras una respuesta incorrecta con intentos restantes. No hace nada
+    /// si la etapa no tiene pistas o si ya se liberaron todas. El participante la
+    /// recibe vía ClueReleasedIntegrationEvent → ClueReleasedConsumer (SignalR).
+    /// </summary>
+    private async Task ReleaseNextClueOnWrongAttemptAsync(
+        SubmitTriviaAnswerCommand command, CancellationToken ct)
+    {
+        var clues = (await _clueServiceClient.GetCluesByStageAsync(command.StageId, ct))
+            .OrderBy(c => c.Order)
+            .ToList();
+        if (clues.Count == 0) return;
+
+        var clueNumber = await TeamClient.ReleaseClueAsync(
+            command.TeamId, clues.Count, ct, isAutomatic: true);
+        if (clueNumber <= 0) return; // ya se habían liberado todas las pistas
+
+        var released = clues.ElementAtOrDefault(clueNumber - 1);
+        if (released is null) return;
+
+        await Bus.PublishAsync(
+            new ClueReleasedIntegrationEvent(
+                command.SessionId, command.TeamId,
+                released.Content, released.Latitude, released.Longitude, released.RadiusMeters,
+                clueNumber, IsAutomatic: true),
+            ct);
     }
 
     // ── Hook: blocked result (no stage advance) ───────────────────────────────

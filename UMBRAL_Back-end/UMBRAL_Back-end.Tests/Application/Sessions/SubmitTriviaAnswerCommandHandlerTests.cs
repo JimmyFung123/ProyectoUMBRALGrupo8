@@ -19,6 +19,7 @@ public class SubmitTriviaAnswerCommandHandlerTests
     private readonly Mock<IStageCompletionRecordRepository> _statsRepoMock = new();
     private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly Mock<IMissionLookupRepository> _missionLookupRepoMock = new();
+    private readonly Mock<IClueServiceClient> _clueServiceClientMock = new();
     private readonly SubmitTriviaAnswerCommandHandler _handler;
 
     public SubmitTriviaAnswerCommandHandlerTests()
@@ -28,13 +29,19 @@ public class SubmitTriviaAnswerCommandHandlerTests
             .Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((MissionLookup?)null);
 
+        // Default: stage without clues (release-on-retry is a no-op unless a test overrides this).
+        _clueServiceClientMock
+            .Setup(c => c.GetCluesByStageAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<ClueInfo>());
+
         _handler = new SubmitTriviaAnswerCommandHandler(
             _sessionRepoMock.Object,
             _teamClientMock.Object,
             _stageClientMock.Object,
             _statsRepoMock.Object,
             _busMock.Object,
-            _missionLookupRepoMock.Object);
+            _missionLookupRepoMock.Object,
+            _clueServiceClientMock.Object);
     }
 
     // ── Session not found ─────────────────────────────────────────────────────
@@ -198,6 +205,85 @@ public class SubmitTriviaAnswerCommandHandlerTests
                     && rec.WasCorrect == false),
                 It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    // ── Pistas por reintento (regla "Intentos fallidos") ─────────────────────
+
+    [Fact]
+    public async Task Handle_WrongAnswerWithAttemptsRemaining_ReleasesNextClue()
+    {
+        var session = CreateSessionWithStatus(SessionStatus.InProgress);
+        var stageId = Guid.NewGuid();
+        var teamId = Guid.NewGuid();
+        var wrongOptionId = Guid.NewGuid();
+
+        var wrongOption = new TriviaOptionInfo(wrongOptionId, "Wrong", false);
+        // AutoReleaseMaxAttempts: 3 → habilita la regla de intentos fallidos.
+        var stageInfo = new StageWithOptionsInfo(stageId, "Stage 1", "Trivia", 1, 50, "Q?",
+            new[] { wrongOption }, AutoReleaseMaxAttempts: 3);
+
+        _sessionRepoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                        .ReturnsAsync(session);
+        _stageClientMock.Setup(s => s.GetStageWithOptionsAsync(stageId, It.IsAny<CancellationToken>()))
+                        .ReturnsAsync(stageInfo);
+        // 1er intento fallido → quedan intentos (1 < 3).
+        _teamClientMock.Setup(t => t.RecordWrongAttemptAsync(teamId, wrongOptionId, It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                       .ReturnsAsync(new WrongAttemptResult(NewWrongCount: 1, NewScore: 25));
+        // La etapa tiene 2 pistas.
+        _clueServiceClientMock.Setup(c => c.GetCluesByStageAsync(stageId, It.IsAny<CancellationToken>()))
+                       .ReturnsAsync(new[]
+                       {
+                           new ClueInfo(Guid.NewGuid(), 1, "Pista 1", null, null, null, null),
+                           new ClueInfo(Guid.NewGuid(), 2, "Pista 2", null, null, null, null),
+                       });
+        // Se libera la pista #1.
+        _teamClientMock.Setup(t => t.ReleaseClueAsync(teamId, 2, It.IsAny<CancellationToken>(), true))
+                       .ReturnsAsync(1);
+
+        ClueReleasedIntegrationEvent? capturedClue = null;
+        _busMock.Setup(b => b.PublishAsync(It.IsAny<ClueReleasedIntegrationEvent>(), It.IsAny<CancellationToken>()))
+                .Callback<ClueReleasedIntegrationEvent, CancellationToken>((e, _) => capturedClue = e);
+
+        var result = await _handler.Handle(
+            new SubmitTriviaAnswerCommand(session.Id, teamId, stageId, wrongOptionId),
+            default);
+
+        result.IsSuccess.Should().BeTrue();
+        _teamClientMock.Verify(t => t.ReleaseClueAsync(teamId, 2, It.IsAny<CancellationToken>(), true), Times.Once);
+        capturedClue.Should().NotBeNull();
+        capturedClue!.ClueNumber.Should().Be(1);
+        capturedClue.TeamId.Should().Be(teamId);
+        capturedClue.IsAutomatic.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Handle_WrongAnswerButStageHasNoClues_DoesNotReleaseClue()
+    {
+        var session = CreateSessionWithStatus(SessionStatus.InProgress);
+        var stageId = Guid.NewGuid();
+        var teamId = Guid.NewGuid();
+        var wrongOptionId = Guid.NewGuid();
+
+        var wrongOption = new TriviaOptionInfo(wrongOptionId, "Wrong", false);
+        var stageInfo = new StageWithOptionsInfo(stageId, "Stage 1", "Trivia", 1, 50, "Q?",
+            new[] { wrongOption }, AutoReleaseMaxAttempts: 3);
+
+        _sessionRepoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                        .ReturnsAsync(session);
+        _stageClientMock.Setup(s => s.GetStageWithOptionsAsync(stageId, It.IsAny<CancellationToken>()))
+                        .ReturnsAsync(stageInfo);
+        _teamClientMock.Setup(t => t.RecordWrongAttemptAsync(teamId, wrongOptionId, It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                       .ReturnsAsync(new WrongAttemptResult(NewWrongCount: 1, NewScore: 25));
+        // Etapa sin pistas (default del mock) → no se libera nada.
+
+        var result = await _handler.Handle(
+            new SubmitTriviaAnswerCommand(session.Id, teamId, stageId, wrongOptionId),
+            default);
+
+        result.IsSuccess.Should().BeTrue();
+        _teamClientMock.Verify(
+            t => t.ReleaseClueAsync(It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<CancellationToken>(), It.IsAny<bool>()),
+            Times.Never);
     }
 
     // ── HU-26: command audit ─────────────────────────────────────────────────
