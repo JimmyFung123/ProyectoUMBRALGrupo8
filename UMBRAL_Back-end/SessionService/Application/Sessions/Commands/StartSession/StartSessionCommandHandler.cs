@@ -34,8 +34,9 @@ public class StartSessionCommandHandler : IRequestHandler<StartSessionCommand, R
         if (!hasTeams)
             return Result.Failure<bool>(SessionErrors.NoTeamsEnrolled);
 
-        // RB-18: every team must have at least 2 members
-        var allMeetMinimum = await _teamServiceClient.AllTeamsMeetMinimumMembersAsync(request.SessionId, minMembers: 2, cancellationToken);
+        // RB-18: every team must have at least the minimum number of members (SessionStartPolicy)
+        var allMeetMinimum = await _teamServiceClient.AllTeamsMeetMinimumMembersAsync(
+            request.SessionId, minMembers: SessionStartPolicy.MinimumMembersPerTeam, cancellationToken);
         if (!allMeetMinimum)
             return Result.Failure<bool>(SessionErrors.TeamBelowMinimumMembers);
 
