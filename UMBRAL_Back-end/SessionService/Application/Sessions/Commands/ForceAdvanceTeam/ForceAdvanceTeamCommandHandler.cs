@@ -32,17 +32,20 @@ public class ForceAdvanceTeamCommandHandler : IRequestHandler<ForceAdvanceTeamCo
 
     public async Task<Result<bool>> Handle(ForceAdvanceTeamCommand request, CancellationToken cancellationToken)
     {
+        // 1. Validate session exists and is InProgress
         var session = await _sessionRepository.GetByIdAsync(request.SessionId, cancellationToken);
         if (session is null)
             return Result.Failure<bool>(SessionErrors.NotFound);
         if (session.Status != SessionStatus.InProgress)
             return Result.Failure<bool>(SessionErrors.CannotForceAdvance);
 
+        // 2. Get the target team's current progress
         var teams = await _teamClient.GetTeamProgressAsync(request.SessionId, cancellationToken);
         var team = teams.FirstOrDefault(t => t.Id == request.TeamId);
         if (team is null)
             return Result.Failure<bool>(SessionErrors.TeamNotFound);
 
+        // 3. Get stages to validate the team is not already on the last one
         var stages = await _stageClient.GetStagesByMissionAsync(session.MissionId, cancellationToken);
         if (stages.Count == 0)
             return Result.Failure<bool>(SessionErrors.CannotForceAdvance);
@@ -53,15 +56,17 @@ public class ForceAdvanceTeamCommandHandler : IRequestHandler<ForceAdvanceTeamCo
         if (nextOrder > maxOrder)
             return Result.Failure<bool>(SessionErrors.TeamAlreadyOnLastStage);
 
-        // Se captura el tipo de la etapa que se omite para la fila de estadísticas.
+        // Capture the type of the stage being skipped — needed for the analytics row.
         var abandonedStage = stages.FirstOrDefault(s => s.Order == team.CurrentStageOrder);
         var abandonedStageType = abandonedStage?.Type ?? "Trivia";
 
+        // 4. Force the advance in TeamService
         var outcome = await _teamClient.ForceAdvanceTeamAsync(request.TeamId, nextOrder, cancellationToken);
         if (outcome is null)
             return Result.Failure<bool>(SessionErrors.CannotForceAdvance);
 
-        // HU-25: WasCorrect es null porque el operador anuló el flujo — no hubo respuesta real.
+        // 5. HU-25: append the analytics fact row. WasCorrect is null because
+        // no answer was actually given — the operator overrode the flow.
         var statsRecord = StageCompletionRecord.ForForceAdvance(
             sessionId: request.SessionId,
             missionId: session.MissionId,
@@ -72,7 +77,7 @@ public class ForceAdvanceTeamCommandHandler : IRequestHandler<ForceAdvanceTeamCo
         await _statsRepository.AddAsync(statsRecord, cancellationToken);
         await _statsRepository.SaveChangesAsync(cancellationToken);
 
-        // HU-22 / HU-26: registro de auditoría
+        // 6. Audit log (HU-22 / HU-26)
         await _bus.PublishAsync(
             new SessionAuditIntegrationEvent(
                 request.SessionId,
@@ -83,6 +88,7 @@ public class ForceAdvanceTeamCommandHandler : IRequestHandler<ForceAdvanceTeamCo
                 DateTime.UtcNow),
             cancellationToken);
 
+        // 7. Broadcast to refresh dashboard
         await _bus.PublishAsync(
             new SessionStateChangedIntegrationEvent(request.SessionId, NewStatus: null),
             cancellationToken);

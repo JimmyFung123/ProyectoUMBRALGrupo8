@@ -86,16 +86,19 @@ public class InternalSyncHealthController : ControllerBase
                 json, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })
                 ?? [];
 
+            // Group stages by mission and rebuild the lookup from scratch.
             var countsByMission = stages
                 .GroupBy(s => s.MissionId)
                 .ToDictionary(g => g.Key, g => g.Count());
 
             var existing = await _context.StageCountLookup.ToListAsync(ct);
 
+            // Remove rows that no longer have any stage upstream.
             foreach (var row in existing)
                 if (!countsByMission.ContainsKey(row.MissionId))
                     _context.StageCountLookup.Remove(row);
 
+            // Re-insert/refresh rows so Count exactly matches upstream.
             var byMission = existing.ToDictionary(r => r.MissionId);
             foreach (var (missionId, count) in countsByMission)
             {

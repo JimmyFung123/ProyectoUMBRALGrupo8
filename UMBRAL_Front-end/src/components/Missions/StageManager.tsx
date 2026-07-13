@@ -114,6 +114,8 @@ export function StageManager({ mission, stages, onChanged }: Props) {
     }
   }
 
+  // ── Estado bloqueado ───────────────────────────────────────────────────────
+
   if (isLocked) {
     return (
       <>
