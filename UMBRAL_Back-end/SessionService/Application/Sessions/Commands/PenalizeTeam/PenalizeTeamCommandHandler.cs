@@ -54,9 +54,7 @@ public class PenalizeTeamCommandHandler : IRequestHandler<PenalizeTeamCommand, R
                 DateTime.UtcNow),
             cancellationToken);
 
-        var actorName = string.IsNullOrWhiteSpace(request.OperatorName)
-            ? SessionEvent.SystemActor
-            : request.OperatorName!.Trim();
+        var actorName = ActorNameResolver.Resolve(request.OperatorName);
 
         await _bus.PublishAsync(
             new TeamPenalizedIntegrationEvent(

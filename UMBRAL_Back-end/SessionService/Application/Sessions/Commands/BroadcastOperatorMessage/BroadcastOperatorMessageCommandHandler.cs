@@ -50,9 +50,7 @@ public class BroadcastOperatorMessageCommandHandler
             return Result.Failure<BroadcastOperatorMessageResultDto>(SessionErrors.CannotBroadcastMessage);
 
         var deliveredAt = DateTime.UtcNow;
-        var actor = string.IsNullOrWhiteSpace(request.OperatorName)
-            ? SessionEvent.SystemActor
-            : request.OperatorName!.Trim();
+        var actor = ActorNameResolver.Resolve(request.OperatorName);
 
         await _bus.PublishAsync(
             new SessionAuditIntegrationEvent(

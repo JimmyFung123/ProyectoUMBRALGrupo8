@@ -60,7 +60,7 @@ public class SessionEvent
         string? commandType = null,
         string? outcome = null)
     {
-        var actor = string.IsNullOrWhiteSpace(actorName) ? SystemActor : actorName.Trim();
+        var actor = ActorNameResolver.Resolve(actorName);
         return new SessionEvent
         {
             Id = Guid.NewGuid(),
