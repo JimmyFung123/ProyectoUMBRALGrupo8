@@ -9,6 +9,7 @@
     <ProjectReference Include="..\Shared\UMBRAL.Application\UMBRAL.Application.csproj" />
     <ProjectReference Include="..\Shared\UMBRAL.Auth\UMBRAL.Auth.csproj" />
     <ProjectReference Include="..\Shared\UMBRAL.Contracts\UMBRAL.Contracts.csproj" />
+    <ProjectReference Include="..\Shared\UMBRAL.Observability\UMBRAL.Observability.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="MassTransit" Version="8.3.6" />

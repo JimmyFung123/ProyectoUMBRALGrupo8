@@ -9,6 +9,7 @@ using TeamService.Infrastructure.Persistence;
 using TeamService.Infrastructure.Persistence.Repositories;
 using TeamService.Infrastructure.Projections;
 using UMBRAL.Auth;
+using UMBRAL.Observability;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,6 +18,9 @@ builder.Services.AddControllers()
         o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 
 builder.Services.AddOpenApi();
+
+// ── Trazabilidad por correlación (X-Correlation-ID) ─────────────────────────
+builder.Services.AddUmbralCorrelationId();
 
 // ── Database (own isolated DB — Database-per-Service pattern) ─────────────────
 builder.Services.AddDbContext<TeamsDbContext>(options =>
@@ -50,6 +54,9 @@ builder.Services.AddMassTransit(x =>
 
     x.UsingRabbitMq((ctx, cfg) =>
     {
+        // Propaga el X-Correlation-ID como cabecera de mensaje (publish/send/consume).
+        cfg.UseUmbralCorrelationId(ctx);
+
         cfg.Host(new Uri(builder.Configuration.GetConnectionString("RabbitMQ")
                          ?? "amqp://guest:guest@localhost:5672/"));
         // Per-service prefix — keeps the queue namespace uniform with the
@@ -67,6 +74,9 @@ builder.Services.AddUmbralJwtAuth(builder.Configuration);
 builder.Services.AddUmbralCors(builder.Configuration);
 
 var app = builder.Build();
+
+// Primer middleware: asigna/propaga el correlation id y etiqueta todos los logs.
+app.UseUmbralCorrelationId();
 
 if (app.Environment.IsDevelopment())
 {

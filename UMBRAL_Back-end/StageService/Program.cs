@@ -9,6 +9,7 @@ using StageService.Infrastructure.Messaging.Consumers;
 using StageService.Infrastructure.Persistence;
 using StageService.Infrastructure.Persistence.Repositories;
 using UMBRAL.Auth;
+using UMBRAL.Observability;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,6 +18,9 @@ builder.Services.AddControllers()
         o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 
 builder.Services.AddOpenApi();
+
+// ── Trazabilidad por correlación (X-Correlation-ID) ─────────────────────────
+builder.Services.AddUmbralCorrelationId();
 
 builder.Services.AddDbContext<StagesDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -45,6 +49,9 @@ builder.Services.AddMassTransit(x =>
 
     x.UsingRabbitMq((ctx, cfg) =>
     {
+        // Propaga el X-Correlation-ID como cabecera de mensaje (publish/send/consume).
+        cfg.UseUmbralCorrelationId(ctx);
+
         cfg.Host(new Uri(builder.Configuration.GetConnectionString("RabbitMQ")
                          ?? "amqp://guest:guest@localhost:5672/"));
         // Per-service prefix so this service's MissionsLookup consumers don't
@@ -59,6 +66,9 @@ builder.Services.AddUmbralJwtAuth(builder.Configuration);
 builder.Services.AddUmbralCors(builder.Configuration);
 
 var app = builder.Build();
+
+// Primer middleware: asigna/propaga el correlation id y etiqueta todos los logs.
+app.UseUmbralCorrelationId();
 
 if (app.Environment.IsDevelopment())
 {

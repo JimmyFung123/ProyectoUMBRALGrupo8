@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
 using UMBRAL.Auth;
+using UMBRAL.Observability;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,6 +31,10 @@ builder.Services.AddRateLimiter(options =>
 });
 
 var app = builder.Build();
+
+// Borde del sistema: genera el X-Correlation-ID si el cliente no lo envía y lo
+// deja en el request para que YARP lo reenvíe a cada microservicio destino.
+app.UseUmbralCorrelationId();
 
 app.UseCors("AllowFrontend");
 app.UseRateLimiter();
