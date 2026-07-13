@@ -51,4 +51,29 @@ public class TeamJoinTests
         var t2 = Team.Create(Guid.NewGuid(), TeamName.Create("Team 2").Value);
         t1.InviteCode.Should().NotBe(t2.InviteCode);
     }
+
+    [Fact]
+    public void Join_UpToMaximum_Succeeds()
+    {
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Epsilon").Value);
+        // arranca en 1; se suman miembros hasta llenar el equipo
+        for (var i = team.MemberCount; i < TeamMembershipPolicy.MaximumMembers; i++)
+            team.Join().IsSuccess.Should().BeTrue();
+
+        team.MemberCount.Should().Be(TeamMembershipPolicy.MaximumMembers);
+    }
+
+    [Fact]
+    public void Join_WhenTeamFull_FailsWithTeamFull()
+    {
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Zeta").Value);
+        while (team.MemberCount < TeamMembershipPolicy.MaximumMembers)
+            team.Join();
+
+        var result = team.Join();
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Be(TeamErrors.TeamFull);
+        team.MemberCount.Should().Be(TeamMembershipPolicy.MaximumMembers); // no se pasa del tope
+    }
 }
