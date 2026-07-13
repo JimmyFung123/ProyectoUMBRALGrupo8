@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Shared\UMBRAL.Auth\UMBRAL.Auth.csproj" />
+    <ProjectReference Include="..\Shared\UMBRAL.Observability\UMBRAL.Observability.csproj" />
   </ItemGroup>
 
   <ItemGroup>

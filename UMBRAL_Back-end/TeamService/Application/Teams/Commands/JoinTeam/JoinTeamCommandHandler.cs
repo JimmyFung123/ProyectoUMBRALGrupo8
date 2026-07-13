@@ -14,7 +14,11 @@ public class JoinTeamCommandHandler : IRequestHandler<JoinTeamCommand, Result<Jo
         if (team is null)
             return Result.Failure<JoinTeamResult>(TeamErrors.TeamNotFound);
 
-        team.Join();
+        // El dominio decide si hay cupo (TeamMembershipPolicy vía Team.Join)
+        var joinResult = team.Join();
+        if (joinResult.IsFailure)
+            return Result.Failure<JoinTeamResult>(joinResult.Error);
+
         await _repo.SaveChangesAsync(cancellationToken);
 
         return Result.Success(new JoinTeamResult(team.Id, team.Name, team.InviteCode, team.MemberCount));

@@ -79,9 +79,16 @@ public class Team
         };
     }
 
-    /// <summary>Adds a member to this team. Succeeds up to MaxMembers (no hard limit enforced here).</summary>
+    /// <summary>
+    /// Adds a member to this team. Fails with <see cref="TeamErrors.TeamFull"/>
+    /// once the team reaches <see cref="TeamMembershipPolicy.MaximumMembers"/>.
+    /// </summary>
     public Result<int> Join()
     {
+        // El tope de capacidad es una regla de dominio (TeamMembershipPolicy).
+        if (!TeamMembershipPolicy.CanJoin(MemberCount))
+            return Result.Failure<int>(TeamErrors.TeamFull);
+
         MemberCount++;
         return Result.Success(MemberCount);
     }
@@ -93,7 +100,7 @@ public class Team
     public bool Leave()
     {
         if (MemberCount > 0) MemberCount--;
-        return MemberCount == 0;
+        return TeamMembershipPolicy.IsEmptyAfterLeave(MemberCount);
     }
 
     public void SetConnected(bool connected) => IsConnected = connected;

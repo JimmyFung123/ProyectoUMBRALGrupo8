@@ -306,7 +306,10 @@ export function SessionDashboard({ sessionId, onBack, onOpenCommandAudit }: Prop
         {/* ── Ranking en vivo (HU-21) ──────────────────────────────────── */}
         <Card>
           <CardHeader title="🏆 Ranking en vivo" />
-          <SessionRankingPanel sessionId={sessionId} />
+          <SessionRankingPanel
+            sessionId={sessionId}
+            totalStages={stages.length > 0 ? Math.max(...stages.map(s => s.order)) : 0}
+          />
         </Card>
 
         {/* ── Eventos recientes (HU-9) ─────────────────────────────────── */}

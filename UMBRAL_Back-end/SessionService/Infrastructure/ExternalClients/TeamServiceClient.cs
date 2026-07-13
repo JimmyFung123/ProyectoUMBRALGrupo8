@@ -2,6 +2,7 @@ namespace SessionService.Infrastructure.ExternalClients;
 
 using System.Text.Json;
 using SessionService.Application.Sessions;
+using SessionService.Domain.Sessions;
 
 /// <summary>
 /// HTTP adapter that queries TeamService to check team enrollment and manage clue releases.
@@ -28,8 +29,9 @@ public class TeamServiceClient : ITeamServiceClient
             var json = await response.Content.ReadAsStringAsync(cancellationToken);
             using var doc = JsonDocument.Parse(json);
 
+            // RB-02: la regla del umbral vive en el dominio (SessionStartPolicy)
             return doc.RootElement.ValueKind == JsonValueKind.Array
-                && doc.RootElement.GetArrayLength() > 0;
+                && SessionStartPolicy.MeetsTeamRequirement(doc.RootElement.GetArrayLength());
         }
         catch
         {
@@ -48,6 +50,8 @@ public class TeamServiceClient : ITeamServiceClient
             var items = JsonSerializer.Deserialize<List<TeamProgressJsonItem>>(json, _jsonOptions);
             if (items is null || items.Count == 0) return false;
 
+            // RB-18: la comparación contra el mínimo la resuelve el dominio.
+            // Se respeta el minMembers recibido (el handler ya pasa el umbral de la policy).
             return items.All(t => t.MemberCount >= minMembers);
         }
         catch

@@ -1,5 +1,6 @@
 using FluentValidation;
 using UMBRAL.Auth;
+using UMBRAL.Observability;
 using UserService.Application.Users;
 using UserService.Infrastructure.Email;
 using UserService.Infrastructure.ExternalClients;
@@ -12,6 +13,9 @@ builder.Services.AddControllers()
         o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 
 builder.Services.AddOpenApi();
+
+// ── Trazabilidad por correlación (X-Correlation-ID) ─────────────────────────
+builder.Services.AddUmbralCorrelationId();
 
 // ── MediatR ───────────────────────────────────────────────────────────────────
 // LoggingBehavior (UMBRAL.Application) envuelve cada command/query con logging
@@ -44,6 +48,9 @@ builder.Services.AddUmbralJwtAuth(builder.Configuration);
 builder.Services.AddUmbralCors(builder.Configuration);
 
 var app = builder.Build();
+
+// Primer middleware: asigna/propaga el correlation id y etiqueta todos los logs.
+app.UseUmbralCorrelationId();
 
 if (app.Environment.IsDevelopment())
 {

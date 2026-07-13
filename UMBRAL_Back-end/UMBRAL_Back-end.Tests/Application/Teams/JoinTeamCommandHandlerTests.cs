@@ -57,4 +57,20 @@ public class JoinTeamCommandHandlerTests
         result.IsSuccess.Should().BeTrue();
         result.Value.MemberCount.Should().Be(3);
     }
+
+    [Fact]
+    public async Task Handle_WhenTeamFull_ReturnsTeamFullAndDoesNotSave()
+    {
+        var team = Team.Create(Guid.NewGuid(), TeamName.Create("Completo").Value);
+        while (team.MemberCount < TeamMembershipPolicy.MaximumMembers)
+            team.Join();
+        _repoMock.Setup(r => r.GetByInviteCodeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                 .ReturnsAsync(team);
+
+        var result = await _handler.Handle(new JoinTeamCommand(team.InviteCode), default);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Should().Be(TeamErrors.TeamFull);
+        _repoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
 }
