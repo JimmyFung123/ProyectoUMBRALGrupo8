@@ -15,16 +15,7 @@ public sealed class CorrelationIdSendFilter<T> : IFilter<SendContext<T>>
 
     public Task Send(SendContext<T> context, IPipe<SendContext<T>> next)
     {
-        var correlationId = CorrelationIdContext.Current;
-        if (!string.IsNullOrWhiteSpace(correlationId))
-        {
-            context.Headers.Set(CorrelationConstants.HeaderName, correlationId);
-
-            // Aprovecha el CorrelationId nativo de MassTransit si el id es un GUID.
-            if (context.CorrelationId is null && Guid.TryParse(correlationId, out var guid))
-                context.CorrelationId = guid;
-        }
-
+        CorrelationHeaderWriter.Apply(context);
         return next.Send(context);
     }
 }

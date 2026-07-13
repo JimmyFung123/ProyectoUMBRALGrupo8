@@ -14,15 +14,7 @@ public sealed class CorrelationIdPublishFilter<T> : IFilter<PublishContext<T>>
 
     public Task Send(PublishContext<T> context, IPipe<PublishContext<T>> next)
     {
-        var correlationId = CorrelationIdContext.Current;
-        if (!string.IsNullOrWhiteSpace(correlationId))
-        {
-            context.Headers.Set(CorrelationConstants.HeaderName, correlationId);
-
-            if (context.CorrelationId is null && Guid.TryParse(correlationId, out var guid))
-                context.CorrelationId = guid;
-        }
-
+        CorrelationHeaderWriter.Apply(context);
         return next.Send(context);
     }
 }
