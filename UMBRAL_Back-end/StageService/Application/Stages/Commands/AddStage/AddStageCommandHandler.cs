@@ -22,8 +22,7 @@ public class AddStageCommandHandler : IRequestHandler<AddStageCommand, Result<Gu
     public async Task<Result<Guid>> Handle(AddStageCommand request, CancellationToken cancellationToken)
     {
         var mission = await _missionLookupRepository.GetByIdAsync(request.MissionId, cancellationToken);
-        // Si el lookup no existe aún (evento no procesado), la misión se asume Inactiva
-        if (mission?.IsActive == true) return Result.Failure<Guid>(StageErrors.MissionIsActive);
+        if (StageMissionActivePolicy.BlocksStageMutation(mission)) return Result.Failure<Guid>(StageErrors.MissionIsActive);
 
         if (!Enum.TryParse<StageType>(request.Type, out var stageType))
             return Result.Failure<Guid>(StageErrors.InvalidType);

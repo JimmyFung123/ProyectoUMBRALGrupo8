@@ -23,8 +23,7 @@ public class RemoveStageCommandHandler : IRequestHandler<RemoveStageCommand, Res
     public async Task<Result<bool>> Handle(RemoveStageCommand request, CancellationToken cancellationToken)
     {
         var mission = await _missionLookupRepository.GetByIdAsync(request.MissionId, cancellationToken);
-        // Si el lookup no existe aún (evento no procesado), la misión se asume Inactiva
-        if (mission?.IsActive == true) return Result.Failure<bool>(StageErrors.MissionIsActive);
+        if (StageMissionActivePolicy.BlocksStageMutation(mission)) return Result.Failure<bool>(StageErrors.MissionIsActive);
 
         var stage = await _stageRepository.GetByIdAsync(request.StageId, cancellationToken);
         if (stage is null) return Result.Failure<bool>(StageErrors.NotFound);

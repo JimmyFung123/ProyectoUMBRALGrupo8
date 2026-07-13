@@ -36,7 +36,7 @@ public class ForceAdvanceTeamCommandHandler : IRequestHandler<ForceAdvanceTeamCo
         var session = await _sessionRepository.GetByIdAsync(request.SessionId, cancellationToken);
         if (session is null)
             return Result.Failure<bool>(SessionErrors.NotFound);
-        if (session.Status != SessionStatus.InProgress)
+        if (!SessionAvailabilityPolicy.IsInProgress(session.Status))
             return Result.Failure<bool>(SessionErrors.CannotForceAdvance);
 
         // 2. Get the target team's current progress

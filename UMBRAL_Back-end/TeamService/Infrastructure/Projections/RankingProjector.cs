@@ -3,6 +3,7 @@ namespace TeamService.Infrastructure.Projections;
 using Microsoft.EntityFrameworkCore;
 using TeamService.Application.Rankings;
 using TeamService.Domain.Rankings;
+using TeamService.Domain.Teams;
 using TeamService.Infrastructure.Persistence;
 
 /// <summary>
@@ -18,6 +19,10 @@ using TeamService.Infrastructure.Persistence;
 /// the in-memory tracked instance (with its new <c>Score</c> /
 /// <c>LastStageCompletedAt</c>) — EF Core's change tracker reconciles the
 /// query result with pending changes, so the projection sees the latest state.
+///
+/// The RB-08 sort + dense-rank algorithm itself lives in
+/// <see cref="TeamRankingCalculator"/> (Domain Service, pure, no I/O) — this
+/// class only handles reading teams / upserting projection rows.
 /// </summary>
 public class RankingProjector : IRankingProjector
 {
@@ -53,35 +58,25 @@ public class RankingProjector : IRankingProjector
             .ToListAsync(cancellationToken);
         var existingByTeam = existing.ToDictionary(p => p.TeamId);
 
-        // 3. RB-08 sort: Score desc → LastStageCompletedAt asc (nulls last) → Name.
-        var sorted = teams
-            .OrderByDescending(t => t.Score)
-            .ThenBy(t => t.LastStageCompletedAt ?? DateTime.MaxValue)
-            .ThenBy(t => t.Name, StringComparer.CurrentCultureIgnoreCase)
-            .ToList();
+        // 3-4. RB-08: orden + ranking denso (Domain Service, lógica pura sin I/O).
+        var ranked = TeamRankingCalculator.Calculate(teams);
 
         var now = DateTime.UtcNow;
-        var seenTeamIds = new HashSet<Guid>(sorted.Count);
-        int rank = 1;
+        var seenTeamIds = new HashSet<Guid>(ranked.Count);
 
-        // 4. Upsert each team's projection with the computed Rank and Position.
-        //    Dense ranking — tied teams share their Rank; Position is always 1..N.
-        for (int i = 0; i < sorted.Count; i++)
+        // Upsert each team's projection with the computed Rank and Position.
+        foreach (var r in ranked)
         {
-            if (i > 0 && sorted[i].Score < sorted[i - 1].Score)
-                rank = i + 1;
-
-            var team = sorted[i];
+            var team = r.Team;
             seenTeamIds.Add(team.Id);
-            int position = i + 1;
 
             if (existingByTeam.TryGetValue(team.Id, out var row))
             {
                 row.Refresh(
                     teamName: team.Name,
                     score: team.Score,
-                    rank: rank,
-                    position: position,
+                    rank: r.Rank,
+                    position: r.Position,
                     currentStageOrder: team.CurrentStageOrder,
                     isConnected: team.IsConnected,
                     lastStageCompletedAt: team.LastStageCompletedAt,
@@ -94,8 +89,8 @@ public class RankingProjector : IRankingProjector
                     teamId: team.Id,
                     teamName: team.Name,
                     score: team.Score,
-                    rank: rank,
-                    position: position,
+                    rank: r.Rank,
+                    position: r.Position,
                     currentStageOrder: team.CurrentStageOrder,
                     isConnected: team.IsConnected,
                     lastStageCompletedAt: team.LastStageCompletedAt,

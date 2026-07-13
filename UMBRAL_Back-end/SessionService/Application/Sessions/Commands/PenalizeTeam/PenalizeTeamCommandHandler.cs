@@ -32,7 +32,7 @@ public class PenalizeTeamCommandHandler : IRequestHandler<PenalizeTeamCommand, R
         if (session is null)
             return Result.Failure<int>(SessionErrors.NotFound);
 
-        if (session.Status != SessionStatus.InProgress)
+        if (!SessionAvailabilityPolicy.IsInProgress(session.Status))
             return Result.Failure<int>(SessionErrors.CannotPenalizeTeam);
 
         var newScore = await _teamClient.PenalizeTeamAsync(
@@ -54,9 +54,7 @@ public class PenalizeTeamCommandHandler : IRequestHandler<PenalizeTeamCommand, R
                 DateTime.UtcNow),
             cancellationToken);
 
-        var actorName = string.IsNullOrWhiteSpace(request.OperatorName)
-            ? SessionEvent.SystemActor
-            : request.OperatorName!.Trim();
+        var actorName = ActorNameResolver.Resolve(request.OperatorName);
 
         await _bus.PublishAsync(
             new TeamPenalizedIntegrationEvent(
