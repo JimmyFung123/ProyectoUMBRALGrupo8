@@ -29,7 +29,7 @@ public class AutoStartTeamCommandHandler : IRequestHandler<AutoStartTeamCommand,
         // Solo tiene sentido auto-arrancar con la sesión en curso. Si no, no se toca
         // TeamService (se evita una llamada HTTP en cada poll mientras está Pending/Paused).
         var session = await _sessionRepository.GetByIdAsync(request.SessionId, ct);
-        if (session is null || session.Status != SessionStatus.InProgress)
+        if (session is null || !SessionAvailabilityPolicy.IsInProgress(session.Status))
             return Result.Success();
 
         var team = await _teamClient.GetTeamByIdAsync(request.TeamId, ct);

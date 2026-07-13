@@ -29,7 +29,7 @@ public class ReleaseClueCommandHandler : IRequestHandler<ReleaseClueCommand, Res
         if (session is null)
             return Result.Failure<bool>(SessionErrors.NotFound);
 
-        if (session.Status != SessionStatus.InProgress)
+        if (!SessionAvailabilityPolicy.IsInProgress(session.Status))
             return Result.Failure<bool>(SessionErrors.CannotReleaseClue);
 
         var cluesReceived = await _teamServiceClient.ReleaseClueAsync(

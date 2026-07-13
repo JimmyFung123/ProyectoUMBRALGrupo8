@@ -46,7 +46,7 @@ public class BroadcastOperatorMessageCommandHandler
         if (session is null)
             return Result.Failure<BroadcastOperatorMessageResultDto>(SessionErrors.NotFound);
 
-        if (session.Status != SessionStatus.InProgress && session.Status != SessionStatus.Paused)
+        if (!SessionAvailabilityPolicy.AcceptsOperatorMessage(session.Status))
             return Result.Failure<BroadcastOperatorMessageResultDto>(SessionErrors.CannotBroadcastMessage);
 
         var deliveredAt = DateTime.UtcNow;
