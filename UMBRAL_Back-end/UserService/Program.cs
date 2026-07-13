@@ -1,3 +1,4 @@
+using FluentValidation;
 using UMBRAL.Auth;
 using UserService.Application.Users;
 using UserService.Infrastructure.Email;
@@ -13,8 +14,15 @@ builder.Services.AddControllers()
 builder.Services.AddOpenApi();
 
 // ── MediatR ───────────────────────────────────────────────────────────────────
+// LoggingBehavior (UMBRAL.Application) envuelve cada command/query con logging
+// estructurado y timing — reemplaza las llamadas ILogger dispersas a mano.
 builder.Services.AddMediatR(cfg =>
-    cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
+{
+    cfg.RegisterServicesFromAssembly(typeof(Program).Assembly);
+    cfg.AddOpenBehavior(typeof(UMBRAL.Application.LoggingBehavior<,>));
+    cfg.AddOpenBehavior(typeof(UMBRAL.Application.ValidationBehavior<,>));
+});
+builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly);
 
 // ── External HTTP clients ─────────────────────────────────────────────────────
 // El cliente HTTP de Keycloak Admin lee Keycloak:AdminBaseUrl de la config.

@@ -10,13 +10,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Shared\UMBRAL.Application\UMBRAL.Application.csproj" />
     <ProjectReference Include="..\Shared\UMBRAL.Auth\UMBRAL.Auth.csproj" />
     <ProjectReference Include="..\Shared\UMBRAL.Contracts\UMBRAL.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="FluentValidation" Version="12.1.1" />
-    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+    <!-- FluentValidation llega transitivamente vía UMBRAL.Application. -->
     <PackageReference Include="MassTransit" Version="8.3.6" />
     <PackageReference Include="MassTransit.RabbitMQ" Version="8.3.6" />
     <PackageReference Include="MediatR" Version="14.1.0" />
