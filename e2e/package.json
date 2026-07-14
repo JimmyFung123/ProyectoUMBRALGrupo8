@@ -1,0 +1,20 @@
+{
+  "name": "umbral-e2e",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Pruebas E2E (Playwright) de UMBRAL — operador + participantes contra el stack completo.",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "report": "playwright show-report",
+    "codegen:operador": "playwright codegen http://localhost:5173",
+    "codegen:participante": "playwright codegen http://localhost:5174",
+    "install:browsers": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1",
+    "dotenv": "^16.4.7"
+  }
+}
