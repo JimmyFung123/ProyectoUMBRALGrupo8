@@ -1,11 +1,11 @@
-import { test, expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { OPERATOR_STORAGE } from '../env';
 import { seedMission, type MissionSeed } from '../mission-fixture';
 import {
   createTeamAsLeader,
-  joinTeamAsMember,
   createSessionAndOpenDashboard,
-  startSession,
+  startSessionWith,
+  closeStartedSession,
 } from '../helpers';
 
 /**
@@ -86,43 +86,6 @@ test('RB-18: la sesión NO arranca si un equipo tiene menos de 2 miembros', asyn
   }
 });
 
-// ── Setup compartido: sesión EN PROGRESO con equipo de 2 y A en juego ──────────
-
-interface StartedSession {
-  operatorCtx: BrowserContext;
-  aCtx: BrowserContext;
-  bCtx: BrowserContext;
-  operator: Page;
-  pageA: Page;
-  pageB: Page;
-}
-
-async function startSessionWith(
-  browser: Browser,
-  seed: MissionSeed,
-  sessionName: string,
-): Promise<StartedSession> {
-  const operatorCtx = await browser.newContext({ storageState: OPERATOR_STORAGE });
-  const aCtx = await browser.newContext();
-  const bCtx = await browser.newContext();
-  const operator = await operatorCtx.newPage();
-  const pageA = await aCtx.newPage();
-  const pageB = await bCtx.newPage();
-
-  const code = await createSessionAndOpenDashboard(operator, seed.name, sessionName);
-  const invite = await createTeamAsLeader(pageA, code, 'Ana', `Equipo ${sessionName}`);
-  await joinTeamAsMember(pageB, code, 'Beto', invite);
-  await startSession(operator);
-
-  return { operatorCtx, aCtx, bCtx, operator, pageA, pageB };
-}
-
-async function closeAll(s: StartedSession) {
-  await s.operatorCtx.close();
-  await s.aCtx.close();
-  await s.bCtx.close();
-}
-
 // ── Broadcast del operador ─────────────────────────────────────────────────────
 
 test('broadcast: el operador envía un mensaje en vivo y el participante lo recibe', async ({
@@ -134,7 +97,7 @@ test('broadcast: el operador envía un mensaje en vivo y el participante lo reci
   const seed = triviaMission(`E2E Broadcast ${id}`);
   await seedMission(request, seed);
 
-  const s = await startSessionWith(browser, seed, `E2E Broadcast ${id}`);
+  const s = await startSessionWith(browser, seed.name,`E2E Broadcast ${id}`);
   try {
     // A ya está en el juego y con la conexión en vivo (SignalR) lista.
     await expect(s.pageA.getByText('¿Cuanto es 3 + 4?')).toBeVisible({ timeout: 30_000 });
@@ -148,7 +111,7 @@ test('broadcast: el operador envía un mensaje en vivo y el participante lo reci
     // El mensaje aparece como notificación en la pantalla del participante.
     await expect(s.pageA.getByText(message)).toBeVisible({ timeout: 15_000 });
   } finally {
-    await closeAll(s);
+    await closeStartedSession(s);
   }
 });
 
@@ -163,7 +126,7 @@ test('penalización: el operador resta puntos y el participante ve la sanción',
   const seed = triviaMission(`E2E Penal ${id}`);
   await seedMission(request, seed);
 
-  const s = await startSessionWith(browser, seed, `E2E Penal ${id}`);
+  const s = await startSessionWith(browser, seed.name,`E2E Penal ${id}`);
   try {
     await expect(s.pageA.getByText('¿Cuanto es 3 + 4?')).toBeVisible({ timeout: 30_000 });
     await expect(s.pageA.getByText('En vivo')).toBeVisible({ timeout: 15_000 });
@@ -179,7 +142,7 @@ test('penalización: el operador resta puntos y el participante ve la sanción',
     await expect(s.operator.getByText(/Penalización aplicada/)).toBeVisible({ timeout: 15_000 });
     await expect(s.pageA.getByText(reason)).toBeVisible({ timeout: 15_000 });
   } finally {
-    await closeAll(s);
+    await closeStartedSession(s);
   }
 });
 
@@ -209,7 +172,7 @@ test('treasure hunt: el participante valida el código QR y completa la etapa', 
   };
   await seedMission(request, seed);
 
-  const s = await startSessionWith(browser, seed, `E2E QR ${id}`);
+  const s = await startSessionWith(browser, seed.name,`E2E QR ${id}`);
   try {
     // A llega a la pantalla de búsqueda del tesoro.
     const manualBtn = s.pageA.getByRole('button', { name: /Ingresar código manualmente/ });
@@ -222,6 +185,6 @@ test('treasure hunt: el participante valida el código QR y completa la etapa', 
 
     await expect(s.pageA.getByText('¡Completaste la misión!')).toBeVisible({ timeout: 20_000 });
   } finally {
-    await closeAll(s);
+    await closeStartedSession(s);
   }
 });

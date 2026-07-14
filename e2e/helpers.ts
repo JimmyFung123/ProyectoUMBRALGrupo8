@@ -1,5 +1,5 @@
-import { expect, type Page } from '@playwright/test';
-import { OPERATOR_URL, PARTICIPANT_URL } from './env';
+import { expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import { OPERATOR_URL, PARTICIPANT_URL, OPERATOR_STORAGE } from './env';
 
 /**
  * Helpers reutilizables para los flujos que se repiten en los tests E2E:
@@ -105,4 +105,46 @@ export async function startSession(operator: Page): Promise<void> {
   await expect(startBtn).toBeEnabled({ timeout: 30_000 });
   await startBtn.click();
   await expect(operator.getByRole('button', { name: /Finalizar/ })).toBeVisible({ timeout: 20_000 });
+}
+
+// ── Setup compartido: sesión EN PROGRESO con equipo de 2 miembros ─────────────
+
+export interface StartedSession {
+  operatorCtx: BrowserContext;
+  aCtx: BrowserContext;
+  bCtx: BrowserContext;
+  operator: Page;
+  pageA: Page;
+  pageB: Page;
+}
+
+/**
+ * Monta una sesión ya iniciada: crea la sesión para `missionName` (que debe
+ * estar ya sembrada y activa), suma 2 participantes al mismo equipo y la
+ * arranca. Devuelve los contextos y páginas para interactuar/cerrar.
+ */
+export async function startSessionWith(
+  browser: Browser,
+  missionName: string,
+  sessionName: string,
+): Promise<StartedSession> {
+  const operatorCtx = await browser.newContext({ storageState: OPERATOR_STORAGE });
+  const aCtx = await browser.newContext();
+  const bCtx = await browser.newContext();
+  const operator = await operatorCtx.newPage();
+  const pageA = await aCtx.newPage();
+  const pageB = await bCtx.newPage();
+
+  const code = await createSessionAndOpenDashboard(operator, missionName, sessionName);
+  const invite = await createTeamAsLeader(pageA, code, 'Ana', `Equipo ${sessionName}`);
+  await joinTeamAsMember(pageB, code, 'Beto', invite);
+  await startSession(operator);
+
+  return { operatorCtx, aCtx, bCtx, operator, pageA, pageB };
+}
+
+export async function closeStartedSession(s: StartedSession): Promise<void> {
+  await s.operatorCtx.close();
+  await s.aCtx.close();
+  await s.bCtx.close();
 }
