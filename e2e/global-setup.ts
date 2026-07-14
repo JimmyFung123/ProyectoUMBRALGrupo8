@@ -1,26 +1,58 @@
 import { chromium, type FullConfig } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { OPERATOR_URL, OPERATOR_USER, OPERATOR_PASSWORD, OPERATOR_STORAGE } from './env';
+import {
+  OPERATOR_URL,
+  ADMIN_USER,
+  ADMIN_PASSWORD,
+  ADMIN_STORAGE,
+  OPERATOR_USER,
+  OPERATOR_PASSWORD,
+  OPERATOR_STORAGE,
+} from './env';
+import { ensureOperatorUser } from './keycloak-admin';
 
 /**
- * Autentica al operador UNA sola vez contra Keycloak y guarda la sesión
- * (storageState) para reusarla en todos los tests del operador.
+ * Prepara las DOS sesiones que necesita el flujo completo y las guarda como
+ * storageState para reusarlas sin volver a loguear:
+ *   - Administrador (admin@umbral.local) → crea/activa misiones (pestaña Misiones).
+ *   - Operador (operador.e2e@umbral.local) → gestiona la sesión en vivo (pestaña
+ *     Sesiones). El front separa la UI por rol de forma excluyente, así que hace
+ *     falta un usuario por cada rol (ver env.ts).
  *
- * Los participantes NO pasan por aquí: entran por código de invitación (anónimos),
- * así que solo el operador necesita este login previo.
+ * Los participantes NO pasan por aquí: entran por código de invitación (anónimos).
  *
  * El front operador usa keycloak-js con onLoad:'login-required', de modo que al
  * abrirlo redirige al formulario de login del realm `umbral`. Llenamos ese
- * formulario estándar de Keycloak (#username / #password / #kc-login) y, al
- * volver, la cookie SSO de Keycloak queda en el storageState: en los tests
- * siguientes keycloak-js reingresa en silencio sin mostrar el formulario.
+ * formulario estándar (#username / #password / #kc-login) y, al volver, la
+ * cookie SSO de Keycloak queda en el storageState: en los tests siguientes
+ * keycloak-js reingresa en silencio sin mostrar el formulario.
  */
 export default async function globalSetup(_config: FullConfig) {
-  mkdirSync(dirname(OPERATOR_STORAGE), { recursive: true });
+  // El realm no trae usuario `operator`: lo aprovisionamos (idempotente) antes
+  // de intentar loguearlo.
+  await ensureOperatorUser();
 
   const browser = await chromium.launch();
-  const page = await browser.newPage({ ignoreHTTPSErrors: true });
+  try {
+    await loginAndSave(browser, ADMIN_USER, ADMIN_PASSWORD, ADMIN_STORAGE);
+    await loginAndSave(browser, OPERATOR_USER, OPERATOR_PASSWORD, OPERATOR_STORAGE);
+  } finally {
+    await browser.close();
+  }
+}
+
+async function loginAndSave(
+  browser: import('@playwright/test').Browser,
+  username: string,
+  password: string,
+  storagePath: string,
+) {
+  mkdirSync(dirname(storagePath), { recursive: true });
+
+  // Contexto limpio por identidad: cada uno arma su propia cookie SSO de Keycloak.
+  const context = await browser.newContext({ ignoreHTTPSErrors: true });
+  const page = await context.newPage();
 
   await page.goto(OPERATOR_URL, { waitUntil: 'domcontentloaded' });
 
@@ -30,8 +62,8 @@ export default async function globalSetup(_config: FullConfig) {
     { timeout: 30_000 },
   );
 
-  await page.fill('#username', OPERATOR_USER);
-  await page.fill('#password', OPERATOR_PASSWORD);
+  await page.fill('#username', username);
+  await page.fill('#password', password);
   await Promise.all([
     page.waitForURL((url) => url.origin === new URL(OPERATOR_URL).origin, { timeout: 30_000 }),
     page.click('#kc-login'),
@@ -44,6 +76,6 @@ export default async function globalSetup(_config: FullConfig) {
     .catch(() => { /* si ya no está, seguimos */ });
   await page.waitForLoadState('networkidle').catch(() => { /* best-effort */ });
 
-  await page.context().storageState({ path: OPERATOR_STORAGE });
-  await browser.close();
+  await context.storageState({ path: storagePath });
+  await context.close();
 }

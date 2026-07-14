@@ -11,9 +11,45 @@ export const OPERATOR_URL = process.env.OPERATOR_URL ?? 'http://localhost:5173';
 export const PARTICIPANT_URL = process.env.PARTICIPANT_URL ?? 'http://localhost:5174';
 export const KEYCLOAK_URL = process.env.KEYCLOAK_URL ?? 'http://localhost:18090';
 
-/** Usuario operador seed del realm `umbral` (scripts/keycloak/umbral-realm.json). */
-export const OPERATOR_USER = process.env.OPERATOR_USER ?? 'admin@umbral.local';
-export const OPERATOR_PASSWORD = process.env.OPERATOR_PASSWORD ?? 'Umbral2026!';
+/**
+ * El front operador separa la UI por rol (ver UMBRAL_Front-end/src/App.jsx):
+ *   - rol `admin`    → pestañas Misiones · Estadísticas · Sincronización · Personal.
+ *   - rol `operator` → pestaña Sesiones (única).
+ * La separación es EXCLUYENTE: un usuario admin NO ve Sesiones y viceversa. Por
+ * eso el flujo completo necesita DOS identidades: el administrador crea la
+ * misión y el operador gestiona la sesión en vivo.
+ */
 
+/** Administrador seed del realm `umbral` (scripts/keycloak/umbral-realm.json). */
+export const ADMIN_USER = process.env.ADMIN_USER ?? 'admin@umbral.local';
+export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'Umbral2026!';
+/** Sesión del admin (storageState) generada una vez en global-setup. */
+export const ADMIN_STORAGE = 'playwright/.auth/admin.json';
+
+/**
+ * Operador dedicado a E2E. El realm seed no trae ningún usuario con rol
+ * `operator`, así que global-setup lo crea (idempotente) vía la Admin REST API
+ * de Keycloak con contraseña permanente y sin acciones pendientes.
+ */
+export const OPERATOR_USER = process.env.OPERATOR_USER ?? 'operador.e2e@umbral.local';
+export const OPERATOR_PASSWORD = process.env.OPERATOR_PASSWORD ?? 'Umbral2026!';
 /** Sesión del operador (storageState) generada una vez en global-setup. */
 export const OPERATOR_STORAGE = 'playwright/.auth/operator.json';
+
+/** Credenciales del admin de Keycloak (realm master) — solo para aprovisionar
+ *  el usuario operador. Coinciden con docker-compose.yml (KEYCLOAK_ADMIN). */
+export const KC_ADMIN_USER = process.env.KC_ADMIN_USER ?? 'admin';
+export const KC_ADMIN_PASSWORD = process.env.KC_ADMIN_PASSWORD ?? 'admin';
+export const KC_REALM = process.env.KC_REALM ?? 'umbral';
+
+/**
+ * Bases de las APIs de dominio (mismos puertos localhost:* que hornea el front
+ * operador). Se usan para SEMBRAR la misión de prueba (misión + etapas + pistas
+ * + regla "Intentos fallidos" + activación) por API en vez de manejar la densa
+ * UI de administración: los controllers de Mission/Stage/Clue son públicos, y
+ * lo que valida el test estrella (pistas por reintento y ranking "Finalizó") se
+ * ejercita después SÍ por la UI real (operador + participantes + SignalR).
+ */
+export const MISSION_API = process.env.MISSION_API ?? 'http://localhost:5091/api';
+export const STAGE_API = process.env.STAGE_API ?? 'http://localhost:5093/api';
+export const CLUE_API = process.env.CLUE_API ?? 'http://localhost:5094/api';
