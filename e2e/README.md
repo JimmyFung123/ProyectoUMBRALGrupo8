@@ -69,8 +69,22 @@ Credenciales y URLs se sobrescriben por `.env` (ver `.env.example`).
     la precondición sea robusta y rápida. El resto del flujo va por UI real +
     SignalR. Un test que ejercite la creación de misión por la UI de
     administración es buen material para Fase 2.
-- **Fase 2**: casos borde (equipo incompleto/RB-18, treasure hunt/QR,
-  penalizaciones, broadcast del operador, creación de misión por UI admin).
+- `tests/casos-borde.spec.ts` — **Fase 2** ✅: casos borde del operador.
+  - **RB-18**: la sesión no arranca si un equipo tiene menos de 2 miembros.
+  - **Broadcast**: el operador manda un mensaje en vivo y el participante lo ve.
+  - **Penalización**: el operador resta puntos y el participante ve la sanción.
+  - **Treasure Hunt/QR**: el participante valida el código QR (entrada manual) y avanza.
+- `tests/mision-admin-ui.spec.ts` + `tests/control-sesion.spec.ts` —
+  **Fase 3** ✅: el resto de la gestión del operador.
+  - **Creación por UI admin**: el administrador crea una misión, le agrega una
+    etapa Trivia y la activa por la UI real (lo que el test estrella siembra por API).
+  - **Pausa / Reanudar**: el participante ve el overlay bloqueante y vuelve al juego.
+  - **Force-advance**: el operador empuja al equipo a la siguiente etapa (0 puntos).
+- **Pendiente**: verificación contra el ERS (bloqueado hasta tener el documento).
+
+Los flujos repetidos (ingreso de participantes, montaje de la sesión por el
+operador, sesión ya iniciada con 2 miembros) viven en `helpers.ts`; la siembra
+de misiones (trivia y treasure) en `mission-fixture.ts`.
 
 ## Tips para escribir tests
 - `npm run codegen:operador` / `codegen:participante` graba interacciones y

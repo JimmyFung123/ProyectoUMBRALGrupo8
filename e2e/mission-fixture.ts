@@ -2,11 +2,11 @@ import type { APIRequestContext } from '@playwright/test';
 import { MISSION_API, STAGE_API, CLUE_API } from './env';
 
 /**
- * Siembra por API la misión de trivia que consume el flujo completo. Los
- * controllers de Mission/Stage/Clue son públicos (sin [Authorize]), así que no
- * hace falta token. Se hace por API (y no por la UI de administración) para que
- * la precondición sea robusta y rápida; el valor del test estrella está en
- * ejercitar por UI el juego multi-actor y los dos fixes.
+ * Siembra por API la misión que consumen los tests. Los controllers de
+ * Mission/Stage/Clue son públicos (sin [Authorize]), así que no hace falta
+ * token. Se hace por API (y no por la UI de administración) para que la
+ * precondición sea robusta y rápida; el valor de los tests está en ejercitar
+ * por UI el juego multi-actor y los casos borde.
  *
  * Ojo con la consistencia eventual: SessionService valida la misión contra su
  * réplica MissionLookup (sincronizada por eventos MassTransit). Por eso la
@@ -18,11 +18,9 @@ export interface TriviaOptionSeed {
   isCorrect: boolean;
 }
 
-export interface TriviaStageSeed {
+interface BaseStageSeed {
   title: string;
   order: number;
-  question: string;
-  options: TriviaOptionSeed[];
   baseScore?: number;
   /** Regla "Intentos fallidos": > 0 activa el bloqueo de opción + pista por reintento. */
   maxAttempts?: number;
@@ -30,10 +28,29 @@ export interface TriviaStageSeed {
   clues?: string[];
 }
 
+export interface TriviaStageSeed extends BaseStageSeed {
+  kind?: 'trivia';
+  question: string;
+  options: TriviaOptionSeed[];
+}
+
+export interface TreasureStageSeed extends BaseStageSeed {
+  kind: 'treasure';
+  latitude: number;
+  longitude: number;
+  qrCode: string;
+}
+
+export type StageSeed = TriviaStageSeed | TreasureStageSeed;
+
 export interface MissionSeed {
   name: string;
   difficulty?: 'Easy' | 'Medium' | 'Hard';
-  stages: TriviaStageSeed[];
+  stages: StageSeed[];
+}
+
+function isTreasure(stage: StageSeed): stage is TreasureStageSeed {
+  return (stage as TreasureStageSeed).kind === 'treasure' || 'qrCode' in stage;
 }
 
 /** Extrae el id de una respuesta que puede venir como string crudo o { id }. */
@@ -82,48 +99,58 @@ async function postJsonWithRetry(
   }
 }
 
-/** Crea misión + etapas (trivia) + pistas + regla y la deja ACTIVA. Devuelve el missionId. */
-export async function seedTriviaMission(
+async function addStage(
+  request: APIRequestContext,
+  missionId: string,
+  stage: StageSeed,
+): Promise<void> {
+  const common = {
+    missionId,
+    title: stage.title,
+    order: stage.order,
+    baseScore: stage.baseScore ?? 100,
+  };
+  const body = isTreasure(stage)
+    ? { ...common, type: 'TreasureHunt', latitude: stage.latitude, longitude: stage.longitude, qrCode: stage.qrCode }
+    : { ...common, type: 'Trivia', question: stage.question, options: stage.options };
+
+  const stageBody = await postJson(request, `${STAGE_API}/stages`, body);
+  const stageId = readId(stageBody);
+
+  if (stage.maxAttempts && stage.maxAttempts > 0) {
+    const res = await request.patch(`${STAGE_API}/stages/${stageId}/auto-release`, {
+      data: { timeMinutes: null, maxAttempts: stage.maxAttempts },
+    });
+    if (!res.ok()) {
+      throw new Error(`PATCH auto-release → ${res.status()}: ${await res.text()}`);
+    }
+  }
+
+  const clues = stage.clues ?? [];
+  for (let i = 0; i < clues.length; i++) {
+    await postJsonWithRetry(request, `${CLUE_API}/clues`, {
+      stageId,
+      order: i + 1,
+      content: clues[i],
+    });
+  }
+}
+
+/** Crea misión + etapas (trivia y/o treasure) + pistas + reglas y la deja ACTIVA. */
+export async function seedMission(
   request: APIRequestContext,
   seed: MissionSeed,
 ): Promise<string> {
   const missionBody = await postJson(request, `${MISSION_API}/missions`, {
     name: seed.name,
-    description: 'Misión generada por E2E (flujo completo).',
+    description: 'Misión generada por E2E.',
     difficulty: seed.difficulty ?? 'Easy',
     maxDuration: 30,
   });
   const missionId = readId(missionBody);
 
   for (const stage of seed.stages) {
-    const stageBody = await postJson(request, `${STAGE_API}/stages`, {
-      missionId,
-      title: stage.title,
-      order: stage.order,
-      type: 'Trivia',
-      baseScore: stage.baseScore ?? 100,
-      question: stage.question,
-      options: stage.options,
-    });
-    const stageId = readId(stageBody);
-
-    if (stage.maxAttempts && stage.maxAttempts > 0) {
-      const res = await request.patch(`${STAGE_API}/stages/${stageId}/auto-release`, {
-        data: { timeMinutes: null, maxAttempts: stage.maxAttempts },
-      });
-      if (!res.ok()) {
-        throw new Error(`PATCH auto-release → ${res.status()}: ${await res.text()}`);
-      }
-    }
-
-    const clues = stage.clues ?? [];
-    for (let i = 0; i < clues.length; i++) {
-      await postJsonWithRetry(request, `${CLUE_API}/clues`, {
-        stageId,
-        order: i + 1,
-        content: clues[i],
-      });
-    }
+    await addStage(request, missionId, stage);
   }
 
   // Activar: habilita generar sesiones y dispara el evento que sincroniza la
@@ -137,3 +164,6 @@ export async function seedTriviaMission(
 
   return missionId;
 }
+
+/** Alias retrocompatible usado por el flujo completo (misiones solo de trivia). */
+export const seedTriviaMission = seedMission;
