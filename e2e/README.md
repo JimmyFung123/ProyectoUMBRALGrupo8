@@ -74,12 +74,17 @@ Credenciales y URLs se sobrescriben por `.env` (ver `.env.example`).
   - **Broadcast**: el operador manda un mensaje en vivo y el participante lo ve.
   - **Penalización**: el operador resta puntos y el participante ve la sanción.
   - **Treasure Hunt/QR**: el participante valida el código QR (entrada manual) y avanza.
-- **Fase 3** (siguiente): pendientes — creación de misión por la UI de
-  administración, force-advance, pausa/reanudar, y verificación contra el ERS.
+- `tests/mision-admin-ui.spec.ts` + `tests/control-sesion.spec.ts` —
+  **Fase 3** ✅: el resto de la gestión del operador.
+  - **Creación por UI admin**: el administrador crea una misión, le agrega una
+    etapa Trivia y la activa por la UI real (lo que el test estrella siembra por API).
+  - **Pausa / Reanudar**: el participante ve el overlay bloqueante y vuelve al juego.
+  - **Force-advance**: el operador empuja al equipo a la siguiente etapa (0 puntos).
+- **Pendiente**: verificación contra el ERS (bloqueado hasta tener el documento).
 
 Los flujos repetidos (ingreso de participantes, montaje de la sesión por el
-operador) viven en `helpers.ts`; la siembra de misiones (trivia y treasure) en
-`mission-fixture.ts`.
+operador, sesión ya iniciada con 2 miembros) viven en `helpers.ts`; la siembra
+de misiones (trivia y treasure) en `mission-fixture.ts`.
 
 ## Tips para escribir tests
 - `npm run codegen:operador` / `codegen:participante` graba interacciones y
