@@ -56,22 +56,10 @@ builder.Services.AddHttpClient<ISessionServiceClient, SessionServiceClient>(clie
 });
 
 // MassTransit — MissionService publishes integration events to RabbitMQ
-builder.Services.AddMassTransit(x =>
+builder.Services.AddUmbralMassTransit(builder.Configuration, "mission", x =>
 {
     x.AddConsumer<StageAddedConsumer>();
     x.AddConsumer<StageRemovedConsumer>();
-
-    x.UsingRabbitMq((ctx, cfg) =>
-    {
-        // Propaga el X-Correlation-ID como cabecera de mensaje (publish/send/consume).
-        cfg.UseUmbralCorrelationId(ctx);
-
-        cfg.Host(new Uri(builder.Configuration.GetConnectionString("RabbitMQ")
-                         ?? "amqp://guest:guest@localhost:5672/"));
-        // Per-service prefix so this service's stage-event consumers don't
-        // share a queue with ClueService's (fan-out, not load balancing).
-        cfg.ConfigureEndpoints(ctx, new KebabCaseEndpointNameFormatter(prefix: "mission", includeNamespace: false));
-    });
 });
 
 // Keycloak JWT auth (HU-23) — optional until [Authorize] is applied per-endpoint.
