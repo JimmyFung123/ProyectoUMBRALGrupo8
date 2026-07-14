@@ -21,6 +21,17 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MissionService\MissionService.csproj" />
+    <!--
+      Both MissionService and TeamService generate a top-level-statements `Program`
+      class in the *global* namespace (RootNamespace does not affect it). Referencing
+      both assemblies unqualified causes CS0433 ("Program exists in both..."). The
+      Aliases metadata assigns TeamService's assembly to a named extern alias so
+      TeamServiceApiFactory.cs can disambiguate via `extern alias TeamServiceAssembly;`.
+      Any future service added here with its own Program class needs the same treatment.
+    -->
+    <ProjectReference Include="..\TeamService\TeamService.csproj">
+      <Aliases>TeamServiceAssembly</Aliases>
+    </ProjectReference>
   </ItemGroup>
 
 </Project>
