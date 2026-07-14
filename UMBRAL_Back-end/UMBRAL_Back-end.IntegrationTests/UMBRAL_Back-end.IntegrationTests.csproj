@@ -32,6 +32,32 @@
     <ProjectReference Include="..\TeamService\TeamService.csproj">
       <Aliases>TeamServiceAssembly</Aliases>
     </ProjectReference>
+    <!--
+      ClueService also generates its own top-level-statements `Program` class in the
+      global namespace, same conflict as TeamService above. Aliased the same way so
+      ClueServiceApiFactory.cs can disambiguate via `extern alias ClueServiceAssembly;`.
+    -->
+    <ProjectReference Include="..\ClueService\ClueService.csproj">
+      <Aliases>ClueServiceAssembly</Aliases>
+    </ProjectReference>
+    <!--
+      StageService also generates its own top-level-statements `Program` class in the
+      global namespace, same conflict as TeamService/ClueService above. Aliased the
+      same way so StageServiceApiFactory.cs can disambiguate via
+      `extern alias StageServiceAssembly;`.
+    -->
+    <ProjectReference Include="..\StageService\StageService.csproj">
+      <Aliases>StageServiceAssembly</Aliases>
+    </ProjectReference>
+    <!--
+      SessionService also generates its own top-level-statements `Program` class in the
+      global namespace, same conflict as TeamService/ClueService/StageService above.
+      Aliased the same way so SessionServiceApiFactory.cs can disambiguate via
+      `extern alias SessionServiceAssembly;`.
+    -->
+    <ProjectReference Include="..\SessionService\SessionService.csproj">
+      <Aliases>SessionServiceAssembly</Aliases>
+    </ProjectReference>
   </ItemGroup>
 
 </Project>
