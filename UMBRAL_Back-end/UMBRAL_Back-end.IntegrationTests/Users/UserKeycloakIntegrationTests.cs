@@ -102,6 +102,81 @@ public class UserKeycloakIntegrationTests(UserServiceKeycloakFixture fixture)
                      "against a real Keycloak, not just an in-memory double");
     }
 
+    // ── Gap #4: CRUD del personal contra Keycloak real ──────────────────────────
+
+    [Fact]
+    public async Task GetUsers_IncludesCreatedUser()
+    {
+        var client = fixture.Factory.CreateClient();
+        var email = $"list-{Guid.NewGuid():N}@umbral.local";
+        await CreateUserAsync(client, email, UserRole.Operator);
+
+        var response = await client.GetAsync("/api/users");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await response.Content.ReadAsStringAsync()).Should().Contain(email);
+    }
+
+    [Fact]
+    public async Task CreateUser_DuplicateEmail_ReturnsConflict()
+    {
+        var client = fixture.Factory.CreateClient();
+        var email = $"dup-{Guid.NewGuid():N}@umbral.local";
+        await CreateUserAsync(client, email, UserRole.Operator);
+
+        var second = await client.PostAsJsonAsync(
+            "/api/users", new CreateUserRequest(email, "Otro", "Usuario", UserRole.Operator));
+
+        second.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task DisableThenEnable_TogglesEnabledInRealKeycloak()
+    {
+        var client = fixture.Factory.CreateClient();
+        var email = $"toggle-{Guid.NewGuid():N}@umbral.local";
+        var id = await CreateUserAsync(client, email, UserRole.Operator);
+
+        var disable = await client.PutAsync($"/api/users/{id}/disable", null);
+        disable.StatusCode.Should().Be(HttpStatusCode.NoContent, because: await SafeReadBody(disable));
+        await AssertEnabledAsync(id, expected: false);
+
+        var enable = await client.PutAsync($"/api/users/{id}/enable", null);
+        enable.StatusCode.Should().Be(HttpStatusCode.NoContent, because: await SafeReadBody(enable));
+        await AssertEnabledAsync(id, expected: true);
+    }
+
+    [Fact]
+    public async Task ChangeRole_UnknownUser_ReturnsNotFound()
+    {
+        var client = fixture.Factory.CreateClient();
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/users/{Guid.NewGuid()}/role", new ChangeRoleRequest(UserRole.Admin));
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    // ── Helpers ─────────────────────────────────────────────────────────────────
+
+    private async Task<Guid> CreateUserAsync(HttpClient client, string email, UserRole role)
+    {
+        var response = await client.PostAsJsonAsync(
+            "/api/users", new CreateUserRequest(email, "Nombre", "Apellido", role));
+        response.StatusCode.Should().Be(HttpStatusCode.Created, because: await SafeReadBody(response));
+        var body = await response.Content.ReadFromJsonAsync<CreatedUserResponse>(
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        return body!.Id;
+    }
+
+    private async Task AssertEnabledAsync(Guid userId, bool expected)
+    {
+        using var scope = fixture.Factory.Services.CreateScope();
+        var keycloak = scope.ServiceProvider.GetRequiredService<IKeycloakAdminClient>();
+        var user = await keycloak.GetByIdAsync(userId, CancellationToken.None);
+        user.Should().NotBeNull();
+        user!.Enabled.Should().Be(expected);
+    }
+
     private static async Task<string> SafeReadBody(HttpResponseMessage response)
         => $"unexpected status; body was: {await response.Content.ReadAsStringAsync()}";
 

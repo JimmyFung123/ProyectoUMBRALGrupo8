@@ -27,17 +27,51 @@ public class SessionPersistenceTests(SessionServicePostgresFixture fixture) : IA
 
     public Task DisposeAsync() => Task.CompletedTask;
 
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    // El endpoint /api/sessions está gated por [Authorize]; SessionServiceApiFactory
+    // registra TestAuthHandler para que cada request autentique sin un token real de
+    // Keycloak (ver Infrastructure/TestAuthHandler.cs).
+
+    /// <summary>
+    /// Siembra la réplica MissionLookup (Active) y crea una sesión por HTTP.
+    /// CreateSessionCommandHandler valida la misión contra esa proyección
+    /// (SessionService nunca consulta la BD de MissionService directamente).
+    /// </summary>
+    private async Task<Guid> CreateSessionAsync(HttpClient client, string? name = null)
+    {
+        var missionId = Guid.NewGuid();
+        using (var scope = fixture.Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<SessionsDbContext>();
+            db.MissionsLookup.Add(MissionLookup.Create(missionId, "Misión de prueba", "Active"));
+            await db.SaveChangesAsync();
+        }
+
+        var request = new CreateSessionRequest(missionId, name ?? $"Sesión {Guid.NewGuid()}", ScheduledAt: null);
+        var response = await client.PostAsJsonAsync("/api/sessions", request);
+        response.StatusCode.Should().Be(HttpStatusCode.OK, because: await Body(response));
+        return await response.Content.ReadFromJsonAsync<Guid>();
+    }
+
+    private async Task<string> AccessCodeOfAsync(Guid sessionId)
+    {
+        using var scope = fixture.Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<SessionsDbContext>();
+        return (await db.Sessions.SingleAsync(s => s.Id == sessionId)).AccessCode;
+    }
+
+    private static async Task<string> Body(HttpResponseMessage r)
+        => $"status inesperado; body: {await r.Content.ReadAsStringAsync()}";
+
+    // ── Create + constraint + migración (base original) ─────────────────────────
+
     [Fact]
     public async Task CreateSession_ValidRequestThroughHttp_PersistsInRealPostgres()
     {
         using var scope = fixture.Factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<SessionsDbContext>();
 
-        // CreateSessionCommandHandler resolves the mission via IMissionLookupRepository (a
-        // local projection kept in sync from MissionService via MissionCreated/Activated
-        // consumers), so a MissionLookup row with Status "Active" must exist first — the
-        // handler returns MissionLookupErrors.NotFound / SessionErrors.MissionNotActive
-        // otherwise (SessionService never queries MissionService's DB directly).
         var missionId = Guid.NewGuid();
         var missionLookup = MissionLookup.Create(missionId, "Misión de prueba", "Active");
         dbContext.MissionsLookup.Add(missionLookup);
@@ -49,8 +83,6 @@ public class SessionPersistenceTests(SessionServicePostgresFixture fixture) : IA
         var response = await client.PostAsJsonAsync("/api/sessions", request);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        // CreateSessionCommandHandler returns Result<Guid>, and the controller does
-        // Ok(result.Value) directly — the body is a bare JSON Guid, not an object.
         var sessionId = await response.Content.ReadFromJsonAsync<Guid>();
         sessionId.Should().NotBeEmpty();
 
@@ -67,15 +99,6 @@ public class SessionPersistenceTests(SessionServicePostgresFixture fixture) : IA
         using var scope = fixture.Factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<SessionsDbContext>();
 
-        // SessionConfiguration maps AccessCode as a unique index (IX_Sessions_AccessCode,
-        // see the AddSessionAccessCode migration). Session.Create always generates a fresh
-        // random code (SessionCode.Generate()) and nothing in the C# domain model checks
-        // for collisions before SaveChanges, so this constraint only surfaces against a
-        // real Postgres instance — EF Core's InMemory provider does not enforce unique
-        // indexes, same category of gap exercised by the other four services' varchar/FK
-        // constraint tests. It is also independent of SessionEventImmutabilityInterceptor,
-        // which only inspects tracked SessionEvent entries (Modified/Deleted state) and
-        // never touches the Sessions table or raw SQL inserts.
         const string sharedAccessCode = "DUP123";
         var firstId = Guid.NewGuid();
         var secondId = Guid.NewGuid();
@@ -126,5 +149,124 @@ public class SessionPersistenceTests(SessionServicePostgresFixture fixture) : IA
         await act.Should().NotThrowAsync();
 
         (await dbContext.Database.GetPendingMigrationsAsync()).Should().BeEmpty();
+    }
+
+    // ── GET /api/sessions/{id} ──────────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetSessionById_ExistingSession_ReturnsDetail()
+    {
+        var client = fixture.Factory.CreateClient();
+        var sessionId = await CreateSessionAsync(client);
+
+        var response = await client.GetAsync($"/api/sessions/{sessionId}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task GetSessionById_UnknownId_ReturnsNotFound()
+    {
+        var client = fixture.Factory.CreateClient();
+
+        var response = await client.GetAsync($"/api/sessions/{Guid.NewGuid()}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    // ── GET /api/sessions/by-code/{code} (anónimo) ──────────────────────────────
+
+    [Fact]
+    public async Task GetSessionByCode_ExistingCode_ReturnsSession()
+    {
+        var client = fixture.Factory.CreateClient();
+        var sessionId = await CreateSessionAsync(client);
+        var code = await AccessCodeOfAsync(sessionId);
+
+        var response = await client.GetAsync($"/api/sessions/by-code/{code}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task GetSessionByCode_UnknownCode_ReturnsNotFound()
+    {
+        var client = fixture.Factory.CreateClient();
+
+        var response = await client.GetAsync("/api/sessions/by-code/ZZZZZZ");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    // ── GET /api/sessions (lista) ───────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetSessions_ReturnsCreatedSessions()
+    {
+        var client = fixture.Factory.CreateClient();
+        var firstId = await CreateSessionAsync(client);
+        var secondId = await CreateSessionAsync(client);
+
+        var response = await client.GetAsync("/api/sessions");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await response.Content.ReadAsStringAsync();
+
+        body.Should().Contain(firstId.ToString()).And.Contain(secondId.ToString());
+    }
+
+    // ── PUT /api/sessions/{id} (editar) ─────────────────────────────────────────
+
+    [Fact]
+    public async Task UpdateSession_PendingSession_PersistsChangeInPostgres()
+    {
+        var client = fixture.Factory.CreateClient();
+        var sessionId = await CreateSessionAsync(client, "Nombre Original");
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/sessions/{sessionId}", new UpdateSessionRequest("Nombre Editado", ScheduledAt: null));
+        response.StatusCode.Should().Be(HttpStatusCode.OK, because: await Body(response));
+
+        using var scope = fixture.Factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<SessionsDbContext>();
+        var persisted = await dbContext.Sessions.SingleAsync(s => s.Id == sessionId);
+        persisted.Name.Should().Be("Nombre Editado");
+    }
+
+    [Fact]
+    public async Task UpdateSession_UnknownId_ReturnsNotFound()
+    {
+        var client = fixture.Factory.CreateClient();
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/sessions/{Guid.NewGuid()}", new UpdateSessionRequest("X", null));
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    // ── DELETE /api/sessions/{id} (cancelar) ────────────────────────────────────
+
+    [Fact]
+    public async Task CancelSession_PendingSession_TransitionsToCancelledInPostgres()
+    {
+        var client = fixture.Factory.CreateClient();
+        var sessionId = await CreateSessionAsync(client);
+
+        var response = await client.DeleteAsync($"/api/sessions/{sessionId}");
+        response.StatusCode.Should().Be(HttpStatusCode.OK, because: await Body(response));
+
+        using var scope = fixture.Factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<SessionsDbContext>();
+        var persisted = await dbContext.Sessions.SingleAsync(s => s.Id == sessionId);
+        persisted.Status.Should().Be(SessionStatus.Cancelled);
+    }
+
+    [Fact]
+    public async Task CancelSession_UnknownId_ReturnsNotFound()
+    {
+        var client = fixture.Factory.CreateClient();
+
+        var response = await client.DeleteAsync($"/api/sessions/{Guid.NewGuid()}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 }
