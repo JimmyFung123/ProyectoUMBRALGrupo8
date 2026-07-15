@@ -3,6 +3,9 @@ namespace UMBRAL_Back_end.IntegrationTests.Infrastructure;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
+using Respawn;
+using Respawn.Graph;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -15,6 +18,12 @@ using Xunit;
 ///
 /// A subclass only needs to supply the database name and how to build
 /// <typeparamref name="TFactory"/> from the container's connection string.
+///
+/// All tests in a collection share this same container/database (one instance per
+/// collection, per xUnit's <see cref="ICollectionFixture{TFixture}"/> contract), so
+/// call <see cref="ResetDatabaseAsync"/> before each individual test (e.g. from each
+/// test class's own <see cref="IAsyncLifetime.InitializeAsync"/>) to avoid leaking
+/// rows between tests.
 /// </summary>
 public abstract class PostgresContainerFixture<TFactory, TProgram, TDbContext> : IAsyncLifetime
     where TFactory : WebApplicationFactory<TProgram>
@@ -22,6 +31,7 @@ public abstract class PostgresContainerFixture<TFactory, TProgram, TDbContext> :
     where TDbContext : DbContext
 {
     private PostgreSqlContainer _container = null!;
+    private Respawner _respawner = null!;
 
     public TFactory Factory { get; private set; } = null!;
 
@@ -48,6 +58,32 @@ public abstract class PostgresContainerFixture<TFactory, TProgram, TDbContext> :
         using var scope = Factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<TDbContext>();
         await dbContext.Database.MigrateAsync();
+
+        // Snapshot the schema once (post-migration) so ResetDatabaseAsync can truncate
+        // all app tables between tests without re-discovering the schema every time.
+        // __EFMigrationsHistory is excluded so the "no pending migrations" tests (which
+        // read applied-migrations state) keep working after a reset.
+        await using var respawnConnection = new NpgsqlConnection(_container.GetConnectionString());
+        await respawnConnection.OpenAsync();
+        _respawner = await Respawner.CreateAsync(respawnConnection, new RespawnerOptions
+        {
+            DbAdapter = DbAdapter.Postgres,
+            TablesToIgnore = [new Table("__EFMigrationsHistory")]
+        });
+    }
+
+    /// <summary>
+    /// Truncates every app table in this fixture's database (except migrations history),
+    /// so each test starts from a clean slate instead of seeing rows left over by earlier
+    /// tests sharing the same collection-scoped container. Intended to be called from each
+    /// test class's own <see cref="IAsyncLifetime.InitializeAsync"/>, which xUnit runs
+    /// before every individual [Fact].
+    /// </summary>
+    public async Task ResetDatabaseAsync()
+    {
+        await using var connection = new NpgsqlConnection(_container.GetConnectionString());
+        await connection.OpenAsync();
+        await _respawner.ResetAsync(connection);
     }
 
     public async Task DisposeAsync()

@@ -9,6 +9,10 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <!-- Truncates all app tables (except __EFMigrationsHistory) between Level-1 persistence
+         tests so they don't share leftover rows from earlier tests in the same collection
+         (see PostgresContainerFixture.ResetDatabaseAsync). -->
+    <PackageReference Include="Respawn" Version="7.0.0" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
       <PrivateAssets>all</PrivateAssets>

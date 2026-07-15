@@ -13,8 +13,15 @@ using UMBRAL_Back_end.IntegrationTests.Infrastructure;
 using Xunit;
 
 [Collection(MissionServiceCollection.Name)]
-public class MissionPersistenceTests(MissionServicePostgresFixture fixture)
+public class MissionPersistenceTests(MissionServicePostgresFixture fixture) : IAsyncLifetime
 {
+    // xUnit creates a new instance of this class per [Fact], so InitializeAsync runs before
+    // EACH test — unlike the collection fixture, which is shared by the whole class. Resetting
+    // here keeps tests isolated from rows left over by earlier tests in the same collection.
+    public Task InitializeAsync() => fixture.ResetDatabaseAsync();
+
+    public Task DisposeAsync() => Task.CompletedTask;
+
     [Fact]
     public async Task CreateMission_ValidRequestThroughHttp_PersistsInRealPostgres()
     {

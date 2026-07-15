@@ -16,8 +16,15 @@ using StageServiceAssembly::StageService.Infrastructure.Persistence;
 using Xunit;
 
 [Collection(StageServiceCollection.Name)]
-public class StagePersistenceTests(StageServicePostgresFixture fixture)
+public class StagePersistenceTests(StageServicePostgresFixture fixture) : IAsyncLifetime
 {
+    // xUnit creates a new instance of this class per [Fact], so InitializeAsync runs before
+    // EACH test — unlike the collection fixture, which is shared by the whole class. Resetting
+    // here keeps tests isolated from rows left over by earlier tests in the same collection.
+    public Task InitializeAsync() => fixture.ResetDatabaseAsync();
+
+    public Task DisposeAsync() => Task.CompletedTask;
+
     [Fact]
     public async Task AddStage_ValidRequestThroughHttp_PersistsInRealPostgres()
     {
