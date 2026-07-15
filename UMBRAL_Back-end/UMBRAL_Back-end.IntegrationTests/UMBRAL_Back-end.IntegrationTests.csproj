@@ -18,6 +18,9 @@
     <PackageReference Include="Testcontainers.PostgreSql" Version="4.13.0" />
     <!-- Level-2: real RabbitMQ broker for fan-out routing tests (see Messaging/StageAddedFanOutFixture.cs). -->
     <PackageReference Include="Testcontainers.RabbitMq" Version="4.13.0" />
+    <!-- UserService: real Keycloak Admin REST API for the CreateUserAsync/ChangeRoleAsync
+         camelCase-serialization regression test (see Infrastructure/UserServiceKeycloakFixture.cs). -->
+    <PackageReference Include="Testcontainers.Keycloak" Version="4.13.0" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.0" />
   </ItemGroup>
 
@@ -70,6 +73,19 @@
     -->
     <ProjectReference Include="..\ApiGateway\ApiGateway.csproj">
       <Aliases>ApiGatewayAssembly</Aliases>
+    </ProjectReference>
+    <!--
+      UserService also generates its own top-level-statements `Program` class in the
+      global namespace, same conflict as the other services above. Aliased the same
+      way so UserServiceApiFactory.cs can disambiguate via
+      `extern alias UserServiceAssembly;`. Unlike the DB-backed services, UserService
+      has no DbContext to swap — its only external dependency is Keycloak's Admin
+      REST API (see UserServiceKeycloakFixture.cs), so its factory does not derive
+      from IntegrationTestApiFactory<TProgram, TDbContext> either (same shape as
+      ApiGatewayApiFactory).
+    -->
+    <ProjectReference Include="..\UserService\UserService.csproj">
+      <Aliases>UserServiceAssembly</Aliases>
     </ProjectReference>
   </ItemGroup>
 
