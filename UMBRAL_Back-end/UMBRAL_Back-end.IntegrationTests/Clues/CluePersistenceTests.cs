@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using UMBRAL_Back_end.IntegrationTests.Infrastructure;
 using ClueServiceAssembly::ClueService.Adapter.Controllers;
+using ClueServiceAssembly::ClueService.Application.Clues.Queries.GetCluesByStage;
 using ClueServiceAssembly::ClueService.Domain.StageLookup;
 using ClueServiceAssembly::ClueService.Infrastructure.Persistence;
 using Xunit;
@@ -26,15 +27,40 @@ public class CluePersistenceTests(ClueServicePostgresFixture fixture) : IAsyncLi
 
     public Task DisposeAsync() => Task.CompletedTask;
 
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Siembra la réplica StageLookup (sincronizada desde StageService por eventos).
+    /// AddClue resuelve la etapa contra esta proyección, así que sin fila devuelve
+    /// Clue.StageNotFound (404) — por eso los happy paths deben sembrarla primero.
+    /// </summary>
+    private async Task SeedStageAsync(Guid stageId, Guid missionId, string type = "Trivia")
+    {
+        using var scope = fixture.Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<CluesDbContext>();
+        db.StagesLookup.Add(StageLookup.Create(stageId, missionId, type));
+        await db.SaveChangesAsync();
+    }
+
+    private async Task<Guid> AddClueAsync(HttpClient client, Guid stageId, int order, string content)
+    {
+        var response = await client.PostAsJsonAsync(
+            "/api/clues", new AddClueRequest(stageId, Order: order, Content: content));
+        response.StatusCode.Should().Be(HttpStatusCode.OK, because: await Body(response));
+        return await response.Content.ReadFromJsonAsync<Guid>();
+    }
+
+    private static async Task<string> Body(HttpResponseMessage r)
+        => $"status inesperado; body: {await r.Content.ReadAsStringAsync()}";
+
+    // ── Add + constraints + migración (base original) ───────────────────────────
+
     [Fact]
     public async Task AddClue_ValidRequestThroughHttp_PersistsInRealPostgres()
     {
         using var scope = fixture.Factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<CluesDbContext>();
 
-        // AddClueCommandHandler resolves the stage via IStageLookupRepository (a local
-        // projection kept in sync from StageService via StageAddedConsumer), so a
-        // StageLookup row must exist before a clue can be added to it.
         var stageId = Guid.NewGuid();
         var missionId = Guid.NewGuid();
         var stage = StageLookup.Create(stageId, missionId, "Trivia");
@@ -47,8 +73,6 @@ public class CluePersistenceTests(ClueServicePostgresFixture fixture) : IAsyncLi
         var response = await client.PostAsJsonAsync("/api/clues", request);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        // AddClueCommandHandler returns Result<Guid>, and ToHttpResult wraps it in
-        // OkObjectResult(result.Value) — the body is a bare JSON Guid, not an object.
         var clueId = await response.Content.ReadFromJsonAsync<Guid>();
         clueId.Should().NotBeEmpty();
 
@@ -66,10 +90,6 @@ public class CluePersistenceTests(ClueServicePostgresFixture fixture) : IAsyncLi
         using var scope = fixture.Factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<CluesDbContext>();
 
-        // ClueConfiguration.Content is HasMaxLength(1000) -> varchar(1000). EF Core's
-        // InMemory provider does not enforce column length, so this constraint only
-        // surfaces against a real Postgres instance, same criterion used for
-        // Team.InviteCode (varchar(10)).
         var oversizedContent = new string('A', 1001);
         var id = Guid.NewGuid();
 
@@ -110,5 +130,85 @@ public class CluePersistenceTests(ClueServicePostgresFixture fixture) : IAsyncLi
         await act.Should().NotThrowAsync();
 
         (await dbContext.Database.GetPendingMigrationsAsync()).Should().BeEmpty();
+    }
+
+    // ── GET /api/clues?stageId ──────────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetCluesByStage_ReturnsCluesOfThatStage()
+    {
+        var stageId = Guid.NewGuid();
+        await SeedStageAsync(stageId, Guid.NewGuid());
+        var client = fixture.Factory.CreateClient();
+        var first = await AddClueAsync(client, stageId, 1, "Pista uno");
+        var second = await AddClueAsync(client, stageId, 2, "Pista dos");
+
+        var clues = await client.GetFromJsonAsync<List<ClueDto>>($"/api/clues?stageId={stageId}");
+
+        clues.Should().NotBeNull();
+        clues!.Select(c => c.Id).Should().BeEquivalentTo(new[] { first, second });
+    }
+
+    // ── PUT /api/clues/{id} ─────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task UpdateClue_ValidRequest_PersistsChangeInPostgres()
+    {
+        var stageId = Guid.NewGuid();
+        await SeedStageAsync(stageId, Guid.NewGuid());
+        var client = fixture.Factory.CreateClient();
+        var clueId = await AddClueAsync(client, stageId, 1, "Contenido original");
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/clues/{clueId}", new UpdateClueRequest(Order: 5, Content: "Contenido actualizado"));
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent, because: await Body(response));
+
+        using var scope = fixture.Factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<CluesDbContext>();
+        var persisted = await dbContext.Clues.SingleAsync(c => c.Id == clueId);
+        persisted.Content.Should().Be("Contenido actualizado");
+        persisted.Order.Should().Be(5);
+    }
+
+    [Fact]
+    public async Task UpdateClue_UnknownId_ReturnsNotFound()
+    {
+        var client = fixture.Factory.CreateClient();
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/clues/{Guid.NewGuid()}", new UpdateClueRequest(Order: 1, Content: "x"));
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    // ── DELETE /api/clues/{id} ──────────────────────────────────────────────────
+
+    [Fact]
+    public async Task RemoveClue_ExistingClue_DeletesFromPostgres()
+    {
+        var stageId = Guid.NewGuid();
+        await SeedStageAsync(stageId, Guid.NewGuid());
+        var client = fixture.Factory.CreateClient();
+        var clueId = await AddClueAsync(client, stageId, 1, "A borrar");
+
+        var response = await client.DeleteAsync($"/api/clues/{clueId}");
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent, because: await Body(response));
+
+        using var scope = fixture.Factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<CluesDbContext>();
+        (await dbContext.Clues.AnyAsync(c => c.Id == clueId)).Should().BeFalse();
+    }
+
+    // ── Regla: no se puede agregar pista a una etapa inexistente ────────────────
+
+    [Fact]
+    public async Task AddClue_WhenStageDoesNotExist_ReturnsNotFound()
+    {
+        var client = fixture.Factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/clues", new AddClueRequest(Guid.NewGuid(), Order: 1, Content: "Sin etapa"));
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 }
