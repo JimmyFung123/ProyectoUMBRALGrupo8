@@ -16,6 +16,8 @@
     </PackageReference>
     <PackageReference Include="FluentAssertions" Version="7.0.0" />
     <PackageReference Include="Testcontainers.PostgreSql" Version="4.13.0" />
+    <!-- Level-2: real RabbitMQ broker for fan-out routing tests (see Messaging/StageAddedFanOutFixture.cs). -->
+    <PackageReference Include="Testcontainers.RabbitMq" Version="4.13.0" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.0" />
   </ItemGroup>
 
