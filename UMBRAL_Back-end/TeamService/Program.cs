@@ -48,22 +48,9 @@ builder.Services.AddScoped<IRankingProjectionRepository, RankingProjectionReposi
 builder.Services.AddScoped<IRankingProjector, RankingProjector>();
 
 // ── MassTransit + RabbitMQ ───────────────────────────────────────────────────
-builder.Services.AddMassTransit(x =>
+builder.Services.AddUmbralMassTransit(builder.Configuration, "team", x =>
 {
     x.AddConsumer<SessionCancelledConsumer>();
-
-    x.UsingRabbitMq((ctx, cfg) =>
-    {
-        // Propaga el X-Correlation-ID como cabecera de mensaje (publish/send/consume).
-        cfg.UseUmbralCorrelationId(ctx);
-
-        cfg.Host(new Uri(builder.Configuration.GetConnectionString("RabbitMQ")
-                         ?? "amqp://guest:guest@localhost:5672/"));
-        // Per-service prefix — keeps the queue namespace uniform with the
-        // rest of the bus even though TeamService's consumer name doesn't
-        // currently collide with anyone else's.
-        cfg.ConfigureEndpoints(ctx, new KebabCaseEndpointNameFormatter(prefix: "team", includeNamespace: false));
-    });
 });
 
 // ── Keycloak JWT auth (HU-23) ─────────────────────────────────────────────────

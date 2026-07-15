@@ -82,7 +82,7 @@ builder.Services.AddScoped<IStatisticsReadRepository, StatisticsReadRepository>(
 // between same-named queues). Without the prefix, SessionService and
 // StageService both register a "MissionCreated" queue and RabbitMQ splits the
 // events between them, leaving each MissionsLookup behind by ~50%.
-builder.Services.AddMassTransit(x =>
+builder.Services.AddUmbralMassTransit(builder.Configuration, "session", x =>
 {
     x.AddConsumer<MissionCreatedConsumer>();
     x.AddConsumer<MissionActivatedConsumer>();
@@ -99,20 +99,6 @@ builder.Services.AddMassTransit(x =>
     x.AddConsumer<ClueReleasedConsumer>();
     x.AddConsumer<TeamPenalizedConsumer>();
     x.AddConsumer<TriviaWrongAnswerConsumer>();
-
-    x.UsingRabbitMq((ctx, cfg) =>
-    {
-        // Propaga el X-Correlation-ID como cabecera de mensaje (publish/send/consume).
-        cfg.UseUmbralCorrelationId(ctx);
-
-        cfg.Host(new Uri(builder.Configuration.GetConnectionString("RabbitMQ")
-                         ?? "amqp://guest:guest@localhost:5672/"));
-
-        // Auto-configure queues/exchanges for all registered consumers, but
-        // with a per-service prefix so the queue names cannot collide with
-        // the other services that consume the same integration events.
-        cfg.ConfigureEndpoints(ctx, new KebabCaseEndpointNameFormatter(prefix: "session", includeNamespace: false));
-    });
 });
 
 // ── External HTTP clients ─────────────────────────────────────────────────────

@@ -41,23 +41,11 @@ builder.Services.AddScoped<IIntegrationEventBus, MassTransitIntegrationEventBus>
 // re-seed MissionsLookup when an admin triggers a manual reproject.
 builder.Services.AddHttpClient();
 
-builder.Services.AddMassTransit(x =>
+builder.Services.AddUmbralMassTransit(builder.Configuration, "stage", x =>
 {
     x.AddConsumer<MissionCreatedConsumer>();
     x.AddConsumer<MissionActivatedConsumer>();
     x.AddConsumer<MissionDeactivatedConsumer>();
-
-    x.UsingRabbitMq((ctx, cfg) =>
-    {
-        // Propaga el X-Correlation-ID como cabecera de mensaje (publish/send/consume).
-        cfg.UseUmbralCorrelationId(ctx);
-
-        cfg.Host(new Uri(builder.Configuration.GetConnectionString("RabbitMQ")
-                         ?? "amqp://guest:guest@localhost:5672/"));
-        // Per-service prefix so this service's MissionsLookup consumers don't
-        // share a queue with SessionService's (fan-out, not load balancing).
-        cfg.ConfigureEndpoints(ctx, new KebabCaseEndpointNameFormatter(prefix: "stage", includeNamespace: false));
-    });
 });
 
 builder.Services.AddUmbralJwtAuth(builder.Configuration);

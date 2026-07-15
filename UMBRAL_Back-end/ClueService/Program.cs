@@ -41,22 +41,10 @@ builder.Services.AddScoped<IIntegrationEventBus, MassTransitIntegrationEventBus>
 // the StageLookup projection on manual reproject.
 builder.Services.AddHttpClient();
 
-builder.Services.AddMassTransit(x =>
+builder.Services.AddUmbralMassTransit(builder.Configuration, "clue", x =>
 {
     x.AddConsumer<StageAddedConsumer>();
     x.AddConsumer<StageRemovedConsumer>();
-
-    x.UsingRabbitMq((ctx, cfg) =>
-    {
-        // Propaga el X-Correlation-ID como cabecera de mensaje (publish/send/consume).
-        cfg.UseUmbralCorrelationId(ctx);
-
-        cfg.Host(new Uri(builder.Configuration.GetConnectionString("RabbitMQ")
-                         ?? "amqp://guest:guest@localhost:5672/"));
-        // Per-service prefix so this service's stage-event consumers don't
-        // share a queue with MissionService's (fan-out, not load balancing).
-        cfg.ConfigureEndpoints(ctx, new KebabCaseEndpointNameFormatter(prefix: "clue", includeNamespace: false));
-    });
 });
 
 builder.Services.AddUmbralJwtAuth(builder.Configuration);
