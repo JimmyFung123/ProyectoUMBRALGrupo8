@@ -1,9 +1,13 @@
 namespace UserService.Infrastructure.Email;
 
+using System.Diagnostics.CodeAnalysis;
+
 /// <summary>
 /// SMTP settings, bound from the <c>Smtp</c> section of appsettings.json.
 /// In local dev these point at the Mailpit container (localhost:1025, no auth).
 /// </summary>
+/// <remarks>Excluded from coverage alongside <see cref="SmtpUserEmailSender"/> — plain config binding, no logic of ours.</remarks>
+[ExcludeFromCodeCoverage]
 public sealed class SmtpOptions
 {
     public const string SectionName = "Smtp";

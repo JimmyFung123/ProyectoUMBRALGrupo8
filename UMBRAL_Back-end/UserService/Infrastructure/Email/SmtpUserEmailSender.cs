@@ -1,5 +1,6 @@
 namespace UserService.Infrastructure.Email;
 
+using System.Diagnostics.CodeAnalysis;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.Extensions.Configuration;
@@ -12,6 +13,12 @@ using UserService.Application.Users;
 /// account emails. In local dev it delivers to Mailpit (localhost:1025),
 /// where the message can be inspected at http://localhost:8025.
 /// </summary>
+/// <remarks>
+/// Excluded from coverage: exercising this for real needs a live SMTP server
+/// (Mailpit), and the only logic here is MailKit protocol plumbing, not our
+/// business rules — integration tests use <c>NoOpUserEmailSender</c> instead.
+/// </remarks>
+[ExcludeFromCodeCoverage]
 public sealed class SmtpUserEmailSender : IUserEmailSender
 {
     private readonly SmtpOptions _options;
