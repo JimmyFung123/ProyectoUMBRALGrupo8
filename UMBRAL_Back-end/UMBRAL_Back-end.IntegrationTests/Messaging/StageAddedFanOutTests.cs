@@ -9,8 +9,10 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using UMBRAL_Back_end.Infrastructure.Persistence;
+using UMBRAL_Back_end.IntegrationTests.Infrastructure;
 using ClueServiceAssembly::ClueService.Infrastructure.Persistence;
 using Xunit;
+using static UMBRAL_Back_end.IntegrationTests.Infrastructure.Polling;
 
 /// <summary>
 /// Level-2 pilot: publishes a single <see cref="UMBRAL.Contracts.Events.StageAddedIntegrationEvent"/>
@@ -57,30 +59,5 @@ public class StageAddedFanOutTests(StageAddedFanOutFixture fixture)
 
         clueLookupExists.Should().BeTrue(
             "ClueService's own StageAddedConsumer should have received the SAME event over the real broker and projected a StageLookup row, proving the fan-out reaches both services");
-    }
-
-    /// <summary>
-    /// Polls <paramref name="probe"/> every 300ms (up to 10s total) until
-    /// <paramref name="isDone"/> is satisfied. Consumption over a real broker is
-    /// asynchronous — an immediate assert right after publish is flaky by construction,
-    /// so every read in this test class goes through this helper instead.
-    /// </summary>
-    private static async Task<T> PollAsync<T>(
-        Func<Task<T>> probe,
-        Func<T, bool> isDone,
-        TimeSpan? timeout = null,
-        TimeSpan? interval = null)
-    {
-        var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(10));
-        var delay = interval ?? TimeSpan.FromMilliseconds(300);
-
-        var last = await probe();
-        while (!isDone(last) && DateTime.UtcNow < deadline)
-        {
-            await Task.Delay(delay);
-            last = await probe();
-        }
-
-        return last;
     }
 }
