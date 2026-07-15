@@ -34,12 +34,22 @@ using UserProgram = UserServiceAssembly::Program;
 ///     requires <c>[Authorize(Roles = "admin")]</c>, and the shared
 ///     <see cref="TestAuthHandler"/> only carries an "operator" role, so reusing it
 ///     here would 403 every request (see AdminTestAuthHandler's doc comment).
+///
+/// The auth swap is skipped when <paramref name="keycloakAuthority"/> is provided:
+/// <see cref="UserServiceKeycloakFixture"/> (Admin API regression suite) leaves it
+/// null and keeps the AdminTestAuthHandler bypass, while
+/// <see cref="UserServiceJwtFixture"/> (real-JWT validation suite, HU-23 follow-up)
+/// passes the Testcontainers Keycloak's own <c>/realms/umbral</c> URL so
+/// <c>UserProgram</c>'s already-registered <c>AddUmbralJwtAuth</c> (see
+/// <c>UserService/Program.cs</c>) validates REAL signed tokens instead of being
+/// replaced — that's the whole point of that suite.
 /// </summary>
 public class UserServiceApiFactory(
     string keycloakAdminBaseUrl,
     string keycloakRealm,
     string keycloakAdminClientId,
-    string keycloakAdminClientSecret)
+    string keycloakAdminClientSecret,
+    string? keycloakAuthority = null)
     : WebApplicationFactory<UserProgram>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -49,14 +59,22 @@ public class UserServiceApiFactory(
         builder.UseSetting("Keycloak:AdminClientId", keycloakAdminClientId);
         builder.UseSetting("Keycloak:AdminClientSecret", keycloakAdminClientSecret);
 
+        if (keycloakAuthority is not null)
+            builder.UseSetting("Keycloak:Authority", keycloakAuthority);
+
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<IUserEmailSender>();
             services.AddSingleton<IUserEmailSender, NoOpUserEmailSender>();
 
-            services.AddAuthentication(AdminTestAuthHandler.SchemeName)
-                .AddScheme<AuthenticationSchemeOptions, AdminTestAuthHandler>(
-                    AdminTestAuthHandler.SchemeName, _ => { });
+            // Only bypass real auth when no authority was supplied — see the class
+            // doc comment above for which suite needs which behavior.
+            if (keycloakAuthority is null)
+            {
+                services.AddAuthentication(AdminTestAuthHandler.SchemeName)
+                    .AddScheme<AuthenticationSchemeOptions, AdminTestAuthHandler>(
+                        AdminTestAuthHandler.SchemeName, _ => { });
+            }
         });
     }
 }
