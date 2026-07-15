@@ -26,6 +26,9 @@
          camelCase-serialization regression test (see Infrastructure/UserServiceKeycloakFixture.cs). -->
     <PackageReference Include="Testcontainers.Keycloak" Version="4.13.0" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.0" />
+    <!-- Gap #5: cliente SignalR real para probar el Hub (SessionHub) de punta a
+         punta sobre el TestServer (ver Messaging/SessionHubTests.cs). -->
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.0" />
   </ItemGroup>
 
   <ItemGroup>
