@@ -1,0 +1,45 @@
+name: Tests
+
+# CI: corre los tests del backend en cada PR contra develop y en cada push a
+# develop. Hoy nada verifica esto automáticamente antes de que deploy.yml
+# despliegue — este workflow es el gate que falta.
+on:
+  pull_request:
+    branches: [develop]
+  push:
+    branches: [develop]
+
+concurrency:
+  group: umbral-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: dotnet test (unit)
+        run: dotnet test UMBRAL_Back-end/UMBRAL_Back-end.Tests/UMBRAL_Back-end.Tests.csproj --configuration Release
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # Docker viene preinstalado en los runners ubuntu-latest de GitHub;
+      # Testcontainers lo usa para levantar un Postgres real por clase de test.
+      - name: dotnet test (integration)
+        run: dotnet test UMBRAL_Back-end/UMBRAL_Back-end.IntegrationTests/UMBRAL_Back-end.IntegrationTests.csproj --configuration Release
