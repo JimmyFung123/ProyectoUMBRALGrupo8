@@ -60,6 +60,17 @@
     <ProjectReference Include="..\SessionService\SessionService.csproj">
       <Aliases>SessionServiceAssembly</Aliases>
     </ProjectReference>
+    <!--
+      ApiGateway also generates its own top-level-statements `Program` class in the
+      global namespace, same conflict as the other five services above. Aliased the
+      same way so ApiGatewayApiFactory.cs can disambiguate via
+      `extern alias ApiGatewayAssembly;`. Unlike the other services, ApiGateway has no
+      DbContext/MassTransit — it's a pure YARP reverse proxy — so its factory does not
+      derive from IntegrationTestApiFactory<TProgram, TDbContext>.
+    -->
+    <ProjectReference Include="..\ApiGateway\ApiGateway.csproj">
+      <Aliases>ApiGatewayAssembly</Aliases>
+    </ProjectReference>
   </ItemGroup>
 
 </Project>
