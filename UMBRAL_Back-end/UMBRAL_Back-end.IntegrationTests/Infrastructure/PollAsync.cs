@@ -14,7 +14,11 @@ internal static class Polling
         TimeSpan? timeout = null,
         TimeSpan? interval = null)
     {
-        var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(10));
+        // 30s de techo (no 10s): la entrega + consumo sobre RabbitMQ real puede
+        // tardar más en runners de CI cargados/lentos, y una espera corta hace
+        // flaky a los tests de fan-out/relay. El poll retorna apenas se cumple la
+        // condición, así que subir el techo NO ralentiza los casos que pasan.
+        var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(30));
         var delay = interval ?? TimeSpan.FromMilliseconds(300);
 
         var last = await probe();
