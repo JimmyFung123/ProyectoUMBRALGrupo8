@@ -33,9 +33,11 @@ interface EditForm {
 
 interface Props {
   onViewDetail: (sessionId: string) => void;
+  /** false = modo consulta (Administrador, RB-10): oculta crear/editar/cancelar. */
+  canManage: boolean;
 }
 
-export function SessionList({ onViewDetail }: Props) {
+export function SessionList({ onViewDetail, canManage }: Props) {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [missions, setMissions] = useState<Mission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -151,10 +153,13 @@ export function SessionList({ onViewDetail }: Props) {
       <PageHeader
         eyebrow="Operaciones"
         title="Sesiones"
-        description="Crea, edita y supervisa las instancias de juego. Solo las sesiones pendientes se pueden editar o cancelar."
+        description={canManage
+          ? 'Crea, edita y supervisa las instancias de juego. Solo las sesiones pendientes se pueden editar o cancelar.'
+          : 'Consultá las instancias de juego y su detalle. La gestión está reservada al operador.'}
       />
 
-      {/* ── Creación ─────────────────────────────────────────────────────── */}
+      {/* ── Creación (solo en modo gestión — operador) ───────────────────── */}
+      {canManage && (
       <Card className="mb-5">
         <CardHeader
           title="Nueva sesión"
@@ -208,6 +213,7 @@ export function SessionList({ onViewDetail }: Props) {
           </Stack>
         </form>
       </Card>
+      )}
 
       {/* ── Lista ─────────────────────────────────────────────────────────── */}
       {loading && <Card><Spinner label="Cargando sesiones…" /></Card>}
@@ -249,31 +255,35 @@ export function SessionList({ onViewDetail }: Props) {
                           <> · Programada para {new Date(session.scheduledAt).toLocaleString('es-VE', { dateStyle: 'medium', timeStyle: 'short' })}</>
                         )}
                       </p>
-                      {!isPending && (
+                      {canManage && !isPending && (
                         <p className="text-xs text-ink-muted italic mt-1.5">
                           No se puede modificar una sesión que ya ha comenzado.
                         </p>
                       )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => startEdit(session)}
-                        disabled={!isPending || isCancelling}
-                        title={isPending ? 'Editar sesión' : 'Solo se pueden editar sesiones pendientes'}
-                      >
-                        Editar
-                      </Button>
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => handleCancel(session)}
-                        disabled={!isPending || isCancelling}
-                        title={isPending ? 'Cancelar sesión' : 'Solo se pueden cancelar sesiones pendientes'}
-                      >
-                        {isCancelling ? 'Cancelando…' : 'Cancelar'}
-                      </Button>
+                      {canManage && (
+                        <>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => startEdit(session)}
+                            disabled={!isPending || isCancelling}
+                            title={isPending ? 'Editar sesión' : 'Solo se pueden editar sesiones pendientes'}
+                          >
+                            Editar
+                          </Button>
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={() => handleCancel(session)}
+                            disabled={!isPending || isCancelling}
+                            title={isPending ? 'Cancelar sesión' : 'Solo se pueden cancelar sesiones pendientes'}
+                          >
+                            {isCancelling ? 'Cancelando…' : 'Cancelar'}
+                          </Button>
+                        </>
+                      )}
                       <Button size="sm" onClick={() => onViewDetail(session.id)}>
                         Ver detalle
                       </Button>

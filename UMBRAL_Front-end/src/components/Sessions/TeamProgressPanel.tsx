@@ -25,6 +25,8 @@ interface Props {
   cluesByStage: Record<string, Clue[]>;
   /** Called after a successful clue release so the parent can reload data. */
   onClueReleased: () => void;
+  /** false = modo consulta (Administrador, RB-10): oculta la columna de acciones. */
+  canManage: boolean;
 }
 
 const RANK_COLOR: Record<number, string> = {
@@ -62,6 +64,7 @@ export function TeamProgressPanel({
   stages,
   cluesByStage,
   onClueReleased,
+  canManage,
 }: Props) {
   const [releasing, setReleasing] = useState<string | null>(null);
   const [releaseError, setReleaseError] = useState<string | null>(null);
@@ -182,7 +185,7 @@ export function TeamProgressPanel({
               <Th align="center">Etapa</Th>
               <Th align="center">Pistas</Th>
               <Th align="right">Puntos</Th>
-              <Th align="center">Acciones</Th>
+              {canManage && <Th align="center">Acciones</Th>}
             </tr>
           </thead>
           <tbody>
@@ -244,6 +247,7 @@ export function TeamProgressPanel({
                       {team.score.toLocaleString('es-VE')}
                     </span>
                   </Td>
+                  {canManage && (
                   <Td align="center">
                     <div className="flex items-center gap-1 justify-center flex-wrap">
                       <Button
@@ -280,6 +284,7 @@ export function TeamProgressPanel({
                       </Button>
                     </div>
                   </Td>
+                  )}
                 </tr>
               );
             })}
