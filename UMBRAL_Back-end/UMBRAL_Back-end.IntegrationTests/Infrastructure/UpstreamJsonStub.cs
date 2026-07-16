@@ -39,7 +39,11 @@ public sealed class UpstreamJsonStub : IAsyncDisposable
 
         _app = builder.Build();
 
-        _app.MapGet("/{**catchAll}", () => Results.Content(jsonBody, "application/json", statusCode: statusCode));
+        // Responde con el mismo cuerpo a cualquier verbo (GET para los reproject; POST/PUT/DELETE
+        // para los clientes HTTP de salida como TeamServiceClient). Los reproject solo hacen GET,
+        // asi que sumar los demas verbos es compatible hacia atras.
+        _app.MapMethods("/{**catchAll}", new[] { "GET", "POST", "PUT", "DELETE", "PATCH" },
+            () => Results.Content(jsonBody, "application/json", statusCode: statusCode));
 
         await _app.StartAsync();
 
