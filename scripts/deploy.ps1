@@ -116,8 +116,24 @@ function Invoke-Deploy([string]$label) {
     }
     Remove-Item Env:\ConnectionStrings__DefaultConnection -ErrorAction SilentlyContinue
 
-    Write-Host "==> [$label] Build + up de servicios y fronts..." -ForegroundColor Cyan
-    docker compose @composeArgs up -d --build
+    # Build SECUENCIAL, una imagen por vez. En paralelo, 9 builds .NET (restore+publish)
+    # simultáneos saturan el disco del vhdx bajo WSL y truncan una capa base
+    # ("short read: ... unexpected EOF"). De a una, el pico de disco/red se mantiene bajo
+    # y es más robusto también en el runner de CI.
+    Write-Host "==> [$label] Build secuencial de servicios y fronts..." -ForegroundColor Cyan
+    $buildOrder = @(
+        'apigateway', 'missionservice', 'sessionservice', 'stageservice',
+        'clueservice', 'teamservice', 'userservice',
+        'front-operador', 'front-participante'
+    )
+    foreach ($svc in $buildOrder) {
+        Write-Host "   - build $svc" -ForegroundColor DarkCyan
+        docker compose @composeArgs build $svc
+        if ($LASTEXITCODE -ne 0) { throw "build de $svc falló" }
+    }
+
+    Write-Host "==> [$label] Levantando servicios y fronts..." -ForegroundColor Cyan
+    docker compose @composeArgs up -d
     if ($LASTEXITCODE -ne 0) { throw "docker compose (apps) falló" }
 }
 
