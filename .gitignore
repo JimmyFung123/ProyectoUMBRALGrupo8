@@ -41,6 +41,9 @@ coverage*.xml
 coverage*.info
 *.coverage
 *.coveragexml
+# Carpetas intermedias de dotnet-coverage (unit/integration antes del merge)
+coverage_unit/
+coverage_integration/
 
 # ── IDEs ─────────────────────────────────────────────────────────────────────
 .vs/
