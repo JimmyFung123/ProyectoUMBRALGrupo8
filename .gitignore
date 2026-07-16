@@ -44,6 +44,9 @@ coverage*.info
 # Carpetas intermedias de dotnet-coverage (unit/integration antes del merge)
 coverage_unit/
 coverage_integration/
+# Reportes HTML generados por reportgenerator
+coverage_html*/
+_coverage_report/
 
 # ── IDEs ─────────────────────────────────────────────────────────────────────
 .vs/
