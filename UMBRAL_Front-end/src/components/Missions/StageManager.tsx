@@ -4,6 +4,7 @@ import { autoReleaseService } from '../../services/autoReleaseService';
 import type { AddStagePayload, ApiError, StageType, UpdateStagePayload } from '../../types/stage';
 import type { Mission, StageDetail } from '../../types/mission';
 import { TreasureHuntConfig, type TreasureHuntData } from './TreasureHuntConfig';
+import { QrCodeDownload } from './QrCodeDownload';
 import { ClueManager } from './ClueManager';
 
 interface Props {
@@ -373,7 +374,14 @@ function StageRow({ stage, missionId, isLocked, onEdit, onDelete, deleteError, o
             <>
               <p><strong>Latitud:</strong> {stage.latitude?.toFixed(6)}</p>
               <p><strong>Longitud:</strong> {stage.longitude?.toFixed(6)}</p>
-              <p style={{ wordBreak: 'break-all' }}><strong>QR:</strong> <code style={{ fontSize: '0.75rem' }}>{stage.qrCode}</code></p>
+              {stage.qrCode && (
+                <div style={{ maxWidth: 220, marginTop: '0.5rem' }}>
+                  <p style={{ fontSize: '0.75rem', color: '#888', margin: '0 0 0.3rem' }}>
+                    Código QR para imprimir (disponible sin desactivar la misión):
+                  </p>
+                  <QrCodeDownload value={stage.qrCode} />
+                </div>
+              )}
             </>
           )}
           {autoReleaseLabel && (

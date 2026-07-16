@@ -1,9 +1,9 @@
 import 'leaflet/dist/leaflet.css';
 
 import L, { type LatLng } from 'leaflet';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Circle, MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet';
-import { QRCodeCanvas } from 'qrcode.react';
+import { QrCodeDownload } from './QrCodeDownload';
 
 // ── Corrección de íconos de Leaflet rotos por el bundler ─────────────────────
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)['_getIconUrl'];
@@ -55,28 +55,9 @@ export function TreasureHuntConfig({
   // Si se edita una etapa existente, se conserva su código QR; de lo contrario se genera uno nuevo
   const [qrCode] = useState<string>(() => initialQrCode ?? crypto.randomUUID());
 
-  const qrWrapperRef = useRef<HTMLDivElement>(null);
-  // Canvas oculto en alta resolución, usado solo para exportar el QR a imprimir.
-  const qrExportRef = useRef<HTMLDivElement>(null);
-
-  // Tamaño de descarga del QR (px). El QR visible se mantiene pequeño (140px)
-  // por layout, pero el archivo se exporta grande para que imprima nítido.
-  const QR_EXPORT_SIZE = 2048;
-
   function handlePickLocation(ll: LatLng) {
     setPosition(ll);
     onChange({ latitude: ll.lat, longitude: ll.lng, qrCode });
-  }
-
-  function handleDownloadQR() {
-    // Exportamos desde el canvas oculto de alta resolución, no del visible (140px),
-    // para que el PNG descargado no salga pixelado al imprimirlo.
-    const canvas = qrExportRef.current?.querySelector('canvas') as HTMLCanvasElement | null;
-    if (!canvas) return;
-    const link = document.createElement('a');
-    link.href = canvas.toDataURL('image/png');
-    link.download = `qr-${qrCode.slice(0, 8)}.png`;
-    link.click();
   }
 
   return (
@@ -142,46 +123,7 @@ export function TreasureHuntConfig({
           {/* Código QR */}
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Código QR</p>
-            <div className="flex flex-col items-center gap-2 bg-white rounded-xl border border-slate-200 p-3">
-              <div ref={qrWrapperRef}>
-                <QRCodeCanvas
-                  value={qrCode}
-                  size={140}
-                  bgColor="#ffffff"
-                  fgColor="#1e293b"
-                  level="H"
-                />
-              </div>
-
-              {/* Canvas oculto en alta resolución: solo se usa para exportar.
-                  Se posiciona fuera de pantalla (no display:none, que impediría
-                  pintar el canvas). includeMargin agrega el "quiet zone" que los
-                  lectores necesitan para enfocar. */}
-              <div
-                ref={qrExportRef}
-                aria-hidden="true"
-                style={{ position: 'absolute', left: '-99999px', top: 0, pointerEvents: 'none' }}
-              >
-                <QRCodeCanvas
-                  value={qrCode}
-                  size={QR_EXPORT_SIZE}
-                  bgColor="#ffffff"
-                  fgColor="#1e293b"
-                  level="H"
-                  marginSize={4}
-                />
-              </div>
-              <p className="text-[9px] font-mono text-slate-400 break-all text-center leading-relaxed">
-                {qrCode}
-              </p>
-              <button
-                type="button"
-                onClick={handleDownloadQR}
-                className="w-full flex items-center justify-center gap-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-white py-1.5 rounded-lg transition-colors cursor-pointer"
-              >
-                ⬇ Descargar QR para imprimir
-              </button>
-            </div>
+            <QrCodeDownload value={qrCode} />
           </div>
 
           {/* Radio de búsqueda */}
