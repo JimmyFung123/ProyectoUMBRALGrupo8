@@ -28,6 +28,8 @@ import {
 interface Props {
   sessionId: string;
   onBack: () => void;
+  /** false = modo consulta (Administrador, RB-10): oculta controles de estado y acciones por equipo. */
+  canManage: boolean;
   /** HU-26 — navega a la pantalla de auditoría técnica completa. */
   onOpenCommandAudit?: () => void;
 }
@@ -137,7 +139,7 @@ function EventRow({ event }: { event: SessionEventDto }) {
 
 // ── SessionDashboard ──────────────────────────────────────────────────────────
 
-export function SessionDashboard({ sessionId, onBack, onOpenCommandAudit }: Props) {
+export function SessionDashboard({ sessionId, onBack, canManage, onOpenCommandAudit }: Props) {
   const [data, setData] = useState<SessionDashboardData | null>(null);
   const [teams, setTeams] = useState<TeamProgressDto[]>([]);
   const [stages, setStages] = useState<Stage[]>([]);
@@ -244,15 +246,17 @@ export function SessionDashboard({ sessionId, onBack, onOpenCommandAudit }: Prop
         {error && <Badge tone="danger">⚠ Error al actualizar</Badge>}
       </div>
 
-      {/* ── Controles de estado ──────────────────────────────────────────── */}
-      <div className="mb-5">
-        <SessionControls
-          sessionId={sessionId}
-          status={data!.status as SessionStatus}
-          teamsCount={teams.length}
-          onStateChange={load}
-        />
-      </div>
+      {/* ── Controles de estado (solo operador; el admin consulta) ───────── */}
+      {canManage && (
+        <div className="mb-5">
+          <SessionControls
+            sessionId={sessionId}
+            status={data!.status as SessionStatus}
+            teamsCount={teams.length}
+            onStateChange={load}
+          />
+        </div>
+      )}
 
       {/* ── Código de acceso para participantes ──────────────────────────── */}
       {data!.accessCode && (
@@ -292,13 +296,14 @@ export function SessionDashboard({ sessionId, onBack, onOpenCommandAudit }: Prop
       <Stack gap={4}>
         {/* ── Progreso de equipos ──────────────────────────────────────── */}
         <Card>
-          <CardHeader title="Progreso y acciones por equipo" />
+          <CardHeader title={canManage ? 'Progreso y acciones por equipo' : 'Progreso por equipo'} />
           <TeamProgressPanel
             teams={teams}
             sessionId={sessionId}
             sessionStatus={data!.status}
             stages={stages}
             cluesByStage={cluesByStage}
+            canManage={canManage}
             onClueReleased={load}
           />
         </Card>

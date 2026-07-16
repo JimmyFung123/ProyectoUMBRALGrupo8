@@ -10,15 +10,15 @@ import { SyncHealthDashboard } from './components/SyncHealth/SyncHealthDashboard
 import { Tabs } from './components/ui'
 import { UsersList } from './components/Users/UsersList'
 
-// Separación funcional por rol (acordada con el equipo):
-// - Administrador: Misiones · Estadísticas · Sincronización · Personal.
-// - Operador: Sesiones únicamente.
-// Las pestañas se filtran con `adminOnly` / `operatorOnly`; si ambas son
-// false la pestaña queda visible para los dos roles (no se usa hoy, pero
-// dejamos la puerta abierta por si en el futuro hay vistas compartidas).
+// Separación funcional por rol (acordada con el equipo, RB-10):
+// - Administrador: Misiones · Sesiones (solo consulta) · Estadísticas · Sincronización · Personal.
+// - Operador: Sesiones (gestión completa) únicamente.
+// Las pestañas se filtran con `adminOnly` / `operatorOnly`; una pestaña con
+// AMBAS en true queda visible para los dos roles (Sesiones). El admin la ve en
+// modo consulta (canManage=false) y el operador la gestiona.
 const BASE_TABS = [
   { key: 'missions',   label: 'Misiones',       icon: '🗺️', adminOnly: true,  operatorOnly: false },
-  { key: 'sessions',   label: 'Sesiones',       icon: '🎮', adminOnly: false, operatorOnly: true  },
+  { key: 'sessions',   label: 'Sesiones',       icon: '🎮', adminOnly: true,  operatorOnly: true  },
   { key: 'statistics', label: 'Estadísticas',   icon: '📊', adminOnly: true,  operatorOnly: false }, // HU-25
   { key: 'sync',       label: 'Sincronización', icon: '🔄', adminOnly: true,  operatorOnly: false }, // HU-27
   { key: 'users',      label: 'Personal',       icon: '👥', adminOnly: true,  operatorOnly: false }, // HU-23
@@ -69,7 +69,7 @@ function App() {
 
       <main className="max-w-7xl mx-auto px-4 md:px-6 py-6">
         {activeTab === 'missions' && isAdmin && <MissionList />}
-        {activeTab === 'sessions' && !isAdmin && (
+        {activeTab === 'sessions' && (
           commandAuditSessionId
             ? (
               <SessionCommandAuditScreen
@@ -81,12 +81,13 @@ function App() {
               ? (
                 <SessionDashboard
                   sessionId={selectedSessionId}
+                  canManage={!isAdmin}
                   onBack={() => setSelectedSessionId(null)}
                   onOpenCommandAudit={() => setCommandAuditSessionId(selectedSessionId)}
                 />
               )
               : (
-                <SessionList onViewDetail={setSelectedSessionId} />
+                <SessionList canManage={!isAdmin} onViewDetail={setSelectedSessionId} />
               )
         )}
         {activeTab === 'statistics' && isAdmin && <StatisticsDashboard />}
