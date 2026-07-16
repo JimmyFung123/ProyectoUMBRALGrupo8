@@ -281,7 +281,10 @@ function StageRow({ stage, missionId, isLocked, onEdit, onDelete, deleteError, o
   const autoReleaseLabel = (() => {
     const parts: string[] = [];
     if (stage.autoReleaseTimeMinutes != null) parts.push(`cada ${stage.autoReleaseTimeMinutes} min`);
-    if (stage.autoReleaseMaxAttempts != null) parts.push(`max ${stage.autoReleaseMaxAttempts} intentos`);
+    // "Intentos fallidos" solo aplica a Trivia (cada fallo libera una pista); en
+    // Búsqueda del Tesoro no tiene efecto, así que no se muestra.
+    if (stage.type !== 'TreasureHunt' && stage.autoReleaseMaxAttempts != null)
+      parts.push(`max ${stage.autoReleaseMaxAttempts} intentos`);
     return parts.length > 0 ? parts.join(' · ') : null;
   })();
 
@@ -346,6 +349,7 @@ function StageRow({ stage, missionId, isLocked, onEdit, onDelete, deleteError, o
             missionId={missionId}
             stageId={stage.id}
             stageTitle={stage.title}
+            stageType={stage.type}
             currentTimeMinutes={stage.autoReleaseTimeMinutes}
             currentMaxAttempts={stage.autoReleaseMaxAttempts}
             isLocked={isLocked}
@@ -401,6 +405,7 @@ interface AutoRulePanelProps {
   missionId: string;
   stageId: string;
   stageTitle: string;
+  stageType: StageType;
   currentTimeMinutes: number | null;
   currentMaxAttempts: number | null;
   isLocked: boolean;
@@ -410,11 +415,15 @@ interface AutoRulePanelProps {
 function AutoRulePanel({
   missionId,
   stageId,
+  stageType,
   currentTimeMinutes,
   currentMaxAttempts,
   isLocked,
   onChanged,
 }: AutoRulePanelProps) {
+  // "Intentos fallidos" es una mecánica de Trivia (cada fallo libera la siguiente
+  // pista de la etapa); en Búsqueda del Tesoro no tiene efecto, así que se oculta.
+  const supportsMaxAttempts = stageType !== 'TreasureHunt';
   const [timeMinutes, setTimeMinutes] = useState(currentTimeMinutes != null ? String(currentTimeMinutes) : '');
   const [maxAttempts, setMaxAttempts] = useState(currentMaxAttempts != null ? String(currentMaxAttempts) : '');
   const [saving, setSaving] = useState(false);
@@ -439,12 +448,12 @@ function AutoRulePanel({
       <div style={panelStyle}>
         <strong style={{ color: '#5c35a8' }}>⚙️ Liberación automática de pistas</strong>
         <hr style={{ margin: '0.4rem 0', borderColor: '#d1c4e9' }} />
-        {currentTimeMinutes == null && currentMaxAttempts == null ? (
+        {currentTimeMinutes == null && (!supportsMaxAttempts || currentMaxAttempts == null) ? (
           <p style={{ color: '#888', margin: 0 }}>Sin regla automática configurada.</p>
         ) : (
           <p style={{ margin: 0 }}>
             {currentTimeMinutes != null && <span>Tiempo: <strong>{currentTimeMinutes} min</strong>&nbsp;&nbsp;</span>}
-            {currentMaxAttempts != null && <span>Intentos: <strong>{currentMaxAttempts}</strong></span>}
+            {supportsMaxAttempts && currentMaxAttempts != null && <span>Intentos: <strong>{currentMaxAttempts}</strong></span>}
           </p>
         )}
       </div>
@@ -456,7 +465,9 @@ function AutoRulePanel({
     setError(null);
     setSaving(true);
     const parsedTime = timeMinutes.trim() !== '' ? parseInt(timeMinutes, 10) : null;
-    const parsedAttempts = maxAttempts.trim() !== '' ? parseInt(maxAttempts, 10) : null;
+    // En Búsqueda del Tesoro los intentos no aplican: se guarda null para limpiar
+    // cualquier valor viejo que hubiera quedado en la etapa.
+    const parsedAttempts = supportsMaxAttempts && maxAttempts.trim() !== '' ? parseInt(maxAttempts, 10) : null;
     try {
       await autoReleaseService.configure(missionId, stageId, {
         timeMinutes: parsedTime,
@@ -491,20 +502,22 @@ function AutoRulePanel({
               style={inputStyle}
             />
           </div>
-          <div style={{ flex: 1, minWidth: 140 }}>
-            <label style={labelStyle}>Intentos fallidos:</label>
-            <input
-              type="number"
-              min={1}
-              value={maxAttempts}
-              onChange={e => setMaxAttempts(e.target.value)}
-              placeholder="Sin límite"
-              style={inputStyle}
-            />
-          </div>
+          {supportsMaxAttempts && (
+            <div style={{ flex: 1, minWidth: 140 }}>
+              <label style={labelStyle}>Intentos fallidos:</label>
+              <input
+                type="number"
+                min={1}
+                value={maxAttempts}
+                onChange={e => setMaxAttempts(e.target.value)}
+                placeholder="Sin límite"
+                style={inputStyle}
+              />
+            </div>
+          )}
         </div>
         <p style={{ fontSize: '0.75rem', color: '#777', margin: '0 0 0.5rem' }}>
-          Dejar vacío = sin regla automática
+          Dejar vacío = sin regla automática{!supportsMaxAttempts && '. En Búsqueda del Tesoro solo aplica el tiempo.'}
         </p>
         {error && <p style={{ color: 'red', margin: '0.3rem 0', fontSize: '0.82rem' }}>{error}</p>}
         {success && <p style={{ color: '#2e7d32', margin: '0.3rem 0', fontSize: '0.82rem' }}>✅ Regla guardada</p>}
