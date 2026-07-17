@@ -142,7 +142,8 @@ public class SessionPersistenceTests(SessionServicePostgresFixture fixture) : IA
             "20260526120000_AddActorNameToSessionEvent",
             "20260526200024_AddStageCompletionRecords",
             "20260527050610_AddCommandMetadataToSessionEvent",
-            "20260531041732_AddMissionLookupDifficulty"
+            "20260531041732_AddMissionLookupDifficulty",
+            "20260717002729_AddCreatedByOperatorIdToSession"
         });
 
         var act = async () => await dbContext.Database.MigrateAsync();

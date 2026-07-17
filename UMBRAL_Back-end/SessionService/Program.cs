@@ -2,6 +2,7 @@ using FluentValidation;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using SessionService.Adapter.Filters;
 using SessionService.Application.Missions.Queries.GetMissionStructure;
 using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Facade;
@@ -57,6 +58,9 @@ builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly);
 // ── Repositories ──────────────────────────────────────────────────────────────
 builder.Services.AddScoped<ISessionRepository, SessionRepository>();
 builder.Services.AddScoped<ISessionEventRepository, SessionEventRepository>();
+
+// ── Filters ───────────────────────────────────────────────────────────────────
+builder.Services.AddScoped<SessionOwnershipFilter>();
 
 // ── Application facades (GoF Facade) ───────────────────────────────────────
 // Punto de entrada único que orquesta sesión + TeamService + StageService para

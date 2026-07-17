@@ -36,6 +36,15 @@ export const OPERATOR_PASSWORD = process.env.OPERATOR_PASSWORD ?? 'Umbral2026!';
 /** Sesión del operador (storageState) generada una vez en global-setup. */
 export const OPERATOR_STORAGE = 'playwright/.auth/operator.json';
 
+/**
+ * Segundo operador de E2E, dedicado a RB-10 (una sesión solo la administra
+ * quien la creó). El operador de arriba no alcanza porque el test necesita
+ * DOS identidades reales y distintas cruzándose.
+ */
+export const OPERATOR_B_USER = process.env.OPERATOR_B_USER ?? 'operador-b.e2e@umbral.local';
+export const OPERATOR_B_PASSWORD = process.env.OPERATOR_B_PASSWORD ?? 'Umbral2026!';
+export const OPERATOR_B_STORAGE = 'playwright/.auth/operator-b.json';
+
 /** Credenciales del admin de Keycloak (realm master) — solo para aprovisionar
  *  el usuario operador. Coinciden con docker-compose.yml (KEYCLOAK_ADMIN). */
 export const KC_ADMIN_USER = process.env.KC_ADMIN_USER ?? 'admin';

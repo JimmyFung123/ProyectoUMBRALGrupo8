@@ -9,8 +9,11 @@ import {
   OPERATOR_USER,
   OPERATOR_PASSWORD,
   OPERATOR_STORAGE,
+  OPERATOR_B_USER,
+  OPERATOR_B_PASSWORD,
+  OPERATOR_B_STORAGE,
 } from './env';
-import { ensureOperatorUser } from './keycloak-admin';
+import { ensureOperatorUser, ensureOperatorBUser } from './keycloak-admin';
 
 /**
  * Prepara las DOS sesiones que necesita el flujo completo y las guarda como
@@ -30,13 +33,15 @@ import { ensureOperatorUser } from './keycloak-admin';
  */
 export default async function globalSetup(_config: FullConfig) {
   // El realm no trae usuario `operator`: lo aprovisionamos (idempotente) antes
-  // de intentar loguearlo.
+  // de intentar loguearlo. Ídem el segundo operador (RB-10, ver env.ts).
   await ensureOperatorUser();
+  await ensureOperatorBUser();
 
   const browser = await chromium.launch();
   try {
     await loginAndSave(browser, ADMIN_USER, ADMIN_PASSWORD, ADMIN_STORAGE);
     await loginAndSave(browser, OPERATOR_USER, OPERATOR_PASSWORD, OPERATOR_STORAGE);
+    await loginAndSave(browser, OPERATOR_B_USER, OPERATOR_B_PASSWORD, OPERATOR_B_STORAGE);
   } finally {
     await browser.close();
   }

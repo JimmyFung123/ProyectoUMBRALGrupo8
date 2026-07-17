@@ -7,4 +7,5 @@ public record CreateSessionCommand(
     Guid MissionId,
     string Name,
     DateTime? ScheduledAt,
-    string? OperatorName = null) : IRequest<Result<Guid>>;
+    string? OperatorName = null,
+    string? OperatorId = null) : IRequest<Result<Guid>>;

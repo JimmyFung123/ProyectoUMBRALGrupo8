@@ -39,6 +39,20 @@ public static class OperatorPrincipal
         return string.IsNullOrWhiteSpace(email) ? null : email.Trim();
     }
 
+    /// <summary>
+    /// Stable Keycloak user id (the OIDC <c>sub</c> claim) for ownership checks
+    /// (RB-10). Read literally as <c>"sub"</c> — <see cref="UmbralAuthExtensions"/>
+    /// sets <c>MapInboundClaims = false</c>, so it is never remapped to
+    /// <see cref="ClaimTypes.NameIdentifier"/>.
+    /// </summary>
+    public static string? GetOperatorId(this ClaimsPrincipal? user)
+    {
+        if (user?.Identity?.IsAuthenticated != true) return null;
+
+        var sub = user.FindFirstValue("sub");
+        return string.IsNullOrWhiteSpace(sub) ? null : sub.Trim();
+    }
+
     public static bool IsAdmin(this ClaimsPrincipal? user)
         => user?.IsInRole(AdminRole) == true;
 
