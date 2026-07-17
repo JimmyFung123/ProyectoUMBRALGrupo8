@@ -115,6 +115,10 @@ public class Stage : AggregateRoot
         AutoReleaseMaxAttempts = maxAttempts;
     }
 
+    /// <summary>Marks this stage for removal, raising the domain event the
+    /// caller's repository.DeleteAsync(...) call is about to make true.</summary>
+    public void MarkForRemoval() => AddDomainEvent(new StageRemovedDomainEvent(Id, MissionId, DateTime.UtcNow));
+
     public void ReplaceOptions(IEnumerable<(string Text, bool IsCorrect)> options)
     {
         Options.Clear();

@@ -5,20 +5,17 @@ using Moq;
 using ClueService.Application;
 using ClueService.Application.Clues.Commands.RemoveClue;
 using ClueService.Domain.Clues;
-using UMBRAL.Contracts.Events;
+using ClueService.Domain.Clues.Events;
 using Xunit;
 
 public class RemoveClueCommandHandlerTests
 {
     private readonly Mock<IClueRepository> _clueRepoMock = new();
-    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly RemoveClueCommandHandler _handler;
 
     public RemoveClueCommandHandlerTests()
     {
-        _handler = new RemoveClueCommandHandler(
-            _clueRepoMock.Object,
-            _busMock.Object);
+        _handler = new RemoveClueCommandHandler(_clueRepoMock.Object);
     }
 
     [Fact]
@@ -38,7 +35,7 @@ public class RemoveClueCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenClueExists_DeletesAndPublishesEvent()
+    public async Task Handle_WhenClueExists_DeletesAndRaisesDomainEvent()
     {
         var stageId = Guid.NewGuid();
         var missionId = Guid.NewGuid();
@@ -55,8 +52,7 @@ public class RemoveClueCommandHandlerTests
         result.Value.Should().BeTrue();
         _clueRepoMock.Verify(r => r.DeleteAsync(clue, It.IsAny<CancellationToken>()), Times.Once);
         _clueRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _busMock.Verify(
-            b => b.PublishAsync(It.IsAny<ClueRemovedIntegrationEvent>(), It.IsAny<CancellationToken>()),
-            Times.Once);
+        clue.DomainEvents.OfType<ClueRemovedDomainEvent>().Should().ContainSingle()
+            .Which.StageId.Should().Be(stageId);
     }
 }

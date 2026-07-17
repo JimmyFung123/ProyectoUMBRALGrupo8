@@ -79,6 +79,10 @@ public class Clue : AggregateRoot
 
     public void SetAutoRelease(int? minutes) => AutoReleaseAfterMinutes = minutes;
 
+    /// <summary>Marks this clue for removal, raising the domain event the
+    /// caller's repository.DeleteAsync(...) call is about to make true.</summary>
+    public void MarkForRemoval() => AddDomainEvent(new ClueRemovedDomainEvent(Id, StageId, MissionId, DateTime.UtcNow));
+
     private static Result<bool> ValidatePayloadForStageType(
         string stageType, string? content, double? latitude, double? longitude, int? radiusMeters)
     {
