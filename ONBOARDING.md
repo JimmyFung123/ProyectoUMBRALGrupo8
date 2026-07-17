@@ -90,6 +90,31 @@ app.UseAuthorization();
 Los participantes (front 5174) NO usan Keycloak. Acceden a los endpoints
 marcados `[AllowAnonymous]` usando solo el PIN de la sesión, como antes.
 
+### RB-10 — un Operador solo administra las sesiones que creó
+
+Además del rol, `SessionsController` aplica un segundo nivel de autorización
+**por recurso**: un Operador solo puede leer/mutar una sesión si él mismo la
+creó (o si la sesión es anterior a esta regla y no tiene dueño registrado —
+tratada como sin restricción). El Administrador no tiene esta limitación: ve
+y administra todas las sesiones.
+
+- `Session.CreatedByOperatorId` (el `sub` de Keycloak) se graba al crear la
+  sesión — nunca lo manda el cliente, se deriva del JWT en el controller.
+- `SessionOwnershipFilter` (`SessionService/Adapter/Filters/`) es un
+  `IAsyncActionFilter` aplicado vía `[ServiceFilter(typeof(SessionOwnershipFilter))]`
+  en los 14 endpoints de `SessionsController` que operan sobre una sesión
+  existente (`GetById`, `GetDashboard`, `Cancel`, `Start`, `ReleaseClue`,
+  etc.): resuelve el `sessionId` de la ruta, compara el dueño contra el `sub`
+  del JWT y devuelve `403 Forbidden` (`Error("Forbidden", ...)`) si no
+  coincide. `GetAll`, `Create` y los endpoints `[AllowAnonymous]` de
+  participantes no lo llevan.
+- El listado (`GetAll` → `GetSessionsQuery` → `SessionRepository.GetAllAsync`)
+  aplica el mismo criterio como filtro de consulta en vez de bloqueo por
+  recurso — el Operador nunca ve en su lista una sesión ajena.
+- El front (`SessionDashboard.tsx`) detecta el `403` (`code === "Forbidden"`)
+  al cargar el tablero y corta el polling de 10s + la conexión SignalR en vez
+  de reintentar indefinidamente.
+
 ### Flujo OIDC en el front operador
 
 `UMBRAL_Front-end/src/auth/AuthProvider.tsx` envuelve la app. Al primer
@@ -361,7 +386,7 @@ Refactors aplicados (commits `[Refactor]`):
 | C2 | SRP | `MissionStructureTreeBuilder` extraído de `GetMissionStructureQueryHandler` (ver arriba) |
 | F2 | SRP/CQRS | Auto-arranque movido del query a `AutoStartTeamCommand`; fachada = lectura pura (ver arriba) |
 
-Verificación de no-regresión: **539 pruebas verdes**, con pruebas de **flujo** que reproducen
+Verificación de no-regresión: **757 pruebas verdes**, con pruebas de **flujo** que reproducen
 la orquestación del controller (`AutoStartTeamCommand` + query) usando un fake de TeamService
 con estado, probando que el avance se refleja en el query, que sin el comando la fachada se
 queda en `Waiting` y que un 2º poll es idempotente.
@@ -556,9 +581,12 @@ hubMock.Setup(h => h.Clients).Returns(clientsMock.Object);
 | HU-21 | Consultar ranking de la sesión (lectura optimizada + SignalR) | SessionService, TeamService, Front Operador, Front Participante |
 | HU-22 | Consultar historial de auditoría de sesión | SessionService, Front Operador |
 | HU-23 | Gestión integral de personal operativo (KeyCloak) | Infra (Docker), UMBRAL.Auth, UserService (5096), Front Operador |
+| HU-24 | Consulta de ranking mediante modelo de lectura optimizado (`RankingProjection`, sin JOIN ni cálculo en el SELECT) | TeamService, Front Operador, Front Participante |
+| HU-25 | Dashboard estadístico de sesiones finalizadas (promedios de tiempo por etapa, efectividad de respuestas) | SessionService (`StatisticsController`, lee `StageCompletionRecord`), Front Operador (`StatisticsDashboard`) |
 | HU-26 | Auditoría y trazabilidad de acciones (log técnico de comandos CQRS + CSV) | SessionService (interceptor de inmutabilidad + endpoint `/audit-log`), Front Operador (pantalla `SessionCommandAuditScreen`) |
 | HU-27 | Monitoreo de sincronización entre modelos de escritura y lectura | SessionService (aggregador `/api/sync-health` + reproject local), MissionService/StageService/ClueService/TeamService (endpoints `/api/internal/sync-health` + reproject por servicio), Front Operador (tab admin "🔄 Sincronización") |
 | HU-28 | Feedback inmersivo e interactivo en vivo (toasts animados, vibración, confetti, mensaje del operador) | SessionService (eventos SignalR `StageCompleted` y `OperatorMessage`, comando `BroadcastOperatorMessage`), Front Operador (botón "Enviar mensaje" en `SessionControls` + `BroadcastMessageButton`), Front Participante (framer-motion + `NotificationStack` + `useGameEvents` + `vibrate`/`Confetti`) |
+| RB-10 | Un Operador solo administra las sesiones que él mismo creó; el Administrador las ve todas | SessionService (`Session.CreatedByOperatorId`, `SessionOwnershipFilter`, filtro en `GetSessionsQuery`), Front Operador (`SessionDashboard` maneja el 403) |
 
 ---
 
