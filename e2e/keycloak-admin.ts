@@ -5,6 +5,8 @@ import {
   KC_REALM,
   OPERATOR_USER,
   OPERATOR_PASSWORD,
+  OPERATOR_B_USER,
+  OPERATOR_B_PASSWORD,
 } from './env';
 
 /**
@@ -54,23 +56,25 @@ interface AuthHeaders {
   'Content-Type': string;
 }
 
-async function findUserId(headers: AuthHeaders): Promise<string | null> {
-  const url = `${ADMIN_BASE}/users?exact=true&username=${encodeURIComponent(OPERATOR_USER)}`;
+async function findUserId(headers: AuthHeaders, username: string): Promise<string | null> {
+  const url = `${ADMIN_BASE}/users?exact=true&username=${encodeURIComponent(username)}`;
   const res = await fetch(url, { headers });
   if (!res.ok) throw new Error(`GET users falló (${res.status}).`);
   const users = (await res.json()) as Array<{ id: string }>;
   return users[0]?.id ?? null;
 }
 
-async function createUser(headers: AuthHeaders): Promise<string> {
+async function createUser(
+  headers: AuthHeaders, username: string, firstName: string, lastName: string,
+): Promise<string> {
   const res = await fetch(`${ADMIN_BASE}/users`, {
     method: 'POST',
     headers,
     body: JSON.stringify({
-      username: OPERATOR_USER,
-      email: OPERATOR_USER,
-      firstName: 'Operador',
-      lastName: 'E2E',
+      username,
+      email: username,
+      firstName,
+      lastName,
       enabled: true,
       emailVerified: true,
       requiredActions: [],
@@ -80,16 +84,16 @@ async function createUser(headers: AuthHeaders): Promise<string> {
   if (res.status !== 201 && res.status !== 409) {
     throw new Error(`POST users falló (${res.status}): ${await res.text()}`);
   }
-  const id = await findUserId(headers);
-  if (!id) throw new Error('El usuario operador no aparece tras crearlo.');
+  const id = await findUserId(headers, username);
+  if (!id) throw new Error(`El usuario ${username} no aparece tras crearlo.`);
   return id;
 }
 
-async function resetPassword(headers: AuthHeaders, userId: string): Promise<void> {
+async function resetPassword(headers: AuthHeaders, userId: string, password: string): Promise<void> {
   const res = await fetch(`${ADMIN_BASE}/users/${userId}/reset-password`, {
     method: 'PUT',
     headers,
-    body: JSON.stringify({ type: 'password', value: OPERATOR_PASSWORD, temporary: false }),
+    body: JSON.stringify({ type: 'password', value: password, temporary: false }),
   });
   if (!res.ok) throw new Error(`reset-password falló (${res.status}).`);
 }
@@ -123,17 +127,32 @@ async function assignOperatorRole(headers: AuthHeaders, userId: string): Promise
   }
 }
 
-/** Crea o normaliza al operador de E2E. Devuelve su id de Keycloak. */
-export async function ensureOperatorUser(): Promise<string> {
+/** Crea o normaliza un operador de E2E dado. Devuelve su id de Keycloak. */
+async function ensureOperator(
+  username: string, password: string, firstName: string, lastName: string,
+): Promise<string> {
   const token = await getAdminToken();
   const headers: AuthHeaders = {
     Authorization: `Bearer ${token}`,
     'Content-Type': 'application/json',
   };
 
-  const userId = (await findUserId(headers)) ?? (await createUser(headers));
+  const userId = (await findUserId(headers, username)) ?? (await createUser(headers, username, firstName, lastName));
   await clearRequiredActions(headers, userId);
-  await resetPassword(headers, userId);
+  await resetPassword(headers, userId, password);
   await assignOperatorRole(headers, userId);
   return userId;
+}
+
+/** Crea o normaliza al operador principal de E2E. */
+export async function ensureOperatorUser(): Promise<string> {
+  return ensureOperator(OPERATOR_USER, OPERATOR_PASSWORD, 'Operador', 'E2E');
+}
+
+/**
+ * Segundo operador de E2E — RB-10: una sesión solo la administra quien la
+ * creó, así que el test necesita dos identidades reales y distintas.
+ */
+export async function ensureOperatorBUser(): Promise<string> {
+  return ensureOperator(OPERATOR_B_USER, OPERATOR_B_PASSWORD, 'Operador', 'B E2E');
 }
