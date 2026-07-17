@@ -3,6 +3,7 @@ namespace SessionService.Adapter.Controllers;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SessionService.Adapter.Filters;
 using SessionService.Application.Sessions.Commands.AutoStartTeam;
 using SessionService.Application.Sessions.Commands.BroadcastOperatorMessage;
 using SessionService.Application.Sessions.Commands.CancelSession;
@@ -105,6 +106,7 @@ public class SessionsController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [ServiceFilter(typeof(SessionOwnershipFilter))]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
         try
@@ -125,6 +127,7 @@ public class SessionsController : ControllerBase
     }
 
     [HttpGet("{id:guid}/dashboard")]
+    [ServiceFilter(typeof(SessionOwnershipFilter))]
     public async Task<IActionResult> GetDashboard(Guid id, CancellationToken cancellationToken)
     {
         try
@@ -176,6 +179,7 @@ public class SessionsController : ControllerBase
     /// and state change with the exact timestamp and the actor that triggered it.
     /// </summary>
     [HttpGet("{id:guid}/audit")]
+    [ServiceFilter(typeof(SessionOwnershipFilter))]
     public async Task<IActionResult> GetAudit(Guid id, CancellationToken cancellationToken)
     {
         try
@@ -203,6 +207,7 @@ public class SessionsController : ControllerBase
     /// the session to its current state.
     /// </summary>
     [HttpGet("{id:guid}/audit-log")]
+    [ServiceFilter(typeof(SessionOwnershipFilter))]
     public async Task<IActionResult> GetCommandAudit(Guid id, CancellationToken cancellationToken)
     {
         try
@@ -223,6 +228,7 @@ public class SessionsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [ServiceFilter(typeof(SessionOwnershipFilter))]
     public async Task<IActionResult> Cancel(Guid id, CancellationToken cancellationToken)
     {
         try
@@ -251,6 +257,7 @@ public class SessionsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [ServiceFilter(typeof(SessionOwnershipFilter))]
     public async Task<IActionResult> Update(
         Guid id,
         [FromBody] UpdateSessionRequest request,
@@ -312,6 +319,7 @@ public class SessionsController : ControllerBase
     }
 
     [HttpPatch("{id:guid}/start")]
+    [ServiceFilter(typeof(SessionOwnershipFilter))]
     public async Task<IActionResult> Start(Guid id, CancellationToken cancellationToken)
     {
         try
@@ -336,6 +344,7 @@ public class SessionsController : ControllerBase
     }
 
     [HttpPatch("{id:guid}/pause")]
+    [ServiceFilter(typeof(SessionOwnershipFilter))]
     public async Task<IActionResult> Pause(Guid id, CancellationToken cancellationToken)
     {
         try
@@ -360,6 +369,7 @@ public class SessionsController : ControllerBase
     }
 
     [HttpPatch("{id:guid}/resume")]
+    [ServiceFilter(typeof(SessionOwnershipFilter))]
     public async Task<IActionResult> Resume(Guid id, CancellationToken cancellationToken)
     {
         try
@@ -384,6 +394,7 @@ public class SessionsController : ControllerBase
     }
 
     [HttpPatch("{id:guid}/finalize")]
+    [ServiceFilter(typeof(SessionOwnershipFilter))]
     public async Task<IActionResult> Finalize(Guid id, CancellationToken cancellationToken)
     {
         try
@@ -412,6 +423,7 @@ public class SessionsController : ControllerBase
     /// participant connected to the session. The action is audited.
     /// </summary>
     [HttpPost("{id:guid}/broadcast-message")]
+    [ServiceFilter(typeof(SessionOwnershipFilter))]
     public async Task<IActionResult> BroadcastOperatorMessage(
         Guid id,
         [FromBody] BroadcastOperatorMessageRequest request,
@@ -444,6 +456,7 @@ public class SessionsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/teams/{teamId:guid}/release-clue")]
+    [ServiceFilter(typeof(SessionOwnershipFilter))]
     public async Task<IActionResult> ReleaseClue(
         Guid id,
         Guid teamId,
@@ -488,6 +501,7 @@ public class SessionsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/teams/{teamId:guid}/penalize")]
+    [ServiceFilter(typeof(SessionOwnershipFilter))]
     public async Task<IActionResult> PenalizeTeam(
         Guid id,
         Guid teamId,
@@ -529,6 +543,7 @@ public class SessionsController : ControllerBase
     }
 
     [HttpPost("{id:guid}/teams/{teamId:guid}/force-advance")]
+    [ServiceFilter(typeof(SessionOwnershipFilter))]
     public async Task<IActionResult> ForceAdvanceTeam(
         Guid id,
         Guid teamId,
