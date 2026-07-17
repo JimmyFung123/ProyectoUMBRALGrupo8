@@ -13,11 +13,17 @@ public class SessionRepository : ISessionRepository
         => _context.Sessions.FirstOrDefaultAsync(s => s.Id == id, ct);
 
     public async Task<IReadOnlyList<Session>> GetAllAsync(
-        Guid? missionId = null, SessionStatus? status = null, CancellationToken ct = default)
+        Guid? missionId = null, SessionStatus? status = null, string? operatorId = null, CancellationToken ct = default)
     {
         var query = _context.Sessions.AsQueryable();
         if (missionId.HasValue) query = query.Where(s => s.MissionId == missionId.Value);
         if (status.HasValue) query = query.Where(s => s.Status == status.Value);
+        // RB-10: operatorId is null for Admins (unrestricted) and for the anonymous
+        // caller path — never apply the filter in those cases. Sessions with no
+        // recorded owner (created before RB-10) stay visible to every operator,
+        // same rule as SessionOwnershipFilter.
+        if (operatorId is not null)
+            query = query.Where(s => s.CreatedByOperatorId == null || s.CreatedByOperatorId == operatorId);
         return await query.OrderByDescending(s => s.CreatedAt).ToListAsync(ct);
     }
 

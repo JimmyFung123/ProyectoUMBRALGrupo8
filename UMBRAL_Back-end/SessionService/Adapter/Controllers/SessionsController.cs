@@ -68,7 +68,8 @@ public class SessionsController : ControllerBase
     {
         try
         {
-            var result = await _sender.Send(new GetSessionsQuery(missionId, status), cancellationToken);
+            var operatorFilter = User.IsAdmin() ? null : GetOperatorId();
+            var result = await _sender.Send(new GetSessionsQuery(missionId, status, operatorFilter), cancellationToken);
             return Ok(result);
         }
         catch (OperationCanceledException)
