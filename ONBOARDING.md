@@ -263,6 +263,82 @@ public interface ITeamServiceClient
 
 CORS configurado para 5173 y 5174 en cada servicio.
 
+### Domain Events (dispatch post-commit vía MediatR)
+
+Patrón que desacopla la lógica de negocio pura (el agregado) de sus efectos secundarios
+(auditoría, alertas, sincronización entre servicios). Vive en los 4 microservicios con
+estado propio: **SessionService, MissionService, StageService, ClueService**.
+
+```csharp
+// Domain/Common/AggregateRoot.cs (uno por servicio, mismo shape)
+public abstract class AggregateRoot
+{
+    private readonly List<IDomainEvent> _domainEvents = new();
+    public IReadOnlyCollection<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
+    protected void AddDomainEvent(IDomainEvent domainEvent) => _domainEvents.Add(domainEvent);
+    public void ClearDomainEvents() => _domainEvents.Clear();
+}
+```
+
+`Session`, `Mission`, `Stage` y `Clue` heredan de `AggregateRoot`. Sus métodos de
+comportamiento (`Create`, `Update`, `Activate`, `Start`, `Pause`, `MarkForRemoval`, …) ya
+no notifican nada directo: agregan un domain event tipado.
+
+```csharp
+public static Result<Mission> Create(...)
+{
+    var mission = new Mission(...);
+    mission.AddDomainEvent(new MissionCreatedDomainEvent(mission.Id, mission.Name, mission.Status, mission.CreatedAt));
+    return Result.Success(mission);
+}
+```
+
+Cada `DbContext` (`SessionsDbContext`, `AppDbContext`, `StagesDbContext`, `CluesDbContext`)
+sobreescribe `SaveChangesAsync` para despachar esos eventos **después** del commit — nunca
+antes, para no notificar un cambio que todavía puede fallar al guardar:
+
+```csharp
+public override async Task<int> SaveChangesAsync(CancellationToken ct = default)
+{
+    var aggregatesWithEvents = ChangeTracker.Entries<AggregateRoot>()
+        .Select(e => e.Entity).Where(a => a.DomainEvents.Count > 0).ToList();
+
+    var result = await base.SaveChangesAsync(ct);
+
+    foreach (var aggregate in aggregatesWithEvents)
+    {
+        var domainEvents = aggregate.DomainEvents.ToList();
+        aggregate.ClearDomainEvents();
+        foreach (var e in domainEvents)
+            await _mediator.Publish(e, ct);
+    }
+    return result;
+}
+```
+
+El `Publish` de MediatR es **in-process** (mismo request, mismo hilo): no es la cola de
+MassTransit. Quien realmente cruza a otro servicio es un *translation handler* que
+escucha el domain event y ahí sí publica el integration event real:
+
+```csharp
+public class MissionCreatedIntegrationEventHandler(IIntegrationEventBus bus)
+    : INotificationHandler<MissionCreatedDomainEvent>
+{
+    public Task Handle(MissionCreatedDomainEvent e, CancellationToken ct) =>
+        bus.PublishAsync(new MissionCreatedIntegrationEvent(e.MissionId, e.Name, e.Status.ToString(), e.CreatedAt), ct);
+}
+```
+
+Esto reemplaza el patrón anterior donde el Command Handler llamaba directo a
+`IIntegrationEventBus.PublishAsync(...)`: esa responsabilidad se partió en el agregado (qué
+pasó) + un handler dedicado (a quién le importa), y el Command Handler ya no sabe nada de
+MassTransit. Cubre las operaciones mutables de los 4 servicios (`CreateSession`,
+`Start/Pause/Resume/Finalize/Cancel/UpdateSession`, `CreateMission/UpdateMission/
+ChangeMissionStatus`, `AddStage/RemoveStage`, `AddClue/RemoveClue`) — el **State Pattern**
+de `Session` no se tocó, solo se le agregó `AddDomainEvent` en cada transición ya
+existente. De yapa, MissionService tenía 4 domain events definidos pero sin ningún
+publisher ni handler enganchado (dead code); quedaron conectados en la misma migración.
+
 ---
 
 ## Patrones de diseño (GoF)
@@ -409,19 +485,29 @@ casos terminaron migrados a publish/consume — los otros dos se quedaron síncr
 
 ### Patrón usado en los dos casos migrados
 
-El Command Handler publica un evento tipado vía `IIntegrationEventBus` en vez de
-escribir/notificar directo; un `IConsumer<T>` nuevo en
-`SessionService/Infrastructure/Messaging/Consumers/` hace el trabajo real.
+El Command Handler ya no publica nada directo: el agregado levanta un **domain event**
+(ver sección **Domain Events** en _Arquitectura y patrones_), el `DbContext` lo despacha
+post-commit vía MediatR, y un *translation handler* lo traduce recién ahí a un evento de
+`IIntegrationEventBus`. Un `IConsumer<T>` nuevo en
+`SessionService/Infrastructure/Messaging/Consumers/` hace el trabajo real del otro lado.
 
 ```csharp
 // Antes (síncrono, en el handler)
 await _eventRepository.AddAsync(SessionEvent.Create(...), ct);
 await _eventRepository.SaveChangesAsync(ct);
 
-// Después (el handler solo publica)
-await _bus.PublishAsync(new SessionAuditIntegrationEvent(...), ct);
+// Después — el agregado solo levanta el domain event, no publica nada
+session.AddDomainEvent(new SessionCreatedDomainEvent(session.Id, session.Name, ..., occurredAt));
 
-// El consumer hace el trabajo real
+// El translation handler lo traduce a integration event tras el commit
+public class SessionCreatedIntegrationEventHandler(IIntegrationEventBus bus)
+    : INotificationHandler<SessionCreatedDomainEvent>
+{
+    public Task Handle(SessionCreatedDomainEvent e, CancellationToken ct) =>
+        bus.PublishAsync(new SessionAuditIntegrationEvent(e.SessionId, $"Se creó la sesión '{e.Name}'.", ...), ct);
+}
+
+// El consumer hace el trabajo real (sin cambios)
 public class SessionAuditConsumer : IConsumer<SessionAuditIntegrationEvent>
 {
     public async Task Consume(ConsumeContext<SessionAuditIntegrationEvent> context)
