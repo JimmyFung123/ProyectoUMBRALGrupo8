@@ -1,0 +1,214 @@
+using FluentValidation;
+using MassTransit;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using SessionService.Adapter.Filters;
+using SessionService.Application.Missions.Queries.GetMissionStructure;
+using SessionService.Application.Sessions;
+using SessionService.Application.Sessions.Facade;
+using SessionService.Application.Statistics;
+using SessionService.Application.SyncHealth;
+using SessionService.Domain.MissionLookup;
+using SessionService.Domain.Sessions;
+using SessionService.Domain.Statistics;
+using SessionService.Application;
+using SessionService.Infrastructure.BackgroundServices;
+using SessionService.Infrastructure.ExternalClients;
+using SessionService.Infrastructure.Hubs;
+using SessionService.Infrastructure.Messaging;
+using SessionService.Infrastructure.Messaging.Consumers;
+using SessionService.Infrastructure.Persistence;
+using SessionService.Infrastructure.Persistence.Repositories;
+using UMBRAL.Auth;
+using UMBRAL.Observability;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddControllers()
+    .AddJsonOptions(o =>
+        o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
+
+builder.Services.AddOpenApi();
+
+// ── Trazabilidad por correlación (X-Correlation-ID) ─────────────────────────
+// Engancha el DelegatingHandler a todos los HttpClient para reenviar el id en
+// las llamadas HTTP salientes a los demás servicios.
+builder.Services.AddUmbralCorrelationId();
+
+// ── Database (own isolated DB — Database-per-Service pattern) ─────────────────
+// HU-26: SessionEventImmutabilityInterceptor blocks any Modified/Deleted change
+// on SessionEvent rows so the command audit log stays append-only.
+builder.Services.AddSingleton<SessionEventImmutabilityInterceptor>();
+builder.Services.AddDbContext<SessionsDbContext>((sp, options) =>
+    options
+        .UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
+        .AddInterceptors(sp.GetRequiredService<SessionEventImmutabilityInterceptor>()));
+
+// ── MediatR ───────────────────────────────────────────────────────────────────
+// LoggingBehavior (UMBRAL.Application) envuelve cada command/query con logging
+// estructurado y timing — reemplaza las llamadas ILogger dispersas a mano.
+builder.Services.AddMediatR(cfg =>
+{
+    cfg.RegisterServicesFromAssembly(typeof(Program).Assembly);
+    cfg.AddOpenBehavior(typeof(UMBRAL.Application.LoggingBehavior<,>));
+    cfg.AddOpenBehavior(typeof(UMBRAL.Application.ValidationBehavior<,>));
+});
+builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly);
+
+// ── Repositories ──────────────────────────────────────────────────────────────
+builder.Services.AddScoped<ISessionRepository, SessionRepository>();
+builder.Services.AddScoped<ISessionEventRepository, SessionEventRepository>();
+
+// ── Filters ───────────────────────────────────────────────────────────────────
+builder.Services.AddScoped<SessionOwnershipFilter>();
+
+// ── Application facades (GoF Facade) ───────────────────────────────────────
+// Punto de entrada único que orquesta sesión + TeamService + StageService para
+// resolver la etapa actual de un participante (usado por GetParticipantStage).
+builder.Services.AddScoped<IParticipantStageFacade, ParticipantStageFacade>();
+builder.Services.AddScoped<IMissionLookupRepository, MissionLookupRepository>();
+
+// Builder del arbol Composite de la estructura de misiones (extraido del handler por SRP:
+// cruza StageService + ClueService para armar Mission -> Stages -> Clues).
+builder.Services.AddScoped<IMissionStructureTreeBuilder, MissionStructureTreeBuilder>();
+
+// ── HU-25: analytics fact table + dashboard read model ──────────────────────
+// Write side is hit by gameplay handlers (one INSERT per stage transition).
+// Read side is hit only by the admin dashboard query and never blocks the
+// write path (separate index, AsNoTracking, no JOINs against Sessions/Teams).
+builder.Services.AddScoped<IStageCompletionRecordRepository, StageCompletionRecordRepository>();
+builder.Services.AddScoped<IStatisticsReadRepository, StatisticsReadRepository>();
+
+// ── MassTransit + RabbitMQ (consumer side) ───────────────────────────────────
+// Per-service queue prefix: forces each service to bind its own queue to the
+// shared event exchange so the bus behaves as fan-out (every service receives
+// every event) instead of competing consumers (RabbitMQ load-balances events
+// between same-named queues). Without the prefix, SessionService and
+// StageService both register a "MissionCreated" queue and RabbitMQ splits the
+// events between them, leaving each MissionsLookup behind by ~50%.
+builder.Services.AddUmbralMassTransit(builder.Configuration, "session", x =>
+{
+    x.AddConsumer<MissionCreatedConsumer>();
+    x.AddConsumer<MissionActivatedConsumer>();
+    x.AddConsumer<MissionDeactivatedConsumer>();
+    x.AddConsumer<MissionUpdatedConsumer>();
+    x.AddConsumer<SessionAuditConsumer>();
+
+    // HU-22 alertas: SignalR notifications relayed asynchronously instead of
+    // calling ISessionNotifier in-process. A transient hub failure must never
+    // fail the operator-facing command that already succeeded.
+    x.AddConsumer<SessionStateChangedConsumer>();
+    x.AddConsumer<OperatorMessageBroadcastConsumer>();
+    x.AddConsumer<StageCompletedConsumer>();
+    x.AddConsumer<ClueReleasedConsumer>();
+    x.AddConsumer<TeamPenalizedConsumer>();
+    x.AddConsumer<TriviaWrongAnswerConsumer>();
+});
+
+// ── External HTTP clients ─────────────────────────────────────────────────────
+builder.Services.AddHttpClient<ITeamServiceClient, TeamServiceClient>(client =>
+{
+    var url = builder.Configuration["TeamServiceUrl"] ?? "http://localhost:5095/";
+    client.BaseAddress = new Uri(url);
+});
+
+builder.Services.AddHttpClient<IClueServiceClient, ClueServiceClient>(client =>
+{
+    var url = builder.Configuration["ClueServiceUrl"] ?? "http://localhost:5094/";
+    client.BaseAddress = new Uri(url);
+});
+
+// GoF Proxy: el StageServiceClient real se registra con su HttpClient tipado, pero
+// IStageServiceClient se expone como un CachedStageServiceProxy que lo envuelve y cachea
+// GetStageWithOptionsAsync. AddMemoryCache registra IMemoryCache como singleton, así la
+// caché se comparte entre peticiones/equipos (única forma de que sirva de algo). Los
+// consumidores (fachada, handlers de evidencia, GetReleasedClues, estructura del Composite)
+// siguen pidiendo IStageServiceClient sin enterarse de la caché.
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient<StageServiceClient>(client =>
+{
+    var url = builder.Configuration["StageServiceUrl"] ?? "http://localhost:5093/";
+    client.BaseAddress = new Uri(url);
+});
+builder.Services.AddScoped<IStageServiceClient>(sp =>
+    new CachedStageServiceProxy(
+        sp.GetRequiredService<StageServiceClient>(),
+        sp.GetRequiredService<IMemoryCache>()));
+
+// ── HU-27: sync-health aggregator — typed clients to every downstream service
+//          plus the local EF-backed reader for SessionService's own projections
+builder.Services.AddScoped<ILocalSyncHealthReader, LocalSyncHealthReader>();
+
+builder.Services.AddHttpClient<IMissionServiceSyncClient, MissionServiceSyncClient>(client =>
+{
+    var url = builder.Configuration["MissionServiceUrl"] ?? "http://localhost:5091/";
+    client.BaseAddress = new Uri(url);
+});
+
+builder.Services.AddHttpClient<IStageServiceSyncClient, StageServiceSyncClient>(client =>
+{
+    var url = builder.Configuration["StageServiceUrl"] ?? "http://localhost:5093/";
+    client.BaseAddress = new Uri(url);
+});
+
+builder.Services.AddHttpClient<IClueServiceSyncClient, ClueServiceSyncClient>(client =>
+{
+    var url = builder.Configuration["ClueServiceUrl"] ?? "http://localhost:5094/";
+    client.BaseAddress = new Uri(url);
+});
+
+builder.Services.AddHttpClient<ITeamServiceSyncClient, TeamServiceSyncClient>(client =>
+{
+    var url = builder.Configuration["TeamServiceUrl"] ?? "http://localhost:5095/";
+    client.BaseAddress = new Uri(url);
+});
+
+builder.Services.AddScoped<ClueAutoReleaseService>();
+builder.Services.AddHostedService<ClueAutoReleaseWorker>();
+
+// ── SignalR ───────────────────────────────────────────────────────────────────
+// ISessionNotifier decouples Application handlers from SignalR infrastructure.
+// The concrete implementation lives in Infrastructure and is invisible to the Application layer.
+// Tighter ping schedule than the default (15 s keep-alive / 30 s client timeout)
+// so the participant front shows the "Reconectando…" badge within ~6 s of a
+// network drop instead of feeling frozen for half a minute. The 3 s / 6 s ratio
+// is the smallest pair SignalR recommends (timeout >= 2 * keep-alive) that
+// still tolerates WiFi/4G jitter spikes without triggering false reconnects.
+builder.Services.AddSignalR(options =>
+{
+    options.KeepAliveInterval = TimeSpan.FromSeconds(3);
+    options.ClientTimeoutInterval = TimeSpan.FromSeconds(6);
+});
+builder.Services.AddScoped<ISessionNotifier, SignalRSessionNotifier>();
+builder.Services.AddScoped<IIntegrationEventBus, MassTransitIntegrationEventBus>();
+
+// ── Keycloak JWT auth (HU-23) ─────────────────────────────────────────────────
+// Optional: endpoints stay public unless decorated with [Authorize]. When a
+// Bearer token is present we validate it against the umbral realm and expose
+// the operator's identity via HttpContext.User for the audit log.
+builder.Services.AddUmbralJwtAuth(builder.Configuration);
+
+// ── CORS ──────────────────────────────────────────────────────────────────────
+// Unificado (dev LAN + orígenes públicos desde Cors:AllowedOrigins). Mantiene
+// AllowCredentials, necesario para el hub SignalR.
+builder.Services.AddUmbralCors(builder.Configuration);
+
+var app = builder.Build();
+
+// Primer middleware: asigna/propaga el correlation id y etiqueta todos los logs.
+app.UseUmbralCorrelationId();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
+    app.MapOpenApi();
+}
+
+app.UseHttpsRedirection();
+app.UseCors("AllowFrontend");
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapControllers();
+app.MapHub<SessionHub>("/hubs/session");
+
+app.Run();

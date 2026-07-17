@@ -1,0 +1,35 @@
+namespace SessionService.Domain.Sessions;
+
+using SessionService.Domain.Common;
+
+public static class SessionErrors
+{
+    public static readonly Error NotFound                  = new("Session.NotFound", "Session not found.");
+    public static readonly Error InvalidName               = new("Session.InvalidName", "Session name is required.");
+    public static readonly Error MissionNotActive          = new("Session.MissionNotActive", "Cannot create a session for a mission that is not active.");
+    public static readonly Error CannotEditNonPendingSession   = new("Session.CannotEdit",   "Only sessions in 'Pending' state can be edited.");
+    public static readonly Error CannotCancelNonPendingSession = new("Session.CannotCancel", "Only sessions in 'Pending' state can be cancelled.");
+    public static readonly Error CannotStartSession  = new("Session.CannotStart",  "Only sessions in 'Pending' state can be started.");
+    public static readonly Error CannotPauseSession  = new("Session.CannotPause",  "Only sessions in 'InProgress' state can be paused.");
+    public static readonly Error CannotResumeSession = new("Session.CannotResume", "Only sessions in 'Paused' state can be resumed.");
+    public static readonly Error CannotFinalizeSession  = new("Session.CannotFinalize", "Only active or paused sessions can be finalized.");
+    public static readonly Error NoTeamsEnrolled         = new("Session.NoTeamsEnrolled",     "The session cannot start because no teams are enrolled.");
+    /// <summary>RB-18: every team must have at least 2 members before the session starts.</summary>
+    public static readonly Error TeamBelowMinimumMembers = new("Session.TeamBelowMinimumMembers", "The session cannot start because one or more teams have fewer than 2 members.");
+    public static readonly Error CannotReleaseClue       = new("Session.CannotReleaseClue",    "Clues can only be released while the session is in progress.");
+    public static readonly Error AllCluesAlreadyReleased = new("Session.AllCluesReleased",     "All configured clues for this stage have already been released to the team.");
+    public static readonly Error CannotPenalizeTeam = new("Session.CannotPenalizeTeam", "Team penalties can only be applied while the session is in progress.");
+    public static readonly Error CannotForceAdvance      = new("Session.CannotForceAdvance",      "Team advance can only be forced while the session is in progress.");
+    public static readonly Error TeamAlreadyOnLastStage  = new("Session.TeamAlreadyOnLastStage",  "The team is already on the last stage and cannot be advanced further.");
+    public static readonly Error TeamNotFound            = new("Session.TeamNotFound",            "The specified team is not enrolled in this session.");
+    public static readonly Error NotInProgress           = new("Session.NotInProgress",           "Answers can only be submitted while the session is in progress.");
+    public static readonly Error StageNotFound           = new("Session.StageNotFound",           "The specified stage was not found.");
+    public static readonly Error OptionNotFound          = new("Session.OptionNotFound",          "The selected option does not belong to this stage.");
+    public static readonly Error CannotAnswerTrivia      = new("Session.CannotAnswerTrivia",      "Failed to record the trivia answer. Please try again.");
+    public static readonly Error StageIsNotTreasureHunt  = new("Session.StageIsNotTreasureHunt",  "QR validation only applies to Treasure Hunt stages.");
+    public static readonly Error StageMissingQrCode      = new("Session.StageMissingQrCode",      "The stage does not have a QR code configured.");
+    public static readonly Error CannotValidateQr        = new("Session.CannotValidateQr",        "Failed to record the QR validation. Please try again.");
+    public static readonly Error CannotBroadcastMessage  = new("Session.CannotBroadcastMessage",  "Messages can only be broadcast to participants while the session is in progress or paused.");
+    public static readonly Error EmptyBroadcastMessage   = new("Session.EmptyBroadcastMessage",   "Broadcast message cannot be empty.");
+    public static readonly Error BroadcastMessageTooLong = new("Session.BroadcastMessageTooLong", "Broadcast message must be 240 characters or fewer.");
+}

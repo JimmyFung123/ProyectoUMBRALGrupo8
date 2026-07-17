@@ -1,0 +1,380 @@
+import { useEffect, useRef, useState } from 'react';
+import { clueService } from '../../services/clueService';
+import { connectToSessionHub } from '../../services/sessionHub';
+import { sessionService } from '../../services/sessionService';
+import { stageService } from '../../services/stageService';
+import { teamService } from '../../services/teamService';
+import { SESSION_STATUS_LABELS } from '../../types/session';
+import type { SessionDashboard as SessionDashboardData, SessionEventDto, SessionStatus } from '../../types/session';
+import type { Stage } from '../../types/stage';
+import type { Clue } from '../../types/clue';
+import type { TeamProgressDto } from '../../types/team';
+import type { SessionCommandAudit, SessionCommandAuditEntry } from '../../types/audit';
+import { SessionAuditTimeline } from './SessionAuditTimeline';
+import { SessionControls } from './SessionControls';
+import { SessionRankingPanel } from './SessionRankingPanel';
+import { TeamProgressPanel } from './TeamProgressPanel';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  Spinner,
+  Stack,
+  type BadgeTone,
+} from '../ui';
+
+interface Props {
+  sessionId: string;
+  onBack: () => void;
+  /** false = modo consulta (Administrador, RB-10): oculta controles de estado y acciones por equipo. */
+  canManage: boolean;
+  /** HU-26 — navega a la pantalla de auditoría técnica completa. */
+  onOpenCommandAudit?: () => void;
+}
+
+const STATUS_TONES: Record<string, BadgeTone> = {
+  Pending:    'warning',
+  InProgress: 'brand',
+  Paused:     'info',
+  Completed:  'success',
+  Cancelled:  'danger',
+};
+
+function StatusBadge({ status }: { status: string }) {
+  return (
+    <Badge tone={STATUS_TONES[status] ?? 'neutral'} variant="solid">
+      {SESSION_STATUS_LABELS[status as keyof typeof SESSION_STATUS_LABELS] ?? status}
+    </Badge>
+  );
+}
+
+const TIMER_COMMANDS = new Set([
+  'StartSessionCommand',
+  'PauseSessionCommand',
+  'ResumeSessionCommand',
+  'FinalizeSessionCommand',
+]);
+
+/**
+ * Net play time excluding paused stretches: sums the ms between each
+ * Start/Resume and the next Pause/Finalize. `runningSinceMs` is set only
+ * while there's an open (InProgress) interval — null while Pending, Paused,
+ * Completed or Cancelled.
+ */
+function computeNetTime(entries: SessionCommandAuditEntry[]): { baseMs: number; runningSinceMs: number | null } {
+  const relevant = entries
+    .filter(e => e.outcome === 'Success' && e.commandType && TIMER_COMMANDS.has(e.commandType))
+    .slice()
+    .sort((a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime());
+
+  let baseMs = 0;
+  let openSinceMs: number | null = null;
+
+  for (const e of relevant) {
+    const t = new Date(e.occurredAt).getTime();
+    if (e.commandType === 'StartSessionCommand' || e.commandType === 'ResumeSessionCommand') {
+      openSinceMs = t;
+    } else if (openSinceMs !== null) {
+      baseMs += t - openSinceMs;
+      openSinceMs = null;
+    }
+  }
+  return { baseMs, runningSinceMs: openSinceMs };
+}
+
+/**
+ * Formats `baseMs` of already-accumulated time plus, while `runningSinceMs`
+ * is set, the live elapsed time since then. Shows "—" when there's no
+ * accumulated time and nothing running (session never started).
+ */
+function useElapsedTime(baseMs: number, runningSinceMs: number | null): string {
+  const [elapsed, setElapsed] = useState('—');
+  useEffect(() => {
+    function format(diffMs: number) {
+      const totalSec = Math.floor(diffMs / 1000);
+      const h = Math.floor(totalSec / 3600);
+      const m = Math.floor((totalSec % 3600) / 60);
+      const s = totalSec % 60;
+      return h > 0
+        ? `${h}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`
+        : `${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
+    }
+
+    if (runningSinceMs === null) {
+      setElapsed(baseMs > 0 ? format(baseMs) : '—');
+      return;
+    }
+
+    function update() {
+      setElapsed(format(baseMs + (Date.now() - runningSinceMs!)));
+    }
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [baseMs, runningSinceMs]);
+  return elapsed;
+}
+
+function MetricCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
+  return (
+    <Card padded={false} className="flex-1 min-w-[140px] p-4 text-center bg-surface-inset">
+      <div className="text-3xl font-bold text-ink">{value}</div>
+      <div className="text-xs text-ink-muted mt-1 font-medium uppercase tracking-wider">{label}</div>
+      {sub && <div className="text-xs text-ink-subtle mt-0.5">{sub}</div>}
+    </Card>
+  );
+}
+
+function EventRow({ event }: { event: SessionEventDto }) {
+  const time = new Date(event.occurredAt).toLocaleTimeString('es-VE', { timeStyle: 'medium' });
+  return (
+    <li className="flex gap-3 py-2 border-b border-slate-100 last:border-b-0 items-start">
+      <span className="shrink-0 text-xs text-ink-subtle font-mono pt-0.5">{time}</span>
+      <span className="text-sm text-ink-soft">{event.description}</span>
+    </li>
+  );
+}
+
+// ── SessionDashboard ──────────────────────────────────────────────────────────
+
+export function SessionDashboard({ sessionId, onBack, canManage, onOpenCommandAudit }: Props) {
+  const [data, setData] = useState<SessionDashboardData | null>(null);
+  const [teams, setTeams] = useState<TeamProgressDto[]>([]);
+  const [stages, setStages] = useState<Stage[]>([]);
+  const [cluesByStage, setCluesByStage] = useState<Record<string, Clue[]>>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [forbidden, setForbidden] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [commandAudit, setCommandAudit] = useState<SessionCommandAudit | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hubRef = useRef<{ dispose: () => void } | null>(null);
+
+  // El dominio no registra arranque/pausas/fin, solo CreatedAt — se deriva del
+  // log técnico de auditoría (HU-26), que sí tiene CommandType con precisión
+  // de milisegundos para cada comando ejecutado.
+  const { baseMs, runningSinceMs } = computeNetTime(commandAudit?.entries ?? []);
+  const elapsed = useElapsedTime(baseMs, runningSinceMs);
+
+  async function loadStagesAndClues(missionId: string) {
+    try {
+      const stageList = await stageService.getByMission(missionId);
+      const sorted = stageList.slice().sort((a, b) => a.order - b.order);
+      setStages(sorted);
+
+      const clueMap: Record<string, Clue[]> = {};
+      await Promise.allSettled(
+        sorted.map(async stage => {
+          try {
+            const clues = await clueService.getClues(missionId, stage.id);
+            clueMap[stage.id] = clues.slice().sort((a, b) => a.order - b.order);
+          } catch { clueMap[stage.id] = []; }
+        }),
+      );
+      setCluesByStage(clueMap);
+    } catch { /* Stages/clues unavailable — release button will be disabled */ }
+  }
+
+  async function load() {
+    try {
+      const [dashboardResult, teamsResult, auditResult] = await Promise.allSettled([
+        sessionService.getDashboard(sessionId),
+        teamService.getTeamProgress(sessionId),
+        sessionService.getCommandAudit(sessionId),
+      ]);
+      if (dashboardResult.status === 'rejected') {
+        // 403 (RB-10: sesión de otro operador) es permanente, no transitorio —
+        // cortamos el polling y el hub en vez de reintentar cada 10s para siempre.
+        const reason = dashboardResult.reason as { code?: string } | undefined;
+        if (reason?.code === 'Forbidden') {
+          setForbidden(true);
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+          hubRef.current?.dispose();
+          return;
+        }
+        setError('No se pudo cargar el tablero. Reintentando…');
+        return;
+      }
+      const dashboard = dashboardResult.value;
+      setData(dashboard);
+      setTeams(teamsResult.status === 'fulfilled' ? teamsResult.value : []);
+      if (auditResult.status === 'fulfilled') setCommandAudit(auditResult.value);
+      setError(teamsResult.status === 'rejected' ? '⚠ TeamService no disponible — ranking sin datos' : null);
+      if (stages.length === 0 && dashboard.missionId) {
+        await loadStagesAndClues(dashboard.missionId);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    const hub = connectToSessionHub({ sessionId, onRefresh: () => load() });
+    hubRef.current = hub;
+    return () => hub.dispose();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId]);
+
+  useEffect(() => {
+    load();
+    intervalRef.current = setInterval(load, 10_000);
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId]);
+
+  async function copyCode() {
+    if (!data?.accessCode) return;
+    try {
+      await navigator.clipboard.writeText(data.accessCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* ignored */ }
+  }
+
+  if (loading) return <Card><Spinner label="Cargando tablero…" /></Card>;
+  if (forbidden) {
+    return (
+      <div>
+        <Button variant="ghost" size="sm" onClick={onBack} leadingIcon="←">
+          Volver
+        </Button>
+        <Alert tone="danger" title="Sin permiso" className="mt-3">
+          No tenés permiso para administrar esta sesión — fue creada por otro operador.
+        </Alert>
+      </div>
+    );
+  }
+  if (error && !data) return <Alert tone="danger">{error}</Alert>;
+
+  return (
+    <div>
+      {/* ── Encabezado ───────────────────────────────────────────────────── */}
+      <div className="flex items-start gap-4 mb-5 flex-wrap">
+        <Button variant="ghost" size="sm" onClick={onBack} leadingIcon="←">
+          Volver
+        </Button>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-xl md:text-2xl font-bold text-ink leading-tight">{data!.name}</h1>
+            <StatusBadge status={data!.status} />
+          </div>
+          <p className="text-xs text-ink-muted mt-1">
+            Actualización automática cada 10 s · ID {data!.id}
+            {data!.scheduledAt && (
+              <> · Programada para {new Date(data!.scheduledAt).toLocaleString('es-VE', { dateStyle: 'medium', timeStyle: 'short' })}</>
+            )}
+          </p>
+        </div>
+        {error && <Badge tone="danger">⚠ Error al actualizar</Badge>}
+      </div>
+
+      {/* ── Controles de estado (solo operador; el admin consulta) ───────── */}
+      {canManage && (
+        <div className="mb-5">
+          <SessionControls
+            sessionId={sessionId}
+            status={data!.status as SessionStatus}
+            teamsCount={teams.length}
+            onStateChange={load}
+          />
+        </div>
+      )}
+
+      {/* ── Código de acceso para participantes ──────────────────────────── */}
+      {data!.accessCode && (
+        <Card accent="brand" className="mb-5">
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="min-w-0">
+              <div className="text-xs font-semibold uppercase tracking-wider text-brand-700">
+                Código para participantes
+              </div>
+              <div className="text-3xl font-extrabold tracking-[0.35em] text-brand-700 font-mono mt-1">
+                {data!.accessCode}
+              </div>
+            </div>
+            <div className="ml-auto">
+              <Button variant="secondary" onClick={copyCode}>
+                {copied ? '✓ Copiado' : 'Copiar'}
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* ── Métricas ─────────────────────────────────────────────────────── */}
+      <div className="flex flex-wrap gap-3 mb-5">
+        <MetricCard
+          label="Equipos registrados"
+          value={teams.length}
+          sub={teams.length === 0 ? 'Sin equipos registrados' : undefined}
+        />
+        <MetricCard label="Tiempo transcurrido" value={elapsed} />
+        <MetricCard
+          label="Estado"
+          value={SESSION_STATUS_LABELS[data!.status as keyof typeof SESSION_STATUS_LABELS] ?? data!.status}
+        />
+      </div>
+
+      <Stack gap={4}>
+        {/* ── Progreso de equipos ──────────────────────────────────────── */}
+        <Card>
+          <CardHeader title={canManage ? 'Progreso y acciones por equipo' : 'Progreso por equipo'} />
+          <TeamProgressPanel
+            teams={teams}
+            sessionId={sessionId}
+            sessionStatus={data!.status}
+            stages={stages}
+            cluesByStage={cluesByStage}
+            canManage={canManage}
+            onClueReleased={load}
+          />
+        </Card>
+
+        {/* ── Ranking en vivo (HU-21) ──────────────────────────────────── */}
+        <Card>
+          <CardHeader title="🏆 Ranking en vivo" />
+          <SessionRankingPanel
+            sessionId={sessionId}
+            totalStages={stages.length > 0 ? Math.max(...stages.map(s => s.order)) : 0}
+          />
+        </Card>
+
+        {/* ── Eventos recientes (HU-9) ─────────────────────────────────── */}
+        <Card>
+          <CardHeader title="Eventos recientes" />
+          {data!.recentEvents.length === 0 ? (
+            <p className="text-sm text-ink-muted">Aún no hay eventos registrados para esta sesión.</p>
+          ) : (
+            <ul className="list-none m-0 p-0">
+              {data!.recentEvents.map(ev => <EventRow key={ev.id} event={ev} />)}
+            </ul>
+          )}
+        </Card>
+
+        {/* ── Historial de auditoría (HU-22 + HU-26) ───────────────────── */}
+        <Card>
+          <CardHeader
+            title="📜 Historial de auditoría"
+            description="Línea de tiempo completa con quién, qué y cuándo. Útil para revisar reclamos o auditar la operación."
+            actions={onOpenCommandAudit && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onOpenCommandAudit}
+                title="Abre la vista técnica con comandos CQRS, timestamps con milisegundos y exportación CSV (HU-26)"
+              >
+                🔍 Auditoría completa
+              </Button>
+            )}
+          />
+          <SessionAuditTimeline sessionId={sessionId} />
+        </Card>
+      </Stack>
+    </div>
+  );
+}

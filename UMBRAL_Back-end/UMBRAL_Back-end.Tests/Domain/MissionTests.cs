@@ -18,7 +18,6 @@ public class MissionTests
         result.Value.Difficulty.Should().Be(DifficultyLevel.Medium);
         result.Value.MaxDuration.Should().Be(60);
         result.Value.Status.Should().Be(MissionStatus.Inactive);
-        result.Value.Stages.Should().BeEmpty();
     }
 
     [Theory]
@@ -55,15 +54,16 @@ public class MissionTests
     // ── Activation ──────────────────────────────────────────────────────────────
 
     [Fact]
-    public void Activate_WithNoStages_ReturnsNoStagesError()
+    public void Activate_SetsStatusToActive()
     {
+        // Stage validation is owned by StageService — MissionService activates without checking stages.
         var mission = Mission.Create("Test", "desc", DifficultyLevel.Easy, 30).Value;
 
         var result = mission.Activate();
 
-        result.IsFailure.Should().BeTrue();
-        result.Error.Should().Be(MissionErrors.NoStages);
-        mission.Status.Should().Be(MissionStatus.Inactive);
+        result.IsSuccess.Should().BeTrue();
+        mission.Status.Should().Be(MissionStatus.Active);
+        mission.UpdatedAt.Should().NotBeNull();
     }
 
     // ── Deactivation ────────────────────────────────────────────────────────────

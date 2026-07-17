@@ -1,46 +1,26 @@
-import type { CreateMissionPayload, Mission, UpdateMissionPayload } from '../types/mission';
+import { http } from './http';
+import type { CreateMissionPayload, Mission, MissionDetail, UpdateMissionPayload } from '../types/mission';
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api';
-
-async function handleResponse<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ code: 'Unknown', message: response.statusText }));
-    throw error;
-  }
-  if (response.status === 204) return undefined as T;
-  return response.json() as Promise<T>;
-}
+const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5091/api';
 
 export const missionService = {
   getAll(): Promise<Mission[]> {
-    return fetch(`${BASE_URL}/missions`).then(handleResponse<Mission[]>);
+    return http.get<Mission[]>(`${BASE_URL}/missions`);
   },
 
-  getById(id: string): Promise<Mission> {
-    return fetch(`${BASE_URL}/missions/${id}`).then(handleResponse<Mission>);
+  getById(id: string): Promise<MissionDetail> {
+    return http.get<MissionDetail>(`${BASE_URL}/missions/${id}`);
   },
 
   create(payload: CreateMissionPayload): Promise<string> {
-    return fetch(`${BASE_URL}/missions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    }).then(handleResponse<string>);
+    return http.post<string>(`${BASE_URL}/missions`, payload);
   },
 
   update(id: string, payload: UpdateMissionPayload): Promise<void> {
-    return fetch(`${BASE_URL}/missions/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    }).then(handleResponse<void>);
+    return http.put<void>(`${BASE_URL}/missions/${id}`, payload);
   },
 
   changeStatus(id: string, activate: boolean): Promise<void> {
-    return fetch(`${BASE_URL}/missions/${id}/status`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ activate }),
-    }).then(handleResponse<void>);
+    return http.patch<void>(`${BASE_URL}/missions/${id}/status`, { activate });
   },
 };

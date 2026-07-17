@@ -1,0 +1,76 @@
+# ── .NET build output ────────────────────────────────────────────────────────
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+[Ll]og/
+[Ll]ogs/
+*.dll
+*.exe
+*.pdb
+*.cache
+*.user
+*.suo
+*.userosscache
+
+# Generated EF Core targets (created by dotnet ef on demand)
+*.EntityFrameworkCore.targets
+
+# NuGet
+*.nupkg
+*.snupkg
+project.lock.json
+project.assets.json
+project.nuget.cache
+*.nuget.props
+*.nuget.targets
+
+# ── Node / Vite (front-ends) ─────────────────────────────────────────────────
+node_modules/
+dist/
+.vite/
+*.local
+
+# Vite/TS build info
+*.tsbuildinfo
+
+# ── Tests / coverage ─────────────────────────────────────────────────────────
+[Tt]est[Rr]esult*/
+coverage*.json
+coverage*.xml
+coverage*.info
+*.coverage
+*.coveragexml
+# Carpetas intermedias de dotnet-coverage (unit/integration antes del merge)
+coverage_unit/
+coverage_integration/
+# Reportes HTML generados por reportgenerator
+coverage_html*/
+_coverage_report/
+
+# ── IDEs ─────────────────────────────────────────────────────────────────────
+.vs/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.sln.iml
+
+# ── Claude Code (local per-user config) ──────────────────────────────────────
+.claude/settings.json
+.claude/settings.local.json
+
+# ── OS junk ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── dotenv ──────────────────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── estado del deploy (último commit estable para rollback) ──────────────────
+.deploy/

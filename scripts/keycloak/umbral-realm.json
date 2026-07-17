@@ -1,0 +1,130 @@
+{
+  "realm": "umbral",
+  "displayName": "UMBRAL — Personal Operativo",
+  "enabled": true,
+  "registrationAllowed": false,
+  "rememberMe": true,
+  "loginWithEmailAllowed": true,
+  "registrationEmailAsUsername": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "sslRequired": "none",
+  "accessTokenLifespan": 3600,
+  "ssoSessionIdleTimeout": 3600,
+  "ssoSessionMaxLifespan": 36000,
+
+  "smtpServer": {
+    "host": "mailpit",
+    "port": "1025",
+    "from": "no-reply@umbral.local",
+    "fromDisplayName": "UMBRAL — Personal Operativo",
+    "ssl": "false",
+    "starttls": "false",
+    "auth": "false"
+  },
+
+  "roles": {
+    "realm": [
+      {
+        "name": "admin",
+        "description": "Administrador de UMBRAL: gestiona misiones, sesiones, pistas y personal."
+      },
+      {
+        "name": "operator",
+        "description": "Operador de UMBRAL: ejecuta sesiones, controla equipos en vivo."
+      }
+    ]
+  },
+
+  "clients": [
+    {
+      "clientId": "umbral-frontend",
+      "name": "UMBRAL — Front-end Operador",
+      "description": "Cliente SPA público (Authorization Code + PKCE) usado por http://localhost:5173",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:5173/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5173",
+        "+"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "realm-roles-claim",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    },
+
+    {
+      "clientId": "umbral-backend",
+      "name": "UMBRAL — Backend service account (Admin API)",
+      "description": "Cliente confidencial usado por UserService para llamar a la Keycloak Admin REST API",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "umbral-backend-secret-change-me",
+      "protocol": "openid-connect",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "attributes": {
+        "use.refresh.tokens": "false"
+      }
+    }
+  ],
+
+  "users": [
+    {
+      "username": "admin@umbral.local",
+      "email": "admin@umbral.local",
+      "emailVerified": true,
+      "firstName": "Admin",
+      "lastName": "UMBRAL",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Umbral2026!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "admin"
+      ]
+    },
+    {
+      "username": "service-account-umbral-backend",
+      "enabled": true,
+      "serviceAccountClientId": "umbral-backend",
+      "clientRoles": {
+        "realm-management": [
+          "manage-users",
+          "view-users",
+          "query-users",
+          "view-realm",
+          "view-clients"
+        ]
+      }
+    }
+  ]
+}

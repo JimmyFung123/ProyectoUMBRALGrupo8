@@ -1,0 +1,99 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <!-- Truncates all app tables (except __EFMigrationsHistory) between Level-1 persistence
+         tests so they don't share leftover rows from earlier tests in the same collection
+         (see PostgresContainerFixture.ResetDatabaseAsync). -->
+    <PackageReference Include="Respawn" Version="7.0.0" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="FluentAssertions" Version="7.0.0" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.13.0" />
+    <!-- Level-2: real RabbitMQ broker for fan-out routing tests (see Messaging/StageAddedFanOutFixture.cs). -->
+    <PackageReference Include="Testcontainers.RabbitMq" Version="4.13.0" />
+    <!-- UserService: real Keycloak Admin REST API for the CreateUserAsync/ChangeRoleAsync
+         camelCase-serialization regression test (see Infrastructure/UserServiceKeycloakFixture.cs). -->
+    <PackageReference Include="Testcontainers.Keycloak" Version="4.13.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.0" />
+    <!-- Gap #5: cliente SignalR real para probar el Hub (SessionHub) de punta a
+         punta sobre el TestServer (ver Messaging/SessionHubTests.cs). -->
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MissionService\MissionService.csproj" />
+    <!--
+      Both MissionService and TeamService generate a top-level-statements `Program`
+      class in the *global* namespace (RootNamespace does not affect it). Referencing
+      both assemblies unqualified causes CS0433 ("Program exists in both..."). The
+      Aliases metadata assigns TeamService's assembly to a named extern alias so
+      TeamServiceApiFactory.cs can disambiguate via `extern alias TeamServiceAssembly;`.
+      Any future service added here with its own Program class needs the same treatment.
+    -->
+    <ProjectReference Include="..\TeamService\TeamService.csproj">
+      <Aliases>TeamServiceAssembly</Aliases>
+    </ProjectReference>
+    <!--
+      ClueService also generates its own top-level-statements `Program` class in the
+      global namespace, same conflict as TeamService above. Aliased the same way so
+      ClueServiceApiFactory.cs can disambiguate via `extern alias ClueServiceAssembly;`.
+    -->
+    <ProjectReference Include="..\ClueService\ClueService.csproj">
+      <Aliases>ClueServiceAssembly</Aliases>
+    </ProjectReference>
+    <!--
+      StageService also generates its own top-level-statements `Program` class in the
+      global namespace, same conflict as TeamService/ClueService above. Aliased the
+      same way so StageServiceApiFactory.cs can disambiguate via
+      `extern alias StageServiceAssembly;`.
+    -->
+    <ProjectReference Include="..\StageService\StageService.csproj">
+      <Aliases>StageServiceAssembly</Aliases>
+    </ProjectReference>
+    <!--
+      SessionService also generates its own top-level-statements `Program` class in the
+      global namespace, same conflict as TeamService/ClueService/StageService above.
+      Aliased the same way so SessionServiceApiFactory.cs can disambiguate via
+      `extern alias SessionServiceAssembly;`.
+    -->
+    <ProjectReference Include="..\SessionService\SessionService.csproj">
+      <Aliases>SessionServiceAssembly</Aliases>
+    </ProjectReference>
+    <!--
+      ApiGateway also generates its own top-level-statements `Program` class in the
+      global namespace, same conflict as the other five services above. Aliased the
+      same way so ApiGatewayApiFactory.cs can disambiguate via
+      `extern alias ApiGatewayAssembly;`. Unlike the other services, ApiGateway has no
+      DbContext/MassTransit — it's a pure YARP reverse proxy — so its factory does not
+      derive from IntegrationTestApiFactory<TProgram, TDbContext>.
+    -->
+    <ProjectReference Include="..\ApiGateway\ApiGateway.csproj">
+      <Aliases>ApiGatewayAssembly</Aliases>
+    </ProjectReference>
+    <!--
+      UserService also generates its own top-level-statements `Program` class in the
+      global namespace, same conflict as the other services above. Aliased the same
+      way so UserServiceApiFactory.cs can disambiguate via
+      `extern alias UserServiceAssembly;`. Unlike the DB-backed services, UserService
+      has no DbContext to swap — its only external dependency is Keycloak's Admin
+      REST API (see UserServiceKeycloakFixture.cs), so its factory does not derive
+      from IntegrationTestApiFactory<TProgram, TDbContext> either (same shape as
+      ApiGatewayApiFactory).
+    -->
+    <ProjectReference Include="..\UserService\UserService.csproj">
+      <Aliases>UserServiceAssembly</Aliases>
+    </ProjectReference>
+  </ItemGroup>
+
+</Project>

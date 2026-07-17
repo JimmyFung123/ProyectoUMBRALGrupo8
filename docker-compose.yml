@@ -1,0 +1,114 @@
+# UMBRAL — Infraestructura local
+#
+# Levanta PostgreSQL (con las 5 bases de UMBRAL auto-creadas), RabbitMQ,
+# y Keycloak (con su propio Postgres aislado).
+# Los servicios .NET y los front-ends se ejecutan localmente con scripts/start.ps1.
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: umbral-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-12345}"
+    ports:
+      - "5432:5432"
+    volumes:
+      - umbral_pgdata:/var/lib/postgresql/data
+      - ./scripts/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: umbral-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"    # AMQP
+      - "15672:15672"  # Management UI (http://localhost:15672, guest/guest)
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ── Mailpit (captura de correos en desarrollo) ──────────────────────────────
+  # Servidor SMTP de mentira: recibe TODO lo que Keycloak (y el backend) envían
+  # y lo muestra en una bandeja web, sin reenviar nada a internet. Ideal para
+  # probar el alta de usuarios (correo con la clave temporal) en local.
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: umbral-mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025"    # SMTP — Keycloak y backend apuntan aquí
+      - "8025:8025"    # Bandeja web: http://localhost:8025
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"      # acepta cualquier credencial (dev)
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"  # sin TLS en local
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ── Keycloak (HU-23) ───────────────────────────────────────────────────────
+  # Base de datos dedicada, separada de la de UMBRAL para aislar permisos
+  # y para que un wipe de Keycloak no afecte misiones / sesiones / equipos.
+  keycloak-db:
+    image: postgres:15-alpine
+    container_name: umbral-keycloak-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: "keycloak"
+      POSTGRES_DB: keycloak
+    volumes:
+      - umbral_kcdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    container_name: umbral-keycloak
+    restart: unless-stopped
+    # `start-dev --import-realm` carga el realm UMBRAL al primer arranque
+    # desde /opt/keycloak/data/import (montado abajo). En siguientes arranques
+    # respeta lo que ya hay en la BD, así que cambios manuales en la consola
+    # no se sobrescriben.
+    command: ["start-dev", "--import-realm"]
+    environment:
+      # Admin de la consola de Keycloak (NO el admin de UMBRAL — ese vive en el realm).
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak
+      KC_HEALTH_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+    ports:
+      - "18090:8080"    # Admin console + endpoints OIDC: http://localhost:18090
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+    volumes:
+      - ./scripts/keycloak/umbral-realm.json:/opt/keycloak/data/import/umbral-realm.json:ro
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '\"status\": \"UP\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+volumes:
+  umbral_pgdata:
+  umbral_kcdata:
