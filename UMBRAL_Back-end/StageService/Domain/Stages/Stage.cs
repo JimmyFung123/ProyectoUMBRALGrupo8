@@ -13,7 +13,7 @@ using StageService.Domain.Common;
 /// properties stay primitive so EF Core mapping, DTOs and the frontend contract
 /// remain unchanged.
 /// </summary>
-public class Stage
+public class Stage : AggregateRoot
 {
     public Guid Id { get; private set; }
     public Guid MissionId { get; private set; }

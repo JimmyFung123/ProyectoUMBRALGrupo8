@@ -14,7 +14,7 @@ using UMBRAL_Back_end.Domain.Common;
 /// properties stay primitive so EF Core mapping, DTOs and the frontend contract
 /// remain unchanged.
 /// </summary>
-public class Mission
+public class Mission : AggregateRoot
 {
     public Guid Id { get; private set; }
     public string Name { get; private set; } = string.Empty;

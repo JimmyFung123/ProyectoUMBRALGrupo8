@@ -3,7 +3,7 @@ namespace SessionService.Domain.Sessions;
 using SessionService.Domain.Common;
 using SessionService.Domain.Sessions.States;
 
-public class Session
+public class Session : AggregateRoot
 {
     public Guid Id { get; private set; }
     public Guid MissionId { get; private set; }

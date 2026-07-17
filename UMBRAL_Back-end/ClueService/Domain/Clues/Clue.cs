@@ -1,7 +1,7 @@
 namespace ClueService.Domain.Clues;
 using ClueService.Domain.Common;
 
-public class Clue
+public class Clue : AggregateRoot
 {
     public Guid Id { get; private set; }
     public Guid StageId { get; private set; }
