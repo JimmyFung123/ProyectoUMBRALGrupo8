@@ -1,5 +1,6 @@
 namespace StageService.Domain.Stages;
 using StageService.Domain.Common;
+using StageService.Domain.Stages.Events;
 
 /// <summary>
 /// Aggregate Root of a mission stage (Mission Design context). Unifies the
@@ -13,7 +14,7 @@ using StageService.Domain.Common;
 /// properties stay primitive so EF Core mapping, DTOs and the frontend contract
 /// remain unchanged.
 /// </summary>
-public class Stage
+public class Stage : AggregateRoot
 {
     public Guid Id { get; private set; }
     public Guid MissionId { get; private set; }
@@ -57,7 +58,8 @@ public class Stage
         var treasure = ValidateTreasure(type, latitude, longitude, qrCode);
         if (treasure.IsFailure) return Result.Failure<Stage>(treasure.Error);
 
-        return Result.Success(new Stage
+        var createdAt = DateTime.UtcNow;
+        var stage = new Stage
         {
             Id = Guid.NewGuid(),
             MissionId = missionId,
@@ -69,8 +71,10 @@ public class Stage
             Latitude = latitude,
             Longitude = longitude,
             QrCode = qrCode?.Trim(),
-            CreatedAt = DateTime.UtcNow
-        });
+            CreatedAt = createdAt
+        };
+        stage.AddDomainEvent(new StageAddedDomainEvent(stage.Id, missionId, type, createdAt));
+        return Result.Success(stage);
     }
 
     public Result<bool> Update(
@@ -110,6 +114,10 @@ public class Stage
         AutoReleaseTimeMinutes = timeMinutes;
         AutoReleaseMaxAttempts = maxAttempts;
     }
+
+    /// <summary>Marks this stage for removal, raising the domain event the
+    /// caller's repository.DeleteAsync(...) call is about to make true.</summary>
+    public void MarkForRemoval() => AddDomainEvent(new StageRemovedDomainEvent(Id, MissionId, DateTime.UtcNow));
 
     public void ReplaceOptions(IEnumerable<(string Text, bool IsCorrect)> options)
     {

@@ -6,22 +6,20 @@ using StageService.Application;
 using StageService.Application.Stages.Commands.RemoveStage;
 using StageService.Domain.MissionLookup;
 using StageService.Domain.Stages;
-using UMBRAL.Contracts.Events;
+using StageService.Domain.Stages.Events;
 using Xunit;
 
 public class RemoveStageCommandHandlerTests
 {
     private readonly Mock<IStageRepository> _stageRepoMock = new();
     private readonly Mock<IMissionLookupRepository> _missionLookupMock = new();
-    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly RemoveStageCommandHandler _handler;
 
     public RemoveStageCommandHandlerTests()
     {
         _handler = new RemoveStageCommandHandler(
             _stageRepoMock.Object,
-            _missionLookupMock.Object,
-            _busMock.Object);
+            _missionLookupMock.Object);
     }
 
     [Fact]
@@ -66,7 +64,7 @@ public class RemoveStageCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenStageExists_DeletesAndPublishesEvent()
+    public async Task Handle_WhenStageExists_DeletesAndRaisesDomainEvent()
     {
         var missionId = Guid.NewGuid();
         var stageId = Guid.NewGuid();
@@ -88,8 +86,7 @@ public class RemoveStageCommandHandlerTests
         result.Value.Should().BeTrue();
         _stageRepoMock.Verify(r => r.DeleteAsync(stage, It.IsAny<CancellationToken>()), Times.Once);
         _stageRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _busMock.Verify(
-            b => b.PublishAsync(It.IsAny<StageRemovedIntegrationEvent>(), It.IsAny<CancellationToken>()),
-            Times.Once);
+        stage.DomainEvents.OfType<StageRemovedDomainEvent>().Should().ContainSingle()
+            .Which.MissionId.Should().Be(missionId);
     }
 }

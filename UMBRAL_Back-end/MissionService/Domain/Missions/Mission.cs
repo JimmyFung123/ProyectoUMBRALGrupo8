@@ -1,6 +1,7 @@
 namespace UMBRAL_Back_end.Domain.Missions;
 
 using UMBRAL_Back_end.Domain.Common;
+using UMBRAL_Back_end.Domain.Missions.Events;
 
 /// <summary>
 /// Aggregate Root of the Mission Design context (v2). Owns mission metadata and
@@ -14,7 +15,7 @@ using UMBRAL_Back_end.Domain.Common;
 /// properties stay primitive so EF Core mapping, DTOs and the frontend contract
 /// remain unchanged.
 /// </summary>
-public class Mission
+public class Mission : AggregateRoot
 {
     public Guid Id { get; private set; }
     public string Name { get; private set; } = string.Empty;
@@ -54,8 +55,10 @@ public class Mission
         if (durationResult.IsFailure)
             return Result.Failure<Mission>(durationResult.Error);
 
-        return Result.Success(new Mission(
-            Guid.NewGuid(), nameResult.Value, descriptionResult.Value, difficulty, durationResult.Value));
+        var mission = new Mission(
+            Guid.NewGuid(), nameResult.Value, descriptionResult.Value, difficulty, durationResult.Value);
+        mission.AddDomainEvent(new MissionCreatedDomainEvent(mission.Id, mission.Name, mission.Status, mission.CreatedAt));
+        return Result.Success(mission);
     }
 
     /// <summary>
@@ -64,8 +67,10 @@ public class Mission
     /// </summary>
     public Result Activate()
     {
+        var occurredAt = DateTime.UtcNow;
         Status = MissionStatus.Active;
-        UpdatedAt = DateTime.UtcNow;
+        UpdatedAt = occurredAt;
+        AddDomainEvent(new MissionActivatedDomainEvent(Id, Name, Difficulty, occurredAt));
         return Result.Success();
     }
 
@@ -77,8 +82,10 @@ public class Mission
         if (hasActiveSessions)
             return Result.Failure(MissionErrors.HasActiveSessions);
 
+        var occurredAt = DateTime.UtcNow;
         Status = MissionStatus.Inactive;
-        UpdatedAt = DateTime.UtcNow;
+        UpdatedAt = occurredAt;
+        AddDomainEvent(new MissionDeactivatedDomainEvent(Id, Name, occurredAt));
         return Result.Success();
     }
 
@@ -102,11 +109,13 @@ public class Mission
         if (hasActiveSessions)
             return Result.Failure(MissionErrors.HasActiveSessions);
 
+        var occurredAt = DateTime.UtcNow;
         Name = nameResult.Value.Value;
         Description = descriptionResult.Value.Value;
         Difficulty = difficulty;
         MaxDuration = durationResult.Value.Minutes;
-        UpdatedAt = DateTime.UtcNow;
+        UpdatedAt = occurredAt;
+        AddDomainEvent(new MissionUpdatedDomainEvent(Id, Name, Difficulty, occurredAt));
         return Result.Success();
     }
 }

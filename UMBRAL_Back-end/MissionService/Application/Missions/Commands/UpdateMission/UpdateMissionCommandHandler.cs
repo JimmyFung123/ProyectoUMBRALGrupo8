@@ -1,7 +1,6 @@
 namespace UMBRAL_Back_end.Application.Missions.Commands.UpdateMission;
 
 using MediatR;
-using UMBRAL.Contracts.Events;
 using UMBRAL_Back_end.Application;
 using UMBRAL_Back_end.Application.Missions;
 using UMBRAL_Back_end.Domain.Common;
@@ -10,16 +9,13 @@ using UMBRAL_Back_end.Domain.Missions;
 public class UpdateMissionCommandHandler : IRequestHandler<UpdateMissionCommand, Result>
 {
     private readonly IMissionRepository _repository;
-    private readonly IIntegrationEventBus _bus;
     private readonly ISessionServiceClient _sessionServiceClient;
 
     public UpdateMissionCommandHandler(
         IMissionRepository repository,
-        IIntegrationEventBus bus,
         ISessionServiceClient sessionServiceClient)
     {
         _repository = repository;
-        _bus = bus;
         _sessionServiceClient = sessionServiceClient;
     }
 
@@ -44,12 +40,6 @@ public class UpdateMissionCommandHandler : IRequestHandler<UpdateMissionCommand,
 
         await _repository.UpdateAsync(mission, cancellationToken);
         await _repository.SaveChangesAsync(cancellationToken);
-
-        // Integration event — SessionService updates its MissionLookup replica
-        // (specifically the Difficulty field used by IScoringStrategy)
-        await _bus.PublishAsync(
-            new MissionUpdatedIntegrationEvent(mission.Id, mission.Name, mission.Difficulty.ToString(), DateTime.UtcNow),
-            cancellationToken);
 
         return Result.Success();
     }

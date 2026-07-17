@@ -6,20 +6,17 @@ using SessionService.Application;
 using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Commands.PauseSession;
 using SessionService.Domain.Sessions;
-using UMBRAL.Contracts.Events;
+using SessionService.Domain.Sessions.Events;
 using Xunit;
 
 public class PauseSessionCommandHandlerTests
 {
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
-    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly PauseSessionCommandHandler _handler;
 
     public PauseSessionCommandHandlerTests()
     {
-        _handler = new PauseSessionCommandHandler(
-            _sessionRepoMock.Object,
-            _busMock.Object);
+        _handler = new PauseSessionCommandHandler(_sessionRepoMock.Object);
     }
 
     // ── Session not found ─────────────────────────────────────────────────────
@@ -79,11 +76,8 @@ public class PauseSessionCommandHandlerTests
         result.IsSuccess.Should().BeTrue();
         session.Status.Should().Be(SessionStatus.Paused);
         _sessionRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _busMock.Verify(
-            b => b.PublishAsync(
-                It.Is<SessionStateChangedIntegrationEvent>(e => e.SessionId == sessionId),
-                It.IsAny<CancellationToken>()),
-            Times.Once);
+        var raised = session.DomainEvents.OfType<SessionPausedDomainEvent>().Should().ContainSingle().Which;
+        raised.SessionId.Should().Be(sessionId);
     }
 
     // ── Helper ────────────────────────────────────────────────────────────────

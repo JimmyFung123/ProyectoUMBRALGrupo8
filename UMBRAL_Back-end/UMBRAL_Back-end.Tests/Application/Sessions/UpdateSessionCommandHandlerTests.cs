@@ -5,20 +5,17 @@ using Moq;
 using SessionService.Application;
 using SessionService.Application.Sessions.Commands.UpdateSession;
 using SessionService.Domain.Sessions;
-using UMBRAL.Contracts.Events;
+using SessionService.Domain.Sessions.Events;
 using Xunit;
 
 public class UpdateSessionCommandHandlerTests
 {
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
-    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly UpdateSessionCommandHandler _handler;
 
     public UpdateSessionCommandHandlerTests()
     {
-        _handler = new UpdateSessionCommandHandler(
-            _sessionRepoMock.Object,
-            _busMock.Object);
+        _handler = new UpdateSessionCommandHandler(_sessionRepoMock.Object);
     }
 
     // ── Flujo feliz ───────────────────────────────────────────────────────────
@@ -62,7 +59,7 @@ public class UpdateSessionCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenValid_WritesAuditEventWithCommandTypeAndOperator()
+    public async Task Handle_WhenValid_RaisesSessionUpdatedDomainEventWithOperator()
     {
         // HU-26: editing a session must leave an immutable trail.
         var sessionId = Guid.NewGuid();
@@ -72,20 +69,14 @@ public class UpdateSessionCommandHandlerTests
             .Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(session);
 
-        SessionAuditIntegrationEvent? captured = null;
-        _busMock
-            .Setup(b => b.PublishAsync(It.IsAny<SessionAuditIntegrationEvent>(), It.IsAny<CancellationToken>()))
-            .Callback<SessionAuditIntegrationEvent, CancellationToken>((e, _) => captured = e);
-
         var result = await _handler.Handle(
             new UpdateSessionCommand(sessionId, "Nombre actualizado", null, "Prof. Ortega"),
             default);
 
         result.IsSuccess.Should().BeTrue();
-        captured.Should().NotBeNull();
-        captured!.ActorName.Should().Be("Prof. Ortega");
-        captured.CommandType.Should().Be(nameof(UpdateSessionCommand));
-        captured.Outcome.Should().Be(SessionEvent.OutcomeSuccess);
+        var raised = session.DomainEvents.OfType<SessionUpdatedDomainEvent>().Should().ContainSingle().Which;
+        raised.OperatorName.Should().Be("Prof. Ortega");
+        raised.Name.Should().Be("Nombre actualizado");
     }
 
     // ── Sesión no encontrada ──────────────────────────────────────────────────

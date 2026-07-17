@@ -6,22 +6,20 @@ using StageService.Application;
 using StageService.Application.Stages.Commands.AddStage;
 using StageService.Domain.MissionLookup;
 using StageService.Domain.Stages;
-using UMBRAL.Contracts.Events;
+using StageService.Domain.Stages.Events;
 using Xunit;
 
 public class AddStageCommandHandlerTests
 {
     private readonly Mock<IStageRepository> _stageRepoMock = new();
     private readonly Mock<IMissionLookupRepository> _missionLookupMock = new();
-    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly AddStageCommandHandler _handler;
 
     public AddStageCommandHandlerTests()
     {
         _handler = new AddStageCommandHandler(
             _stageRepoMock.Object,
-            _missionLookupMock.Object,
-            _busMock.Object);
+            _missionLookupMock.Object);
     }
 
     [Fact]
@@ -64,7 +62,7 @@ public class AddStageCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenMissionIsInactive_CreatesStageAndPublishesEvent()
+    public async Task Handle_WhenMissionIsInactive_CreatesStageAndRaisesDomainEvent()
     {
         var missionId = Guid.NewGuid();
         var inactiveMission = MissionLookup.Create(missionId, "Inactive Mission", "Inactive");
@@ -73,14 +71,18 @@ public class AddStageCommandHandlerTests
             .Setup(r => r.GetByIdAsync(missionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(inactiveMission);
 
+        Stage? capturedStage = null;
+        _stageRepoMock
+            .Setup(r => r.AddAsync(It.IsAny<Stage>(), It.IsAny<CancellationToken>()))
+            .Callback<Stage, CancellationToken>((s, _) => capturedStage = s);
+
         var command = ValidCommand(missionId);
 
         var result = await _handler.Handle(command, default);
 
         result.IsSuccess.Should().BeTrue();
-        _busMock.Verify(
-            b => b.PublishAsync(It.IsAny<StageAddedIntegrationEvent>(), It.IsAny<CancellationToken>()),
-            Times.Once);
+        capturedStage!.DomainEvents.OfType<StageAddedDomainEvent>().Should().ContainSingle()
+            .Which.MissionId.Should().Be(missionId);
     }
 
     [Fact]

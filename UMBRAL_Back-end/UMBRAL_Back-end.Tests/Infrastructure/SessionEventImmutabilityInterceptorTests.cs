@@ -1,7 +1,9 @@
 namespace UMBRAL_Back_end.Tests.Infrastructure;
 
 using FluentAssertions;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 using SessionService.Domain.Sessions;
 using SessionService.Infrastructure.Persistence;
 using Xunit;
@@ -21,7 +23,7 @@ public class SessionEventImmutabilityInterceptorTests
             .UseInMemoryDatabase(databaseName)
             .AddInterceptors(new SessionEventImmutabilityInterceptor())
             .Options;
-        return new SessionsDbContext(options);
+        return new SessionsDbContext(options, Mock.Of<IMediator>());
     }
 
     [Fact]

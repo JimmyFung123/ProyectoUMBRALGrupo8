@@ -5,19 +5,14 @@ using SessionService.Application;
 using SessionService.Application.Sessions;
 using SessionService.Domain.Common;
 using SessionService.Domain.Sessions;
-using UMBRAL.Contracts.Events;
 
 public class ResumeSessionCommandHandler : IRequestHandler<ResumeSessionCommand, Result<bool>>
 {
     private readonly ISessionRepository _sessionRepository;
-    private readonly IIntegrationEventBus _bus;
 
-    public ResumeSessionCommandHandler(
-        ISessionRepository sessionRepository,
-        IIntegrationEventBus bus)
+    public ResumeSessionCommandHandler(ISessionRepository sessionRepository)
     {
         _sessionRepository = sessionRepository;
-        _bus = bus;
     }
 
     public async Task<Result<bool>> Handle(ResumeSessionCommand request, CancellationToken cancellationToken)
@@ -26,26 +21,11 @@ public class ResumeSessionCommandHandler : IRequestHandler<ResumeSessionCommand,
         if (session is null)
             return Result.Failure<bool>(SessionErrors.NotFound);
 
-        var result = session.Resume();
+        var result = session.Resume(request.OperatorName);
         if (result.IsFailure)
             return result;
 
         await _sessionRepository.SaveChangesAsync(cancellationToken);
-
-        // HU-22 / HU-26: audit log
-        await _bus.PublishAsync(
-            new SessionAuditIntegrationEvent(
-                request.SessionId,
-                "La sesión fue reanudada.",
-                ActorName: request.OperatorName,
-                CommandType: nameof(ResumeSessionCommand),
-                Outcome: SessionEvent.OutcomeSuccess,
-                DateTime.UtcNow),
-            cancellationToken);
-
-        await _bus.PublishAsync(
-            new SessionStateChangedIntegrationEvent(session.Id, session.Status.ToString()),
-            cancellationToken);
 
         return Result.Success(true);
     }

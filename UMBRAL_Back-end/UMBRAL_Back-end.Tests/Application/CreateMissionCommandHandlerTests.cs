@@ -2,29 +2,33 @@ namespace UMBRAL_Back_end.Tests.Application;
 
 using FluentAssertions;
 using Moq;
-using UMBRAL.Contracts.Events;
 using UMBRAL_Back_end.Application;
 using UMBRAL_Back_end.Application.Missions.Commands.CreateMission;
 using UMBRAL_Back_end.Domain.Missions;
+using UMBRAL_Back_end.Domain.Missions.Events;
 using Xunit;
 
 public class CreateMissionCommandHandlerTests
 {
     private readonly Mock<IMissionRepository> _repositoryMock = new();
-    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly CreateMissionCommandHandler _handler;
 
     public CreateMissionCommandHandlerTests()
     {
-        _handler = new CreateMissionCommandHandler(_repositoryMock.Object, _busMock.Object);
+        _handler = new CreateMissionCommandHandler(_repositoryMock.Object);
     }
 
     [Fact]
-    public async Task Handle_WhenNameIsUnique_CreatesMissionAndPublishesEvent()
+    public async Task Handle_WhenNameIsUnique_CreatesMissionAndRaisesDomainEvent()
     {
         _repositoryMock
             .Setup(r => r.ExistsWithNameAsync(It.IsAny<string>(), null, default))
             .ReturnsAsync(false);
+
+        Mission? capturedMission = null;
+        _repositoryMock
+            .Setup(r => r.AddAsync(It.IsAny<Mission>(), default))
+            .Callback<Mission, CancellationToken>((m, _) => capturedMission = m);
 
         var command = new CreateMissionCommand("Alpha Protocol", "desc", "Medium", 60);
 
@@ -36,9 +40,8 @@ public class CreateMissionCommandHandlerTests
         _repositoryMock.Verify(r => r.AddAsync(It.IsAny<Mission>(), default), Times.Once);
         _repositoryMock.Verify(r => r.SaveChangesAsync(default), Times.Once);
 
-        _busMock.Verify(
-            b => b.PublishAsync(It.IsAny<MissionCreatedIntegrationEvent>(), It.IsAny<CancellationToken>()),
-            Times.Once);
+        capturedMission!.DomainEvents.OfType<MissionCreatedDomainEvent>().Should().ContainSingle()
+            .Which.Name.Should().Be("Alpha Protocol");
     }
 
     [Fact]
@@ -56,8 +59,5 @@ public class CreateMissionCommandHandlerTests
         result.Error.Should().Be(MissionErrors.DuplicateName);
 
         _repositoryMock.Verify(r => r.AddAsync(It.IsAny<Mission>(), default), Times.Never);
-        _busMock.Verify(
-            b => b.PublishAsync(It.IsAny<MissionCreatedIntegrationEvent>(), It.IsAny<CancellationToken>()),
-            Times.Never);
     }
 }
