@@ -59,4 +59,19 @@ public class GetSessionsQueryHandlerTests
             r => r.GetAllAsync(null, null, It.IsAny<string?>(), It.IsAny<CancellationToken>()),
             Times.Once);
     }
+
+    [Fact]
+    public async Task Handle_WhenOperatorIdProvided_ForwardsItToRepository()
+    {
+        // RB-10: the controller passes null for Admins (unrestricted) and the
+        // operator's id otherwise — the handler must forward it unchanged.
+        _repoMock.Setup(r => r.GetAllAsync(It.IsAny<Guid?>(), It.IsAny<SessionStatus?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+                 .ReturnsAsync(new List<Session>());
+
+        await _handler.Handle(new GetSessionsQuery(OperatorId: "operator-1"), default);
+
+        _repoMock.Verify(
+            r => r.GetAllAsync(null, null, "operator-1", It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
 }

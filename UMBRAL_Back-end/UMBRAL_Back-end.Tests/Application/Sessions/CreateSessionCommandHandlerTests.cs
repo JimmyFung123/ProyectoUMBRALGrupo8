@@ -145,4 +145,28 @@ public class CreateSessionCommandHandlerTests
         result.IsSuccess.Should().BeTrue();
         capturedSession!.ScheduledAt!.Value.Kind.Should().Be(DateTimeKind.Utc);
     }
+
+    [Fact]
+    public async Task Handle_WhenOperatorIdProvided_StampsSessionWithCreatedByOperatorId()
+    {
+        // RB-10: the created session must record its owner for later ownership checks.
+        var missionId = Guid.NewGuid();
+        var activeMission = MissionLookup.Create(missionId, "Misión activa", "Active");
+
+        _missionLookupMock
+            .Setup(r => r.GetByIdAsync(missionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(activeMission);
+
+        Session? capturedSession = null;
+        _sessionRepoMock
+            .Setup(r => r.AddAsync(It.IsAny<Session>(), It.IsAny<CancellationToken>()))
+            .Callback<Session, CancellationToken>((s, _) => capturedSession = s);
+
+        var result = await _handler.Handle(
+            new CreateSessionCommand(missionId, "Ronda 1", null, "Prof. Ortega", "keycloak-sub-abc"),
+            default);
+
+        result.IsSuccess.Should().BeTrue();
+        capturedSession!.CreatedByOperatorId.Should().Be("keycloak-sub-abc");
+    }
 }
