@@ -53,6 +53,12 @@ public class SessionsController : ControllerBase
     /// </summary>
     private string? GetOperatorName() => User.GetOperatorDisplayName();
 
+    /// <summary>
+    /// Stable Keycloak user id extracted from the JWT, used to stamp session
+    /// ownership on creation (RB-10). Null on anonymous endpoints.
+    /// </summary>
+    private string? GetOperatorId() => User.GetOperatorId();
+
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] Guid? missionId,
@@ -285,7 +291,8 @@ public class SessionsController : ControllerBase
         try
         {
             var result = await _sender.Send(
-                new CreateSessionCommand(request.MissionId, request.Name, request.ScheduledAt, GetOperatorName()),
+                new CreateSessionCommand(
+                    request.MissionId, request.Name, request.ScheduledAt, GetOperatorName(), GetOperatorId()),
                 cancellationToken);
 
             return result.IsSuccess

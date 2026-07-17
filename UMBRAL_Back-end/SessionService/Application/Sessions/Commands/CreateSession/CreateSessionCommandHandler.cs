@@ -40,7 +40,7 @@ public class CreateSessionCommandHandler : IRequestHandler<CreateSessionCommand,
             ? DateTime.SpecifyKind(request.ScheduledAt.Value, DateTimeKind.Utc)
             : (DateTime?)null;
 
-        var sessionResult = Session.Create(request.MissionId, request.Name, scheduledAtUtc);
+        var sessionResult = Session.Create(request.MissionId, request.Name, scheduledAtUtc, request.OperatorId);
         if (sessionResult.IsFailure)
             return Result.Failure<Guid>(sessionResult.Error);
 

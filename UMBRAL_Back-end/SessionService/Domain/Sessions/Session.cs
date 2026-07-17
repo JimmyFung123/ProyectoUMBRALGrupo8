@@ -15,6 +15,9 @@ public class Session
     /// <summary>Short alphanumeric code participants use to find this session (e.g. "ABC123").</summary>
     public string AccessCode { get; private set; } = string.Empty;
 
+    /// <summary>Keycloak <c>sub</c> of the operator who created this session (RB-10). Null for sessions created before this field existed.</summary>
+    public string? CreatedByOperatorId { get; private set; }
+
     private Session() { }
 
     // State pattern — current state is derived from the persisted Status enum so
@@ -30,7 +33,8 @@ public class Session
         _                        => new PendingState()
     };
 
-    public static Result<Session> Create(Guid missionId, string name, DateTime? scheduledAt = null)
+    public static Result<Session> Create(
+        Guid missionId, string name, DateTime? scheduledAt = null, string? createdByOperatorId = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             return Result.Failure<Session>(SessionErrors.InvalidName);
@@ -44,6 +48,7 @@ public class Session
             CreatedAt = DateTime.UtcNow,
             ScheduledAt = scheduledAt,
             AccessCode = SessionCode.Generate().Value,
+            CreatedByOperatorId = createdByOperatorId,
         });
     }
 
