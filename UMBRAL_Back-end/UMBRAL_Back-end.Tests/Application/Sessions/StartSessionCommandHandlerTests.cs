@@ -6,22 +6,20 @@ using SessionService.Application;
 using SessionService.Application.Sessions;
 using SessionService.Application.Sessions.Commands.StartSession;
 using SessionService.Domain.Sessions;
-using UMBRAL.Contracts.Events;
+using SessionService.Domain.Sessions.Events;
 using Xunit;
 
 public class StartSessionCommandHandlerTests
 {
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
     private readonly Mock<ITeamServiceClient> _teamClientMock = new();
-    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly StartSessionCommandHandler _handler;
 
     public StartSessionCommandHandlerTests()
     {
         _handler = new StartSessionCommandHandler(
             _sessionRepoMock.Object,
-            _teamClientMock.Object,
-            _busMock.Object);
+            _teamClientMock.Object);
     }
 
     // ── Session not found ─────────────────────────────────────────────────────
@@ -195,20 +193,12 @@ public class StartSessionCommandHandlerTests
         result.IsSuccess.Should().BeTrue();
         session.Status.Should().Be(SessionStatus.InProgress);
         _sessionRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _busMock.Verify(
-            b => b.PublishAsync(
-                It.Is<SessionStateChangedIntegrationEvent>(e => e.SessionId == sessionId),
-                It.IsAny<CancellationToken>()),
-            Times.Once);
-        _busMock.Verify(
-            b => b.PublishAsync(
-                It.Is<SessionAuditIntegrationEvent>(e => e.Description.Contains("iniciada")),
-                It.IsAny<CancellationToken>()),
-            Times.Once);
+        session.DomainEvents.OfType<SessionStartedDomainEvent>().Should().ContainSingle()
+            .Which.SessionId.Should().Be(sessionId);
     }
 
     [Fact]
-    public async Task Handle_WhenOperatorNameProvided_RecordsAuditWithThatActor()
+    public async Task Handle_WhenOperatorNameProvided_RaisesDomainEventWithThatActor()
     {
         var sessionId = Guid.NewGuid();
         var session = Session.Create(Guid.NewGuid(), "Sesión auditada").Value;
@@ -223,15 +213,10 @@ public class StartSessionCommandHandlerTests
             .Setup(t => t.AllTeamsMeetMinimumMembersAsync(sessionId, 2, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        SessionAuditIntegrationEvent? captured = null;
-        _busMock
-            .Setup(b => b.PublishAsync(It.IsAny<SessionAuditIntegrationEvent>(), It.IsAny<CancellationToken>()))
-            .Callback<SessionAuditIntegrationEvent, CancellationToken>((ev, _) => captured = ev);
-
         await _handler.Handle(new StartSessionCommand(sessionId, OperatorName: "Prof. Ortega"), default);
 
-        captured.Should().NotBeNull();
-        captured!.ActorName.Should().Be("Prof. Ortega");
+        session.DomainEvents.OfType<SessionStartedDomainEvent>().Should().ContainSingle()
+            .Which.OperatorName.Should().Be("Prof. Ortega");
     }
 
     // ── Validation order: NotFound > NoTeams > CannotStart ───────────────────

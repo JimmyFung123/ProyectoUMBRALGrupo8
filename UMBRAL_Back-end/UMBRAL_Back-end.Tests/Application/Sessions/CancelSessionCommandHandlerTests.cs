@@ -5,20 +5,17 @@ using Moq;
 using SessionService.Application;
 using SessionService.Application.Sessions.Commands.CancelSession;
 using SessionService.Domain.Sessions;
-using UMBRAL.Contracts.Events;
+using SessionService.Domain.Sessions.Events;
 using Xunit;
 
 public class CancelSessionCommandHandlerTests
 {
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
-    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly CancelSessionCommandHandler _handler;
 
     public CancelSessionCommandHandlerTests()
     {
-        _handler = new CancelSessionCommandHandler(
-            _sessionRepoMock.Object,
-            _busMock.Object);
+        _handler = new CancelSessionCommandHandler(_sessionRepoMock.Object);
     }
 
     // ── Sesión no encontrada ──────────────────────────────────────────────────
@@ -58,16 +55,14 @@ public class CancelSessionCommandHandlerTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be(SessionErrors.CannotCancelNonPendingSession);
-        _busMock.Verify(
-            b => b.PublishAsync(It.IsAny<SessionCancelledIntegrationEvent>(), It.IsAny<CancellationToken>()),
-            Times.Never);
+        session.DomainEvents.OfType<SessionCancelledDomainEvent>().Should().BeEmpty();
         _sessionRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     // ── Flujo feliz ───────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task Handle_WhenSessionIsPending_CancelsAndPublishesEvent()
+    public async Task Handle_WhenSessionIsPending_CancelsAndRaisesDomainEvent()
     {
         var sessionId = Guid.NewGuid();
         var session = Session.Create(Guid.NewGuid(), "Sesión cancelable").Value;
@@ -76,53 +71,14 @@ public class CancelSessionCommandHandlerTests
             .Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(session);
 
-        var result = await _handler.Handle(new CancelSessionCommand(sessionId), default);
+        var result = await _handler.Handle(new CancelSessionCommand(sessionId, "Op. Juan"), default);
 
         result.IsSuccess.Should().BeTrue();
         session.Status.Should().Be(SessionStatus.Cancelled);
         _sessionRepoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _busMock.Verify(
-            b => b.PublishAsync(It.IsAny<SessionCancelledIntegrationEvent>(), It.IsAny<CancellationToken>()),
-            Times.Once);
-        _busMock.Verify(
-            b => b.PublishAsync(
-                It.Is<SessionAuditIntegrationEvent>(e =>
-                    e.SessionId == sessionId
-                    && e.Description == "La sesión fue cancelada."
-                    && e.CommandType == nameof(CancelSessionCommand)
-                    && e.Outcome == SessionEvent.OutcomeSuccess),
-                It.IsAny<CancellationToken>()),
-            Times.Once);
-    }
-
-    // ── Orden: save antes de publish ──────────────────────────────────────────
-
-    [Fact]
-    public async Task Handle_WhenSessionIsPending_SavesBeforePublishing()
-    {
-        var sessionId = Guid.NewGuid();
-        var session = Session.Create(Guid.NewGuid(), "Sesión ordenada").Value;
-
-        _sessionRepoMock
-            .Setup(r => r.GetByIdAsync(sessionId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(session);
-
-        var callOrder = new List<string>();
-
-        _sessionRepoMock
-            .Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()))
-            .Callback(() => callOrder.Add("SaveChanges"))
-            .Returns(Task.CompletedTask);
-
-        _busMock
-            .Setup(b => b.PublishAsync(It.IsAny<SessionCancelledIntegrationEvent>(), It.IsAny<CancellationToken>()))
-            .Callback(() => callOrder.Add("Publish"))
-            .Returns(Task.CompletedTask);
-
-        var result = await _handler.Handle(new CancelSessionCommand(sessionId), default);
-
-        result.IsSuccess.Should().BeTrue();
-        callOrder.Should().Equal("SaveChanges", "Publish");
+        var raised = session.DomainEvents.OfType<SessionCancelledDomainEvent>().Should().ContainSingle().Which;
+        raised.SessionId.Should().Be(session.Id);
+        raised.OperatorName.Should().Be("Op. Juan");
     }
 
     // ── Helper ────────────────────────────────────────────────────────────────
