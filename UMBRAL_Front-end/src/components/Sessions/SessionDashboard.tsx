@@ -146,9 +146,11 @@ export function SessionDashboard({ sessionId, onBack, canManage, onOpenCommandAu
   const [cluesByStage, setCluesByStage] = useState<Record<string, Clue[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [forbidden, setForbidden] = useState(false);
   const [copied, setCopied] = useState(false);
   const [commandAudit, setCommandAudit] = useState<SessionCommandAudit | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hubRef = useRef<{ dispose: () => void } | null>(null);
 
   // El dominio no registra arranque/pausas/fin, solo CreatedAt — se deriva del
   // log técnico de auditoría (HU-26), que sí tiene CommandType con precisión
@@ -183,6 +185,18 @@ export function SessionDashboard({ sessionId, onBack, canManage, onOpenCommandAu
         sessionService.getCommandAudit(sessionId),
       ]);
       if (dashboardResult.status === 'rejected') {
+        // 403 (RB-10: sesión de otro operador) es permanente, no transitorio —
+        // cortamos el polling y el hub en vez de reintentar cada 10s para siempre.
+        const reason = dashboardResult.reason as { code?: string } | undefined;
+        if (reason?.code === 'Forbidden') {
+          setForbidden(true);
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+          hubRef.current?.dispose();
+          return;
+        }
         setError('No se pudo cargar el tablero. Reintentando…');
         return;
       }
@@ -201,6 +215,7 @@ export function SessionDashboard({ sessionId, onBack, canManage, onOpenCommandAu
 
   useEffect(() => {
     const hub = connectToSessionHub({ sessionId, onRefresh: () => load() });
+    hubRef.current = hub;
     return () => hub.dispose();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
@@ -222,6 +237,18 @@ export function SessionDashboard({ sessionId, onBack, canManage, onOpenCommandAu
   }
 
   if (loading) return <Card><Spinner label="Cargando tablero…" /></Card>;
+  if (forbidden) {
+    return (
+      <div>
+        <Button variant="ghost" size="sm" onClick={onBack} leadingIcon="←">
+          Volver
+        </Button>
+        <Alert tone="danger" title="Sin permiso" className="mt-3">
+          No tenés permiso para administrar esta sesión — fue creada por otro operador.
+        </Alert>
+      </div>
+    );
+  }
   if (error && !data) return <Alert tone="danger">{error}</Alert>;
 
   return (
