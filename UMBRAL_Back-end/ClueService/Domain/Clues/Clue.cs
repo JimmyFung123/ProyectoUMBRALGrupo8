@@ -1,5 +1,6 @@
 namespace ClueService.Domain.Clues;
 using ClueService.Domain.Common;
+using ClueService.Domain.Clues.Events;
 
 public class Clue : AggregateRoot
 {
@@ -35,20 +36,25 @@ public class Clue : AggregateRoot
         if (validation.IsFailure)
             return Result.Failure<Clue>(validation.Error);
 
-        return Result.Success(new Clue
+        var createdAt = DateTime.UtcNow;
+        var normalizedContent = string.IsNullOrWhiteSpace(content) ? null : content;
+        var clue = new Clue
         {
             Id = Guid.NewGuid(),
             StageId = stageId,
             MissionId = missionId,
             StageType = NormalizeStageType(stageType),
             Order = order,
-            Content = string.IsNullOrWhiteSpace(content) ? null : content,
+            Content = normalizedContent,
             Latitude = latitude,
             Longitude = longitude,
             RadiusMeters = radiusMeters,
             AutoReleaseAfterMinutes = autoReleaseAfterMinutes,
-            CreatedAt = DateTime.UtcNow
-        });
+            CreatedAt = createdAt
+        };
+        clue.AddDomainEvent(new ClueAddedDomainEvent(
+            clue.Id, stageId, missionId, normalizedContent, latitude, longitude, radiusMeters, createdAt));
+        return Result.Success(clue);
     }
 
     // Legacy overload kept for back-compat with older callers (tests/migrations).

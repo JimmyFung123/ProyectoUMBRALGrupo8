@@ -5,23 +5,21 @@ using Moq;
 using ClueService.Application;
 using ClueService.Application.Clues.Commands.AddClue;
 using ClueService.Domain.Clues;
+using ClueService.Domain.Clues.Events;
 using ClueService.Domain.StageLookup;
-using UMBRAL.Contracts.Events;
 using Xunit;
 
 public class AddClueCommandHandlerTests
 {
     private readonly Mock<IClueRepository> _clueRepoMock = new();
     private readonly Mock<IStageLookupRepository> _stageLookupMock = new();
-    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly AddClueCommandHandler _handler;
 
     public AddClueCommandHandlerTests()
     {
         _handler = new AddClueCommandHandler(
             _clueRepoMock.Object,
-            _stageLookupMock.Object,
-            _busMock.Object);
+            _stageLookupMock.Object);
     }
 
     private AddClueCommand TriviaCmd(Guid stageId, int order = 0, string? content = "Contenido válido")
@@ -65,7 +63,7 @@ public class AddClueCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_TriviaValid_CreatesClueWithComputedOrderAndPublishesEvent()
+    public async Task Handle_TriviaValid_CreatesClueWithComputedOrderAndRaisesDomainEvent()
     {
         var stageId = Guid.NewGuid();
         var missionId = Guid.NewGuid();
@@ -82,16 +80,19 @@ public class AddClueCommandHandlerTests
         _clueRepoMock.Setup(r => r.GetByStageIdAsync(stageId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingClues);
 
+        Clue? capturedClue = null;
+        _clueRepoMock
+            .Setup(r => r.AddAsync(It.IsAny<Clue>(), It.IsAny<CancellationToken>()))
+            .Callback<Clue, CancellationToken>((c, _) => capturedClue = c);
+
         var result = await _handler.Handle(TriviaCmd(stageId, content: "Busca debajo del árbol"), default);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBe(Guid.Empty);
-        _clueRepoMock.Verify(r => r.AddAsync(
-            It.Is<Clue>(c => c.Order == 3 && c.Content == "Busca debajo del árbol" && c.StageType == "Trivia"),
-            It.IsAny<CancellationToken>()), Times.Once);
-        _busMock.Verify(
-            b => b.PublishAsync(It.IsAny<ClueAddedIntegrationEvent>(), It.IsAny<CancellationToken>()),
-            Times.Once);
+        capturedClue!.Order.Should().Be(3);
+        capturedClue.Content.Should().Be("Busca debajo del árbol");
+        capturedClue.StageType.Should().Be("Trivia");
+        capturedClue.DomainEvents.OfType<ClueAddedDomainEvent>().Should().ContainSingle();
     }
 
     [Fact]

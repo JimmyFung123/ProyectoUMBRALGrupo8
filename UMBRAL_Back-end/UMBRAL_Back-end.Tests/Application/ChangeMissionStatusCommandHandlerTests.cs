@@ -2,17 +2,16 @@ namespace UMBRAL_Back_end.Tests.Application;
 
 using FluentAssertions;
 using Moq;
-using UMBRAL.Contracts.Events;
 using UMBRAL_Back_end.Application;
 using UMBRAL_Back_end.Application.Missions;
 using UMBRAL_Back_end.Application.Missions.Commands.ChangeMissionStatus;
 using UMBRAL_Back_end.Domain.Missions;
+using UMBRAL_Back_end.Domain.Missions.Events;
 using Xunit;
 
 public class ChangeMissionStatusCommandHandlerTests
 {
     private readonly Mock<IMissionRepository> _repositoryMock = new();
-    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly Mock<IStageCountLookupRepository> _stageCountLookupMock = new();
     private readonly Mock<ISessionServiceClient> _sessionClientMock = new();
     private readonly ChangeMissionStatusCommandHandler _handler;
@@ -21,7 +20,6 @@ public class ChangeMissionStatusCommandHandlerTests
     {
         _handler = new ChangeMissionStatusCommandHandler(
             _repositoryMock.Object,
-            _busMock.Object,
             _stageCountLookupMock.Object,
             _sessionClientMock.Object);
     }
@@ -48,9 +46,7 @@ public class ChangeMissionStatusCommandHandlerTests
         mission.Status.Should().Be(MissionStatus.Active);
 
         _repositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Mission>(), default), Times.Once);
-        _busMock.Verify(
-            b => b.PublishAsync(It.IsAny<MissionActivatedIntegrationEvent>(), It.IsAny<CancellationToken>()),
-            Times.Once);
+        mission.DomainEvents.OfType<MissionActivatedDomainEvent>().Should().ContainSingle();
     }
 
     [Fact]
@@ -95,9 +91,7 @@ public class ChangeMissionStatusCommandHandlerTests
         mission.Status.Should().Be(MissionStatus.Inactive);
 
         _repositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Mission>(), default), Times.Once);
-        _busMock.Verify(
-            b => b.PublishAsync(It.IsAny<MissionDeactivatedIntegrationEvent>(), It.IsAny<CancellationToken>()),
-            Times.Once);
+        mission.DomainEvents.OfType<MissionDeactivatedDomainEvent>().Should().ContainSingle();
     }
 
     [Fact]

@@ -1,5 +1,6 @@
 namespace StageService.Domain.Stages;
 using StageService.Domain.Common;
+using StageService.Domain.Stages.Events;
 
 /// <summary>
 /// Aggregate Root of a mission stage (Mission Design context). Unifies the
@@ -57,7 +58,8 @@ public class Stage : AggregateRoot
         var treasure = ValidateTreasure(type, latitude, longitude, qrCode);
         if (treasure.IsFailure) return Result.Failure<Stage>(treasure.Error);
 
-        return Result.Success(new Stage
+        var createdAt = DateTime.UtcNow;
+        var stage = new Stage
         {
             Id = Guid.NewGuid(),
             MissionId = missionId,
@@ -69,8 +71,10 @@ public class Stage : AggregateRoot
             Latitude = latitude,
             Longitude = longitude,
             QrCode = qrCode?.Trim(),
-            CreatedAt = DateTime.UtcNow
-        });
+            CreatedAt = createdAt
+        };
+        stage.AddDomainEvent(new StageAddedDomainEvent(stage.Id, missionId, type, createdAt));
+        return Result.Success(stage);
     }
 
     public Result<bool> Update(
