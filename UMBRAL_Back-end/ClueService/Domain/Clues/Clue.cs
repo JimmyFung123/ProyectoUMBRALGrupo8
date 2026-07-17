@@ -1,7 +1,8 @@
 namespace ClueService.Domain.Clues;
 using ClueService.Domain.Common;
+using ClueService.Domain.Clues.Events;
 
-public class Clue
+public class Clue : AggregateRoot
 {
     public Guid Id { get; private set; }
     public Guid StageId { get; private set; }
@@ -35,20 +36,25 @@ public class Clue
         if (validation.IsFailure)
             return Result.Failure<Clue>(validation.Error);
 
-        return Result.Success(new Clue
+        var createdAt = DateTime.UtcNow;
+        var normalizedContent = string.IsNullOrWhiteSpace(content) ? null : content;
+        var clue = new Clue
         {
             Id = Guid.NewGuid(),
             StageId = stageId,
             MissionId = missionId,
             StageType = NormalizeStageType(stageType),
             Order = order,
-            Content = string.IsNullOrWhiteSpace(content) ? null : content,
+            Content = normalizedContent,
             Latitude = latitude,
             Longitude = longitude,
             RadiusMeters = radiusMeters,
             AutoReleaseAfterMinutes = autoReleaseAfterMinutes,
-            CreatedAt = DateTime.UtcNow
-        });
+            CreatedAt = createdAt
+        };
+        clue.AddDomainEvent(new ClueAddedDomainEvent(
+            clue.Id, stageId, missionId, normalizedContent, latitude, longitude, radiusMeters, createdAt));
+        return Result.Success(clue);
     }
 
     // Legacy overload kept for back-compat with older callers (tests/migrations).
@@ -72,6 +78,10 @@ public class Clue
     }
 
     public void SetAutoRelease(int? minutes) => AutoReleaseAfterMinutes = minutes;
+
+    /// <summary>Marks this clue for removal, raising the domain event the
+    /// caller's repository.DeleteAsync(...) call is about to make true.</summary>
+    public void MarkForRemoval() => AddDomainEvent(new ClueRemovedDomainEvent(Id, StageId, MissionId, DateTime.UtcNow));
 
     private static Result<bool> ValidatePayloadForStageType(
         string stageType, string? content, double? latitude, double? longitude, int? radiusMeters)

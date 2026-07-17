@@ -4,19 +4,16 @@ using ClueService.Application;
 using ClueService.Domain.Clues;
 using ClueService.Domain.Common;
 using ClueService.Domain.StageLookup;
-using UMBRAL.Contracts.Events;
 
 public class AddClueCommandHandler : IRequestHandler<AddClueCommand, Result<Guid>>
 {
     private readonly IClueRepository _clueRepository;
     private readonly IStageLookupRepository _stageLookupRepository;
-    private readonly IIntegrationEventBus _bus;
 
-    public AddClueCommandHandler(IClueRepository clueRepository, IStageLookupRepository stageLookupRepository, IIntegrationEventBus bus)
+    public AddClueCommandHandler(IClueRepository clueRepository, IStageLookupRepository stageLookupRepository)
     {
         _clueRepository = clueRepository;
         _stageLookupRepository = stageLookupRepository;
-        _bus = bus;
     }
 
     public async Task<Result<Guid>> Handle(AddClueCommand request, CancellationToken cancellationToken)
@@ -43,13 +40,6 @@ public class AddClueCommandHandler : IRequestHandler<AddClueCommand, Result<Guid
         var clue = result.Value;
         await _clueRepository.AddAsync(clue, cancellationToken);
         await _clueRepository.SaveChangesAsync(cancellationToken);
-
-        await _bus.PublishAsync(
-            new ClueAddedIntegrationEvent(
-                clue.Id, clue.StageId, clue.MissionId,
-                clue.Content, clue.Latitude, clue.Longitude, clue.RadiusMeters,
-                DateTime.UtcNow),
-            cancellationToken);
 
         return Result.Success(clue.Id);
     }

@@ -5,22 +5,18 @@ using SessionService.Application;
 using SessionService.Application.Sessions;
 using SessionService.Domain.Common;
 using SessionService.Domain.Sessions;
-using UMBRAL.Contracts.Events;
 
 public class StartSessionCommandHandler : IRequestHandler<StartSessionCommand, Result<bool>>
 {
     private readonly ISessionRepository _sessionRepository;
     private readonly ITeamServiceClient _teamServiceClient;
-    private readonly IIntegrationEventBus _bus;
 
     public StartSessionCommandHandler(
         ISessionRepository sessionRepository,
-        ITeamServiceClient teamServiceClient,
-        IIntegrationEventBus bus)
+        ITeamServiceClient teamServiceClient)
     {
         _sessionRepository = sessionRepository;
         _teamServiceClient = teamServiceClient;
-        _bus = bus;
     }
 
     public async Task<Result<bool>> Handle(StartSessionCommand request, CancellationToken cancellationToken)
@@ -40,26 +36,11 @@ public class StartSessionCommandHandler : IRequestHandler<StartSessionCommand, R
         if (!allMeetMinimum)
             return Result.Failure<bool>(SessionErrors.TeamBelowMinimumMembers);
 
-        var result = session.Start();
+        var result = session.Start(request.OperatorName);
         if (result.IsFailure)
             return result;
 
         await _sessionRepository.SaveChangesAsync(cancellationToken);
-
-        // HU-22 / HU-26: audit log of the state change
-        await _bus.PublishAsync(
-            new SessionAuditIntegrationEvent(
-                request.SessionId,
-                "La sesión fue iniciada.",
-                ActorName: request.OperatorName,
-                CommandType: nameof(StartSessionCommand),
-                Outcome: SessionEvent.OutcomeSuccess,
-                DateTime.UtcNow),
-            cancellationToken);
-
-        await _bus.PublishAsync(
-            new SessionStateChangedIntegrationEvent(session.Id, session.Status.ToString()),
-            cancellationToken);
 
         return Result.Success(true);
     }

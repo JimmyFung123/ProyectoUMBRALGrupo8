@@ -2,9 +2,9 @@ namespace UMBRAL_Back_end.Domain.Missions.Events;
 
 using UMBRAL_Back_end.Domain.Common;
 
-public record MissionActivatedEvent(
+public record MissionUpdatedDomainEvent(
     Guid MissionId,
     string Name,
-    int StageCount,
-    DateTime ActivatedAt
+    DifficultyLevel Difficulty,
+    DateTime OccurredAt
 ) : IDomainEvent;

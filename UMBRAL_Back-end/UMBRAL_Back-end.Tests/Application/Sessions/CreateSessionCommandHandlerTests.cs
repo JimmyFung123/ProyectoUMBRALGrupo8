@@ -6,22 +6,20 @@ using SessionService.Application;
 using SessionService.Application.Sessions.Commands.CreateSession;
 using SessionService.Domain.MissionLookup;
 using SessionService.Domain.Sessions;
-using UMBRAL.Contracts.Events;
+using SessionService.Domain.Sessions.Events;
 using Xunit;
 
 public class CreateSessionCommandHandlerTests
 {
     private readonly Mock<ISessionRepository> _sessionRepoMock = new();
     private readonly Mock<IMissionLookupRepository> _missionLookupMock = new();
-    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly CreateSessionCommandHandler _handler;
 
     public CreateSessionCommandHandlerTests()
     {
         _handler = new CreateSessionCommandHandler(
             _sessionRepoMock.Object,
-            _missionLookupMock.Object,
-            _busMock.Object);
+            _missionLookupMock.Object);
     }
 
     [Fact]
@@ -92,11 +90,10 @@ public class CreateSessionCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenValid_WritesAuditEventWithCommandTypeAndOperator()
+    public async Task Handle_WhenValid_RaisesSessionCreatedDomainEventWithOperator()
     {
-        // HU-26: the very first row of a session's audit log must capture the
-        // creation event with the technical command type and the operator that
-        // triggered it.
+        // HU-26: the creation event must carry the operator that triggered it,
+        // so the translation handler can build the audit log entry from it.
         var missionId = Guid.NewGuid();
         var activeMission = MissionLookup.Create(missionId, "Misión activa", "Active");
 
@@ -104,24 +101,20 @@ public class CreateSessionCommandHandlerTests
             .Setup(r => r.GetByIdAsync(missionId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(activeMission);
 
-        SessionAuditIntegrationEvent? captured = null;
-        _busMock
-            .Setup(b => b.PublishAsync(It.IsAny<SessionAuditIntegrationEvent>(), It.IsAny<CancellationToken>()))
-            .Callback<SessionAuditIntegrationEvent, CancellationToken>((e, _) => captured = e);
+        Session? capturedSession = null;
+        _sessionRepoMock
+            .Setup(r => r.AddAsync(It.IsAny<Session>(), It.IsAny<CancellationToken>()))
+            .Callback<Session, CancellationToken>((s, _) => capturedSession = s);
 
         var result = await _handler.Handle(
             new CreateSessionCommand(missionId, "Ronda 1", null, "Prof. Ortega"),
             default);
 
         result.IsSuccess.Should().BeTrue();
-        captured.Should().NotBeNull();
-        captured!.ActorName.Should().Be("Prof. Ortega");
-        captured.CommandType.Should().Be(nameof(CreateSessionCommand));
-        captured.Outcome.Should().Be(SessionEvent.OutcomeSuccess);
-        captured.Description.Should().Contain("Ronda 1");
-        _busMock.Verify(
-            b => b.PublishAsync(It.IsAny<SessionAuditIntegrationEvent>(), It.IsAny<CancellationToken>()),
-            Times.Once);
+        capturedSession!.DomainEvents.Should().ContainSingle();
+        var raised = capturedSession.DomainEvents.Single().Should().BeOfType<SessionCreatedDomainEvent>().Subject;
+        raised.OperatorName.Should().Be("Prof. Ortega");
+        raised.Name.Should().Be("Ronda 1");
     }
 
     [Fact]

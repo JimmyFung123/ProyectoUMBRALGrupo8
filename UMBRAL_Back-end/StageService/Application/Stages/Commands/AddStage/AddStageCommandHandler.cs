@@ -4,19 +4,16 @@ using StageService.Application;
 using StageService.Domain.Common;
 using StageService.Domain.MissionLookup;
 using StageService.Domain.Stages;
-using UMBRAL.Contracts.Events;
 
 public class AddStageCommandHandler : IRequestHandler<AddStageCommand, Result<Guid>>
 {
     private readonly IStageRepository _stageRepository;
     private readonly IMissionLookupRepository _missionLookupRepository;
-    private readonly IIntegrationEventBus _bus;
 
-    public AddStageCommandHandler(IStageRepository stageRepository, IMissionLookupRepository missionLookupRepository, IIntegrationEventBus bus)
+    public AddStageCommandHandler(IStageRepository stageRepository, IMissionLookupRepository missionLookupRepository)
     {
         _stageRepository = stageRepository;
         _missionLookupRepository = missionLookupRepository;
-        _bus = bus;
     }
 
     public async Task<Result<Guid>> Handle(AddStageCommand request, CancellationToken cancellationToken)
@@ -42,8 +39,6 @@ public class AddStageCommandHandler : IRequestHandler<AddStageCommand, Result<Gu
 
         await _stageRepository.AddAsync(stage, cancellationToken);
         await _stageRepository.SaveChangesAsync(cancellationToken);
-
-        await _bus.PublishAsync(new StageAddedIntegrationEvent(stage.Id, request.MissionId, request.Type, DateTime.UtcNow), cancellationToken);
 
         return Result.Success(stage.Id);
     }

@@ -2,22 +2,21 @@ namespace UMBRAL_Back_end.Tests.Application.Missions;
 
 using FluentAssertions;
 using Moq;
-using UMBRAL.Contracts.Events;
 using UMBRAL_Back_end.Application;
 using UMBRAL_Back_end.Application.Missions;
 using UMBRAL_Back_end.Application.Missions.Commands.UpdateMission;
 using UMBRAL_Back_end.Domain.Missions;
+using UMBRAL_Back_end.Domain.Missions.Events;
 using Xunit;
 
 public class UpdateMissionCommandHandlerTests
 {
     private readonly Mock<IMissionRepository> _repoMock = new();
-    private readonly Mock<IIntegrationEventBus> _busMock = new();
     private readonly Mock<ISessionServiceClient> _sessionClientMock = new();
     private readonly UpdateMissionCommandHandler _handler;
 
     public UpdateMissionCommandHandlerTests()
-        => _handler = new UpdateMissionCommandHandler(_repoMock.Object, _busMock.Object, _sessionClientMock.Object);
+        => _handler = new UpdateMissionCommandHandler(_repoMock.Object, _sessionClientMock.Object);
 
     private static UpdateMissionCommand ValidCommand(Guid id) =>
         new(id, "Nuevo nombre", "Nueva descripción", "Medium", 60);
@@ -48,7 +47,7 @@ public class UpdateMissionCommandHandlerTests
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be(MissionErrors.DuplicateName);
-        _busMock.Verify(b => b.PublishAsync(It.IsAny<MissionUpdatedIntegrationEvent>(), It.IsAny<CancellationToken>()), Times.Never);
+        mission.DomainEvents.OfType<MissionUpdatedDomainEvent>().Should().BeEmpty();
     }
 
     [Fact]
@@ -68,7 +67,7 @@ public class UpdateMissionCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ValidUpdate_SavesAndPublishesEvent()
+    public async Task Handle_ValidUpdate_SavesAndRaisesDomainEvent()
     {
         var mission = Mission.Create("Original", "d", DifficultyLevel.Easy, 30).Value;
         _repoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
@@ -83,6 +82,7 @@ public class UpdateMissionCommandHandlerTests
         result.IsSuccess.Should().BeTrue();
         _repoMock.Verify(r => r.UpdateAsync(mission, It.IsAny<CancellationToken>()), Times.Once);
         _repoMock.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _busMock.Verify(b => b.PublishAsync(It.IsAny<MissionUpdatedIntegrationEvent>(), It.IsAny<CancellationToken>()), Times.Once);
+        mission.DomainEvents.OfType<MissionUpdatedDomainEvent>().Should().ContainSingle()
+            .Which.Name.Should().Be("Nuevo nombre");
     }
 }

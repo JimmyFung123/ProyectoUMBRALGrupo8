@@ -1,9 +1,10 @@
 namespace SessionService.Domain.Sessions;
 
 using SessionService.Domain.Common;
+using SessionService.Domain.Sessions.Events;
 using SessionService.Domain.Sessions.States;
 
-public class Session
+public class Session : AggregateRoot
 {
     public Guid Id { get; private set; }
     public Guid MissionId { get; private set; }
@@ -34,12 +35,13 @@ public class Session
     };
 
     public static Result<Session> Create(
-        Guid missionId, string name, DateTime? scheduledAt = null, string? createdByOperatorId = null)
+        Guid missionId, string name, DateTime? scheduledAt = null, string? createdByOperatorId = null,
+        string? operatorName = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             return Result.Failure<Session>(SessionErrors.InvalidName);
 
-        return Result.Success(new Session
+        var session = new Session
         {
             Id = Guid.NewGuid(),
             MissionId = missionId,
@@ -49,32 +51,69 @@ public class Session
             ScheduledAt = scheduledAt,
             AccessCode = SessionCode.Generate().Value,
             CreatedByOperatorId = createdByOperatorId,
-        });
+        };
+        session.AddDomainEvent(new SessionCreatedDomainEvent(session.Id, session.Name, operatorName, session.CreatedAt));
+        return Result.Success(session);
     }
 
     // ── Public lifecycle API (delegates to current state) ────────────────────
 
     /// <summary>Starts the session. Only allowed while Pending.</summary>
-    public Result<bool> Start()    => CurrentState.Start(this);
+    public Result<bool> Start(string? operatorName = null)
+    {
+        var result = CurrentState.Start(this);
+        if (result.IsSuccess)
+            AddDomainEvent(new SessionStartedDomainEvent(Id, Status, operatorName, DateTime.UtcNow));
+        return result;
+    }
 
     /// <summary>Pauses the session. Only allowed while InProgress.</summary>
-    public Result<bool> Pause()    => CurrentState.Pause(this);
+    public Result<bool> Pause(string? operatorName = null)
+    {
+        var result = CurrentState.Pause(this);
+        if (result.IsSuccess)
+            AddDomainEvent(new SessionPausedDomainEvent(Id, Status, operatorName, DateTime.UtcNow));
+        return result;
+    }
 
     /// <summary>Resumes the session. Only allowed while Paused.</summary>
-    public Result<bool> Resume()   => CurrentState.Resume(this);
+    public Result<bool> Resume(string? operatorName = null)
+    {
+        var result = CurrentState.Resume(this);
+        if (result.IsSuccess)
+            AddDomainEvent(new SessionResumedDomainEvent(Id, Status, operatorName, DateTime.UtcNow));
+        return result;
+    }
 
     /// <summary>Finalizes the session. Allowed from InProgress or Paused. Irreversible.</summary>
-    public Result<bool> Finalize() => CurrentState.Finalize(this);
+    public Result<bool> Finalize(string? operatorName = null)
+    {
+        var result = CurrentState.Finalize(this);
+        if (result.IsSuccess)
+            AddDomainEvent(new SessionFinalizedDomainEvent(Id, Status, operatorName, DateTime.UtcNow));
+        return result;
+    }
 
     /// <summary>
     /// Cancels the session. Only allowed while still Pending.
     /// Enrolled teams must be removed by the caller before persisting.
     /// </summary>
-    public Result<bool> Cancel()   => CurrentState.Cancel(this);
+    public Result<bool> Cancel(string? operatorName = null)
+    {
+        var result = CurrentState.Cancel(this);
+        if (result.IsSuccess)
+            AddDomainEvent(new SessionCancelledDomainEvent(Id, operatorName, DateTime.UtcNow));
+        return result;
+    }
 
     /// <summary>Updates name and scheduled date. Only allowed when still Pending.</summary>
-    public Result<bool> Update(string name, DateTime? scheduledAt)
-        => CurrentState.Update(this, name, scheduledAt);
+    public Result<bool> Update(string name, DateTime? scheduledAt, string? operatorName = null)
+    {
+        var result = CurrentState.Update(this, name, scheduledAt);
+        if (result.IsSuccess)
+            AddDomainEvent(new SessionUpdatedDomainEvent(Id, Name, ScheduledAt, operatorName, DateTime.UtcNow));
+        return result;
+    }
 
     // ── Internal hooks called by state objects ────────────────────────────────
 
