@@ -74,3 +74,6 @@ desktop.ini
 
 # ── estado del deploy (último commit estable para rollback) ──────────────────
 .deploy/
+.graphifyignore
+CLAUDE.md
+graphify-out
